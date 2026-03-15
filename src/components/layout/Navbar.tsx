@@ -18,11 +18,17 @@ export function Navbar() {
 
   useEffect(() => {
     const checkAdmin = async () => {
-      if (user) {
+      if (user && user.walletAddress) {
         const config = await getSystemConfig();
-        if (config && config.admin_wallet_address === user.walletAddress) {
+        // Case-insensitive comparison for wallet addresses
+        if (config && config.admin_wallet_address && user.walletAddress &&
+            config.admin_wallet_address.toLowerCase() === user.walletAddress.toLowerCase()) {
           setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
         }
+      } else {
+        setIsAdmin(false);
       }
     };
     checkAdmin();

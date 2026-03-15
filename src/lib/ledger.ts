@@ -39,11 +39,17 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
  */
 export async function initializeSystemConfig() {
   const existing = await getSystemConfig();
-  if (existing) throw new Error("System already initialized.");
+  if (existing && existing.genesis_initialized) {
+    throw new Error("System already initialized.");
+  }
 
-  const walletMap: Record<string, string> = {};
+  const walletData: { [key: string]: { address: string; balance: number; currency: string } } = {};
   SYSTEM_WALLETS.forEach(w => {
-    walletMap[w] = `0xSYS_${w.toUpperCase()}`;
+    walletData[w] = {
+      address: `0xSYS_${w.toUpperCase()}`,
+      balance: w === 'genesis_wallet' ? 1000000000 : 0, // 1 Billion Total Supply
+      currency: w.includes('usdt') ? 'USDT' : 'ULC'
+    };
   });
 
   const config: SystemConfig = {
@@ -52,50 +58,33 @@ export async function initializeSystemConfig() {
     admin_wallet_address: "",
     supported_usdt_networks: ["TRON", "ETHEREUM", "BSC", "POLYGON"],
     ulc_token_network: "OASIS_ROSE",
-
     ulc_presale_price: 0.01,
     internal_ulc_purchase_price: 0.015,
-
     amm_launch_price: 0.015,
     amm_activation_threshold: 150000,
     amm_enabled: false,
     amm_mode: "inactive",
-
     wallet_integration_enabled: true,
     subscription_split_enabled: true,
     creator_payout_mode: "split",
-
     presale_vesting_months: 24,
     creator_incentive_vesting_months: 24,
     team_vesting_months: 36,
     team_vesting_cliff_months: 0,
-
     subscription_buyback_ratio: 0.5,
     subscription_treasury_ratio: 0.5,
-
     premium_commission_staking_ratio: 0.5,
     premium_commission_treasury_ratio: 0.5,
-
     emission_rate: 0.000002,
     emission_max_reward: 20,
-    
     genesis_initialized: true,
-    wallets: walletMap as any,
+    wallets: walletData as any, // Centralized wallet data
     ai_chat_cost: 0.5
   };
 
   const batch = writeBatch(db);
-  batch.set(doc(db, CONFIG_DOC_PATH), config);
-
-  // Initialize system wallet balances
-  SYSTEM_WALLETS.forEach(w => {
-    batch.set(doc(db, 'system_wallets', w), {
-      address: walletMap[w],
-      balance: w === 'genesis_wallet' ? 1000000000 : 0, // 1 Billion Total Supply
-      currency: 'ULC',
-      updatedAt: Date.now()
-    });
-  });
+  // Set all config, including wallets, in a single document
+  batch.set(doc(db, CONFIG_DOC_PATH), config, { merge: true });
 
   await batch.commit();
 
@@ -113,8 +102,8 @@ export async function initializeSystemConfig() {
 
   for (const dist of distributions) {
     await recordTransaction({
-      fromWallet: walletMap.genesis_wallet,
-      toWallet: walletMap[dist.wallet],
+      fromWallet: walletData.genesis_wallet.address,
+      toWallet: walletData[dist.wallet].address,
       amount: dist.amount,
       currency: 'ULC',
       type: 'genesis_allocation',
@@ -129,28 +118,36 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
   const timestamp = Date.now();
   const batch = writeBatch(db);
   const ledgerRef = collection(db, 'ledger');
-  
+  const configRef = doc(db, CONFIG_DOC_PATH);
+
   const docRef = doc(ledgerRef);
   batch.set(docRef, { ...entry, timestamp });
 
+  const configSnap = await getDoc(configRef);
+  const config = configSnap.data() as SystemConfig;
+  const walletAddresses = config ? Object.values(config.wallets).map(w => w.address) : [];
+  
+  const fromSysWalletName = Object.keys(config.wallets).find(key => config.wallets[key].address === entry.fromWallet);
+  const toSysWalletName = Object.keys(config.wallets).find(key => config.wallets[key].address === entry.toWallet);
+
   if (entry.currency === 'ULC') {
-    const fromSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.fromWallet || w === entry.fromWallet);
-    if (fromSys) {
-      batch.update(doc(db, 'system_wallets', fromSys), { balance: increment(-entry.amount), updatedAt: timestamp });
+    if (fromSysWalletName) {
+      const fieldPath = `wallets.${fromSysWalletName}.balance`;
+      batch.update(configRef, { [fieldPath]: increment(-entry.amount) });
     } else {
       await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
     }
 
-    const toSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.toWallet || w === entry.toWallet);
-    if (toSys) {
-      batch.update(doc(db, 'system_wallets', toSys), { balance: increment(entry.amount), updatedAt: timestamp });
+    if (toSysWalletName) {
+      const fieldPath = `wallets.${toSysWalletName}.balance`;
+      batch.update(configRef, { [fieldPath]: increment(entry.amount) });
     } else {
       await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
     }
   } else if (entry.currency === 'USDT') {
-    const toSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.toWallet || w === entry.toWallet);
-    if (toSys === 'treasury_usdt_ledger') {
-       batch.update(doc(db, 'system_wallets', 'treasury_usdt_ledger'), { balance: increment(entry.amount), updatedAt: timestamp });
+    if (toSysWalletName && config.wallets[toSysWalletName].currency === 'USDT') {
+      const fieldPath = `wallets.${toSysWalletName}.balance`;
+      batch.update(configRef, { [fieldPath]: increment(entry.amount) });
     }
   }
 
@@ -162,13 +159,17 @@ async function updateWalletBalance(walletAddress: string, delta: number, field: 
   const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
   const snap = await getDocs(q);
   if (!snap.empty) {
-    batch.update(snap.docs[0].ref, { [`ulcBalance.${field}`]: increment(delta) });
-    if (delta < 0) batch.update(snap.docs[0].ref, { totalSpent: increment(Math.abs(delta)) });
-    else batch.update(snap.docs[0].ref, { totalEarnings: increment(delta) });
+    const userRef = snap.docs[0].ref;
+    batch.update(userRef, { [`ulcBalance.${field}`]: increment(delta) });
+    if (delta < 0) batch.update(userRef, { totalSpent: increment(Math.abs(delta)) });
+    else batch.update(userRef, { totalEarnings: increment(delta) });
   }
 }
 
 export async function triggerGenesisAllocation(user: UserProfile) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error('System not initialized');
+  
   const amount = 50000;
   const startTime = Date.now();
   
@@ -184,7 +185,7 @@ export async function triggerGenesisAllocation(user: UserProfile) {
   const scheduleRef = await addDoc(collection(db, 'vesting'), schedule);
   
   await recordTransaction({
-    fromWallet: 'team_vesting_wallet',
+    fromWallet: config.wallets.team_vesting_wallet.address,
     toWallet: user.walletAddress,
     amount: amount,
     currency: 'ULC',
@@ -212,30 +213,35 @@ export async function seedMuses() {
 
 export async function buyULC(user: UserProfile, usdtAmount: number) {
   const config = await getSystemConfig();
-  const rate = config?.internal_ulc_purchase_price || 0.015;
+  if (!config) throw new Error('System not initialized');
+  const rate = config.internal_ulc_purchase_price || 0.015;
   const ulcAmount = usdtAmount / rate;
 
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_usdt_ledger', amount: usdtAmount, currency: 'USDT', type: 'ulc_purchase' });
-  await recordTransaction({ fromWallet: 'presale_pool', toWallet: user.walletAddress, amount: ulcAmount, currency: 'ULC', type: 'ulc_purchase' });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_usdt_ledger.address, amount: usdtAmount, currency: 'USDT', type: 'ulc_purchase' });
+  await recordTransaction({ fromWallet: config.wallets.presale_pool.address, toWallet: user.walletAddress, amount: ulcAmount, currency: 'ULC', type: 'ulc_purchase' });
 
   return ulcAmount;
 }
 
 export async function handlePremiumUnlock(user: UserProfile, creatorWallet: string, amount: number, contentId: string) {
+    const config = await getSystemConfig();
+    if (!config) throw new Error('System not initialized');
+
   const creatorShare = amount * 0.95;
   const stakingShare = amount * 0.025;
   const treasuryShare = amount * 0.025;
 
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: creatorShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'staking_pool', amount: stakingShare, currency: 'ULC', type: 'staking_reward', referenceId: contentId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_wallet', amount: treasuryShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.staking_pool.address, amount: stakingShare, currency: 'ULC', type: 'staking_reward', referenceId: contentId });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount: treasuryShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
 }
 
 export async function processChatFee(user: UserProfile) {
   const config = await getSystemConfig();
-  const fee = config?.ai_chat_cost || 0.5;
+  if (!config) throw new Error('System not initialized');
+  const fee = config.ai_chat_cost || 0.5;
   if (user.ulcBalance.available < fee) throw new Error("Insufficient ULC.");
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'burn_pool', amount: fee, currency: 'ULC', type: 'ai_chat_fee' });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.burn_pool.address, amount: fee, currency: 'ULC', type: 'ai_chat_fee' });
 }
 
 export function calculateVestingClaimable(schedule: VestingSchedule): number {
@@ -248,29 +254,35 @@ export function calculateVestingClaimable(schedule: VestingSchedule): number {
 }
 
 export async function claimVestedTokens(user: UserProfile, schedule: VestingSchedule) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error('System not initialized');
   const claimable = calculateVestingClaimable(schedule);
   if (claimable <= 0) throw new Error("No tokens claimable.");
   const batch = writeBatch(db);
   batch.update(doc(db, 'vesting', schedule.id), { claimedAmount: increment(claimable) });
   batch.update(doc(db, 'users', user.uid), { 'ulcBalance.available': increment(claimable), 'ulcBalance.locked': increment(-claimable) });
   await batch.commit();
-  await recordTransaction({ fromWallet: 'team_vesting_pool', toWallet: user.walletAddress, amount: claimable, currency: 'ULC', type: 'vesting_claim', referenceId: schedule.id });
+  await recordTransaction({ fromWallet: config.wallets.team_vesting_pool.address, toWallet: user.walletAddress, amount: claimable, currency: 'ULC', type: 'vesting_claim', referenceId: schedule.id });
 }
 
 export async function handleStaking(user: UserProfile, amount: number) {
+    const config = await getSystemConfig();
+    if (!config) throw new Error('System not initialized');
   if (user.ulcBalance.available < amount) throw new Error("Insufficient balance.");
   const batch = writeBatch(db);
   batch.update(doc(db, 'users', user.uid), { 'ulcBalance.available': increment(-amount), 'ulcBalance.locked': increment(amount) });
   await batch.commit();
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'staking_pool', amount: amount, currency: 'ULC', type: 'admin_adjustment', metadata: { action: 'stake' } });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.staking_pool.address, amount: amount, currency: 'ULC', type: 'admin_adjustment', metadata: { action: 'stake' } });
 }
 
 export async function handleUnstaking(user: UserProfile, amount: number) {
+    const config = await getSystemConfig();
+    if (!config) throw new Error('System not initialized');
   if (user.ulcBalance.locked < amount) throw new Error("Insufficient balance.");
   const batch = writeBatch(db);
   batch.update(doc(db, 'users', user.uid), { 'ulcBalance.available': increment(amount), 'ulcBalance.locked': increment(-amount) });
   await batch.commit();
-  await recordTransaction({ fromWallet: 'staking_pool', toWallet: user.walletAddress, amount: amount, currency: 'ULC', type: 'admin_adjustment', metadata: { action: 'unstake' } });
+  await recordTransaction({ fromWallet: config.wallets.staking_pool.address, toWallet: user.walletAddress, amount: amount, currency: 'ULC', type: 'admin_adjustment', metadata: { action: 'unstake' } });
 }
 
 export async function toggleUserFreeze(uid: string, status: boolean) {
@@ -279,12 +291,13 @@ export async function toggleUserFreeze(uid: string, status: boolean) {
 
 export async function handleSubscription(user: UserProfile, creatorWallet: string, amount: number, creatorId: string) {
   const config = await getSystemConfig();
-  const buybackRatio = config?.subscription_buyback_ratio || 0.5;
-  const treasuryRatio = config?.subscription_treasury_ratio || 0.5;
+  if (!config) throw new Error('System not initialized');
+  const buybackRatio = config.subscription_buyback_ratio || 0.5;
+  const treasuryRatio = config.subscription_treasury_ratio || 0.5;
 
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: amount * 0.9, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_usdt_ledger', amount: amount * 0.1 * treasuryRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'burn_pool', amount: amount * 0.1 * buybackRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_usdt_ledger.address, amount: amount * 0.1 * treasuryRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.burn_pool.address, amount: amount * 0.1 * buybackRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
   await addDoc(collection(db, 'subscriptions'), { userId: user.uid, creatorId, amount, status: 'active', createdAt: Date.now() });
 }
 
@@ -293,5 +306,7 @@ export async function handleTipping(user: UserProfile, toWallet: string, amount:
 }
 
 export async function handleCreatorWithdrawal(user: UserProfile, amount: number) {
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_wallet', amount, currency: 'ULC', type: 'creator_payout' });
+    const config = await getSystemConfig();
+    if (!config) throw new Error('System not initialized');
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount, currency: 'ULC', type: 'creator_payout' });
 }

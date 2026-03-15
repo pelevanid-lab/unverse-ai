@@ -1,7 +1,8 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Toaster } from '@/components/ui/toaster';
+import { Web3ModalProvider } from '@/lib/web3modal'; // Import the provider
 
 export const metadata: Metadata = {
   title: 'Unverse | AI Creator Social Network',
@@ -21,11 +22,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased min-h-screen bg-background text-foreground">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 py-6">
-          {children}
-        </main>
-        <Toaster />
+        {/* Wrap the entire app with the Web3ModalProvider */}
+        <Web3ModalProvider>
+          <Navbar />
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            {children}
+          </main>
+          <Toaster />
+        </Web3ModalProvider>
       </body>
     </html>
   );
