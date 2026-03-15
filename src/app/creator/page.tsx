@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useWallet } from '@/hooks/use-wallet';
@@ -8,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Users, ExternalLink, Coins, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
@@ -53,7 +54,7 @@ export default function CreatorPanel() {
 
     try {
       await addDoc(collection(db, 'content'), postData);
-      toast({ title: "Content Published", description: "Your post is now live in the Discover feed." });
+      toast({ title: "Content Published", description: "Your post is now live." });
       e.target.reset();
       setIsPremium(false);
     } catch (err) {
@@ -63,22 +64,22 @@ export default function CreatorPanel() {
   };
 
   const handleWithdraw = async () => {
-      if (!user || user.ulcBalance.available <= 0) return;
-      setWithdrawing(true);
-      try {
-          await handleCreatorWithdrawal(user, user.ulcBalance.available);
-          toast({ title: "Withdrawal Successful", description: "Your earnings have been moved to the treasury for processing." });
-      } catch (e: any) {
-          toast({ variant: 'destructive', title: "Withdrawal Failed", description: e.message });
-      }
-      setWithdrawing(false);
-  }
+    if (!user || user.ulcBalance.available <= 0) return;
+    setWithdrawing(true);
+    try {
+      await handleCreatorWithdrawal(user, user.ulcBalance.available);
+      toast({ title: "Withdrawal Initiated", description: "Processing your earnings." });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Withdrawal Failed", description: e.message });
+    }
+    setWithdrawing(false);
+  };
 
   if (!isConnected) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
       <DollarSign className="w-16 h-16 text-primary" />
-      <h1 className="text-3xl font-headline font-bold">Creator Access</h1>
-      <p className="text-muted-foreground">Connect your wallet to start earning.</p>
+      <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
+      <p className="text-muted-foreground">Connect your wallet to manage your content.</p>
     </div>
   );
 
@@ -87,92 +88,84 @@ export default function CreatorPanel() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-8 border-white/10">
         <div>
           <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
-          <p className="text-muted-foreground mt-2">Manage your digital empire and tokenized content.</p>
+          <p className="text-muted-foreground mt-2">Manage your digital empire.</p>
         </div>
         <div className="flex gap-4">
           <Card className="glass-card border-primary/20 bg-primary/5 flex items-center gap-4 px-6 py-3 rounded-2xl">
             <div>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Creator Earnings</p>
-                <p className="text-2xl font-bold font-headline">{user?.totalEarnings.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Available Earnings</p>
+              <p className="text-2xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
             </div>
             <Button size="sm" onClick={handleWithdraw} disabled={withdrawing || user?.ulcBalance.available === 0} className="rounded-xl gap-2">
-                {withdrawing ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                Withdraw
+              {withdrawing ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+              Withdraw
             </Button>
           </Card>
           <Link href={`/profile/${user?.uid}`}>
-             <Button variant="outline" className="h-full rounded-2xl gap-2"><ExternalLink className="w-4 h-4" /> Public Page</Button>
+            <Button variant="outline" className="h-full rounded-2xl gap-2"><ExternalLink className="w-4 h-4" /> View Public Profile</Button>
           </Link>
         </div>
       </header>
 
       <Tabs defaultValue="create" className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-14 bg-muted/20 p-1 rounded-2xl border border-white/5 mb-8">
-          <TabsTrigger value="create" className="rounded-xl gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
+          <TabsTrigger value="create" className="rounded-xl gap-2 data-[state=active]:bg-primary">
             <Plus className="w-4 h-4" /> New Post
           </TabsTrigger>
-          <TabsTrigger value="content" className="rounded-xl gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-            <Upload className="w-4 h-4" /> My Content
+          <TabsTrigger value="content" className="rounded-xl gap-2 data-[state=active]:bg-primary">
+            <Upload className="w-4 h-4" /> Content
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-            <BarChart3 className="w-4 h-4" /> Analytics
+          <TabsTrigger value="analytics" className="rounded-xl gap-2 data-[state=active]:bg-primary">
+            <BarChart3 className="w-4 h-4" /> Stats
           </TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-xl gap-2 data-[state=active]:bg-primary data-[state=active]:text-white">
-            <Settings className="w-4 h-4" /> Rules
+          <TabsTrigger value="settings" className="rounded-xl gap-2 data-[state=active]:bg-primary">
+            <Settings className="w-4 h-4" /> Settings
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create">
-          <Card className="glass-card max-w-2xl mx-auto border-white/10 shadow-2xl">
+          <Card className="glass-card max-w-2xl mx-auto border-white/10">
             <CardHeader>
-              <CardTitle className="text-2xl">Publish Content</CardTitle>
-              <CardDescription>Upload media and set your economic parameters.</CardDescription>
+              <CardTitle>Publish Content</CardTitle>
+              <CardDescription>Upload media and set price.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePost} className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">Post Title</Label>
-                  <Input name="title" placeholder="A catchy headline..." required className="bg-muted/30 border-none h-12" />
+                  <Label>Title</Label>
+                  <Input name="title" placeholder="Post title..." required className="bg-muted/30 border-none h-12" />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">Caption / Description</Label>
-                  <Textarea name="caption" placeholder="Describe your masterpiece..." required className="bg-muted/30 border-none min-h-[120px]" />
+                  <Label>Caption</Label>
+                  <Textarea name="caption" placeholder="Describe your post..." required className="bg-muted/30 border-none min-h-[120px]" />
                 </div>
 
-                <div className="border-2 border-dashed rounded-2xl p-12 text-center flex flex-col items-center gap-4 bg-muted/10 hover:bg-muted/20 transition-all border-white/10 cursor-pointer group">
-                  <div className="p-4 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
-                    <Upload className="w-10 h-10 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Drop your content here</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">High-quality JPG, PNG, or MP4 (Max 100MB)</p>
-                  </div>
+                <div className="border-2 border-dashed rounded-2xl p-12 text-center flex flex-col items-center gap-4 bg-muted/10 border-white/10">
+                  <Upload className="w-10 h-10 text-primary" />
+                  <p className="text-sm font-bold">Media Upload (Placeholder)</p>
                 </div>
 
                 <div className="flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-white/5">
                   <div className="space-y-0.5">
-                    <Label className="font-bold">Premium Content</Label>
-                    <p className="text-[10px] text-muted-foreground">Tokens required to view this post.</p>
+                    <Label className="font-bold">Premium Access</Label>
+                    <p className="text-[10px] text-muted-foreground">Require tokens to unlock.</p>
                   </div>
                   <Switch checked={isPremium} onCheckedChange={setIsPremium} />
                 </div>
 
                 {isPremium && (
-                  <div className="space-y-2 p-5 bg-primary/5 rounded-2xl border border-primary/20 animate-in slide-in-from-top-2">
-                    <Label className="text-xs uppercase font-bold text-primary">Unlock Price ($ULC)</Label>
+                  <div className="space-y-2 p-5 bg-primary/5 rounded-2xl border border-primary/20">
+                    <Label className="text-xs uppercase font-bold text-primary">Price ($ULC)</Label>
                     <div className="relative">
                       <Input name="price" type="number" defaultValue="5" className="bg-muted/30 border-none h-12 text-lg font-bold pl-12" />
                       <Coins className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-2">
-                      Platform Fee: 5% (split between Treasury & Staking rewards).
-                    </p>
                   </div>
                 )}
 
-                <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 h-16 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20">
-                  {loading ? 'Transmitting to Ledger...' : 'Publish to Feed'}
+                <Button type="submit" disabled={loading} className="w-full h-16 text-lg font-bold rounded-2xl shadow-lg">
+                  {loading ? 'Publishing...' : 'Publish to Feed'}
                 </Button>
               </form>
             </CardContent>
@@ -184,47 +177,26 @@ export default function CreatorPanel() {
             {myContent.map((post) => (
               <Card key={post.id} className="glass-card overflow-hidden">
                 <div className="relative aspect-video">
-                  <img src={post.mediaUrl} className="w-full h-full object-cover" data-ai-hint="digital art" />
+                  <img src={post.mediaUrl} className="w-full h-full object-cover" />
                   {post.isPremium && <Badge className="absolute top-2 right-2 bg-primary">Premium: {post.price} ULC</Badge>}
                 </div>
                 <CardContent className="p-4">
                   <h4 className="font-bold truncate">{post.title}</h4>
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-[10px] text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</span>
-                    <Button variant="ghost" size="sm" className="h-8 text-[10px]">Delete Post</Button>
-                  </div>
                 </CardContent>
               </Card>
             ))}
-            {myContent.length === 0 && (
-              <div className="col-span-full py-24 text-center text-muted-foreground">
-                <p>You haven't published any content yet.</p>
-              </div>
-            )}
           </div>
         </TabsContent>
 
         <TabsContent value="analytics">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="glass-card p-6 border-white/5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Views</p>
-              <div className="text-3xl font-bold mt-2 font-headline">24,802</div>
-              <p className="text-[10px] text-green-400 mt-1">+12% from last week</p>
+            <Card className="glass-card p-6">
+              <p className="text-xs font-bold uppercase text-muted-foreground">Total Views</p>
+              <div className="text-3xl font-bold mt-2 font-headline">0</div>
             </Card>
-            <Card className="glass-card p-6 border-white/5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Premium Unlocks</p>
-              <div className="text-3xl font-bold mt-2 font-headline">{myContent.filter(c => c.isPremium).length * 8}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Avg 5.2 ULC / unlock</p>
-            </Card>
-            <Card className="glass-card p-6 border-white/5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Subs</p>
-              <div className="text-3xl font-bold mt-2 font-headline">152</div>
-              <p className="text-[10px] text-green-400 mt-1">+4 today</p>
-            </Card>
-            <Card className="glass-card p-6 border-white/5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Revenue (USDT)</p>
-              <div className="text-3xl font-bold mt-2 font-headline">$1,240</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Net platform fees</p>
+            <Card className="glass-card p-6">
+              <p className="text-xs font-bold uppercase text-muted-foreground">Earnings</p>
+              <div className="text-3xl font-bold mt-2 font-headline">{user?.totalEarnings.toFixed(2)} ULC</div>
             </Card>
           </div>
         </TabsContent>
@@ -232,25 +204,14 @@ export default function CreatorPanel() {
         <TabsContent value="settings">
           <Card className="glass-card max-w-2xl mx-auto">
             <CardHeader>
-              <CardTitle>Content Economy Settings</CardTitle>
-              <CardDescription>Define how users interact with your profile.</CardDescription>
+              <CardTitle>Economic Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-               <div className="space-y-4">
-                 <div className="flex items-center justify-between">
-                   <Label>Default Unlock Price ($ULC)</Label>
-                   <Input type="number" defaultValue="5" className="w-24 text-right" />
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <Label>Monthly Subscription ($USDT)</Label>
-                   <Input type="number" defaultValue="10" className="w-24 text-right" />
-                 </div>
-                 <div className="flex items-center justify-between">
-                   <Label>Direct Tipping Enabled</Label>
-                   <Switch defaultChecked />
-                 </div>
-               </div>
-               <Button className="w-full mt-6">Save Economic Rules</Button>
+              <div className="flex items-center justify-between">
+                <Label>Default Price ($ULC)</Label>
+                <Input type="number" defaultValue="5" className="w-24 text-right" />
+              </div>
+              <Button className="w-full">Save Rules</Button>
             </CardContent>
           </Card>
         </TabsContent>

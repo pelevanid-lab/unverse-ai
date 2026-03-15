@@ -2,13 +2,13 @@
 "use client"
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ContentPost } from '@/lib/types';
 import { PostCard } from '@/components/feed/PostCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, TrendingUp, Clock, Search } from 'lucide-react';
+import { Sparkles, TrendingUp, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 export default function DiscoverFeed() {
@@ -19,39 +19,13 @@ export default function DiscoverFeed() {
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
-      const q = query(collection(db, 'content'), orderBy('createdAt', 'desc'), limit(20));
-      const snap = await getDocs(q);
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
-      
-      if (data.length === 0) {
-        setPosts([
-          {
-            id: '1',
-            creatorId: 'isabella_ai',
-            creatorName: 'Isabella AI',
-            creatorAvatar: 'https://picsum.photos/seed/isabella/100/100',
-            title: 'Welcome to my Unverse!',
-            caption: 'The future of AI-Human interaction starts here.',
-            mediaUrl: 'https://picsum.photos/seed/future1/800/600',
-            isPremium: false,
-            price: 0,
-            createdAt: Date.now()
-          },
-          {
-            id: '2',
-            creatorId: 'creator_1',
-            creatorName: 'CyberSoul',
-            creatorAvatar: 'https://picsum.photos/seed/cyber/100/100',
-            title: 'Hidden Layers',
-            caption: 'Unlock this post to see the full high-res collection.',
-            mediaUrl: 'https://picsum.photos/seed/hidden/800/600',
-            isPremium: true,
-            price: 5,
-            createdAt: Date.now() - 100000
-          }
-        ]);
-      } else {
+      try {
+        const q = query(collection(db, 'content'), orderBy('createdAt', 'desc'), limit(20));
+        const snap = await getDocs(q);
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
         setPosts(data);
+      } catch (e) {
+        console.error("Failed to fetch posts:", e);
       }
       setLoading(false);
     };
@@ -112,7 +86,7 @@ export default function DiscoverFeed() {
         )}
         {filteredPosts.length === 0 && !loading && (
           <div className="col-span-full py-32 text-center text-muted-foreground border-2 border-dashed rounded-3xl border-white/5">
-            <p>No matches found for "{searchQuery}"</p>
+            <p>No matches found or no content available yet.</p>
           </div>
         )}
       </div>

@@ -1,11 +1,11 @@
+
 "use client"
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { AIMuse } from '@/lib/types';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MessageCircle, Heart, Star, CheckCircle } from 'lucide-react';
@@ -16,7 +16,7 @@ export default function AIMusesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'muses'));
+    const q = query(collection(db, 'ai_muses'));
     const unsub = onSnapshot(q, (snap) => {
       setMuses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as AIMuse)));
       setLoading(false);
@@ -30,7 +30,7 @@ export default function AIMusesPage() {
         <h1 className="text-4xl font-headline font-bold gradient-text flex items-center gap-3">
           <Sparkles className="w-10 h-10" /> AI Muses
         </h1>
-        <p className="text-muted-foreground">Interact with our platform-owned digital influencers. Powered by Genkit.</p>
+        <p className="text-muted-foreground">Interact with our platform-owned digital influencers.</p>
       </header>
 
       {loading ? (
@@ -56,24 +56,7 @@ export default function AIMusesPage() {
                 </div>
               </div>
               <CardContent className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Personality</p>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{muse.personality}</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="space-y-1 flex-1">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Tone</p>
-                    <p className="text-sm font-medium">{muse.tone}</p>
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <p className="text-xs font-bold uppercase text-muted-foreground">Vibe</p>
-                    <div className="flex gap-1">
-                      {Array(muse.flirtingLevel === 'high' ? 3 : muse.flirtingLevel === 'medium' ? 2 : 1).fill(0).map((_, i) => (
-                        <Star key={i} className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2">{muse.personality}</p>
               </CardContent>
               <CardFooter className="p-6 pt-0 gap-3">
                 <Link href={`/muses/${muse.id}/chat`} className="flex-1">
@@ -89,7 +72,7 @@ export default function AIMusesPage() {
           ))}
           {muses.length === 0 && (
             <div className="col-span-full py-24 text-center border-2 border-dashed rounded-3xl border-white/5">
-              <p className="text-muted-foreground">Registry empty. Visit the Admin Panel to seed Muses.</p>
+              <p className="text-muted-foreground">No Muses available. Visit Admin Panel to seed.</p>
             </div>
           )}
         </div>

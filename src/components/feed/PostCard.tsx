@@ -11,7 +11,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { handlePremiumUnlock } from '@/lib/ledger';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 
@@ -25,19 +25,18 @@ export function PostCard({ post }: { post: ContentPost }) {
     const checkUnlock = async () => {
       if (!user) return;
       
-      // If user is the creator, it's unlocked
       if (user.uid === post.creatorId) {
         setIsUnlocked(true);
         return;
       }
 
-      // Check premium unlock or subscription
       const qUnlock = query(
         collection(db, 'ledger'), 
         where('fromWallet', '==', user.walletAddress),
         where('referenceId', '==', post.id),
         where('type', '==', 'premium_unlock')
       );
+      
       const qSub = query(
         collection(db, 'ledger'),
         where('fromWallet', '==', user.walletAddress),
@@ -69,8 +68,6 @@ export function PostCard({ post }: { post: ContentPost }) {
 
     setLoading(true);
     try {
-      // Find creator wallet address
-      const creatorRef = doc(db, 'users', post.creatorId);
       const creatorSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', post.creatorId)));
       const creatorData = creatorSnap.docs[0]?.data();
       
@@ -78,7 +75,7 @@ export function PostCard({ post }: { post: ContentPost }) {
 
       await handlePremiumUnlock(user, creatorData.walletAddress, post.price, post.id);
       setIsUnlocked(true);
-      toast({ title: "Content Unlocked", description: "Check out the full post now!" });
+      toast({ title: "Content Unlocked", description: "Enjoy the full post!" });
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Unlock Failed", description: e.message });
     }
@@ -120,7 +117,7 @@ export function PostCard({ post }: { post: ContentPost }) {
               <Lock className="w-10 h-10 text-primary" />
             </div>
             <h3 className="font-headline font-bold text-xl mb-1">Premium Post</h3>
-            <p className="text-xs text-muted-foreground mb-6 max-w-[200px]">This exclusive content is locked. Subscribe to creator or unlock individually.</p>
+            <p className="text-xs text-muted-foreground mb-6 max-w-[200px]">Unlock to view this exclusive content.</p>
             <Button onClick={handleUnlockClick} disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 rounded-full px-10 py-6 text-lg shadow-lg shadow-primary/20">
               <Coins className="w-5 h-5" /> Unlock for {post.price} ULC
             </Button>
@@ -142,11 +139,11 @@ export function PostCard({ post }: { post: ContentPost }) {
         <div className="flex gap-4">
           <button className="flex items-center gap-1.5 text-muted-foreground hover:text-red-400 transition-colors">
             <Heart className="w-5 h-5" />
-            <span className="text-xs font-medium">1.2k</span>
+            <span className="text-xs font-medium">0</span>
           </button>
           <button className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
             <MessageCircle className="w-5 h-5" />
-            <span className="text-xs font-medium">42</span>
+            <span className="text-xs font-medium">0</span>
           </button>
         </div>
         <button className="text-muted-foreground hover:text-primary transition-colors">
