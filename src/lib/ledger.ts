@@ -2,9 +2,9 @@ import { db } from './firebase';
 import { 
   doc, setDoc, collection, addDoc, updateDoc, 
   increment, getDoc, query, where, getDocs, 
-  orderBy, limit, writeBatch 
+  orderBy, limit, writeBatch, Timestamp 
 } from 'firebase/firestore';
-import { LedgerEntry, SystemConfig, UserProfile, AIMuse } from './types';
+import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule } from './types';
 
 const CONFIG_DOC_PATH = 'config/system';
 
@@ -37,7 +37,7 @@ export async function initializeSystemConfig(adminAddress: string) {
     premium_unlock_commission: 0.05,
     premium_commission_treasury_split: 0.5,
     premium_commission_staking_split: 0.5,
-    ai_chat_cost: 0.5 // 0.5 ULC per message
+    ai_chat_cost: 0.5
   };
 
   await setDoc(doc(db, CONFIG_DOC_PATH), config);
@@ -193,6 +193,45 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
   });
 }
 
+export async function handleSubscription(user: UserProfile, creatorWallet: string, usdtAmount: number, creatorId: string) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error("System not configured");
+
+  const creatorShare = usdtAmount * config.subscription_split.creator;
+  const platformFee = usdtAmount * config.subscription_split.platform;
+  const treasurySplit = platformFee * config.subscription_split.platform_treasury_split;
+  const burnSplit = platformFee * config.subscription_split.platform_burn_split;
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: creatorWallet,
+    amount: creatorShare,
+    currency: 'USDT',
+    type: 'subscription_payment',
+    referenceId: creatorId
+  });
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: config.treasury_wallet_address,
+    amount: treasurySplit,
+    currency: 'USDT',
+    type: 'subscription_payment',
+    referenceId: creatorId,
+    metadata: { part: 'treasury' }
+  });
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: config.burn_pool_address,
+    amount: burnSplit,
+    currency: 'USDT',
+    type: 'subscription_payment',
+    referenceId: creatorId,
+    metadata: { part: 'buyback_burn' }
+  });
+}
+
 export async function processChatFee(user: UserProfile) {
   const config = await getSystemConfig();
   if (!config) throw new Error("System not configured");
@@ -208,4 +247,24 @@ export async function processChatFee(user: UserProfile) {
     currency: 'ULC',
     type: 'ai_chat_fee',
   });
+}
+
+export async function toggleUserFreeze(uid: string, freeze: boolean) {
+  await updateDoc(doc(db, 'users', uid), {
+    isFrozen: freeze
+  });
+}
+
+export function calculateVestingClaimable(schedule: VestingSchedule): number {
+  const now = Date.now();
+  const elapsed = now - schedule.startTime;
+  const durationMs = schedule.durationMonths * 30 * 24 * 60 * 60 * 1000;
+  
+  if (elapsed <= 0) return 0;
+  if (elapsed >= durationMs) return schedule.totalAmount - schedule.claimedAmount;
+
+  const totalVested = (schedule.totalAmount * elapsed) / durationMs;
+  const claimable = totalVested - schedule.claimedAmount;
+  
+  return Math.max(0, claimable);
 }

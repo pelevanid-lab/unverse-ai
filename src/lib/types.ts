@@ -98,3 +98,13 @@ export type ChatMessage = {
   content: string;
   timestamp: number;
 };
+
+export type VestingSchedule = {
+  id: string;
+  uid: string;
+  totalAmount: number;
+  claimedAmount: number;
+  startTime: number;
+  durationMonths: number;
+  type: 'presale' | 'creator' | 'team';
+};
