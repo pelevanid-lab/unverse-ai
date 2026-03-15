@@ -249,6 +249,21 @@ export async function processChatFee(user: UserProfile) {
   });
 }
 
+export async function handleTipping(user: UserProfile, creatorWallet: string, amount: number, creatorId: string) {
+  if (user.ulcBalance.available < amount) {
+    throw new Error("Insufficient ULC balance");
+  }
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: creatorWallet,
+    amount: amount,
+    currency: 'ULC',
+    type: 'tip',
+    referenceId: creatorId
+  });
+}
+
 export async function toggleUserFreeze(uid: string, freeze: boolean) {
   await updateDoc(doc(db, 'users', uid), {
     isFrozen: freeze
@@ -267,4 +282,39 @@ export function calculateVestingClaimable(schedule: VestingSchedule): number {
   const claimable = totalVested - schedule.claimedAmount;
   
   return Math.max(0, claimable);
+}
+
+export async function claimVestedTokens(user: UserProfile, schedule: VestingSchedule) {
+  const claimable = calculateVestingClaimable(schedule);
+  if (claimable <= 0) throw new Error("No tokens available to claim");
+
+  const batch = writeBatch(db);
+  
+  // Update schedule
+  const scheduleRef = doc(db, 'vesting_schedules', schedule.id);
+  batch.update(scheduleRef, {
+    claimedAmount: increment(claimable)
+  });
+
+  // Update user balances
+  const userRef = doc(db, 'users', user.uid);
+  batch.update(userRef, {
+    'ulcBalance.available': increment(claimable),
+    'ulcBalance.claimable': increment(-claimable)
+  });
+
+  // Record in ledger
+  const ledgerRef = collection(db, 'ledger');
+  const timestamp = Date.now();
+  batch.set(doc(ledgerRef), {
+    fromWallet: 'system_vesting',
+    toWallet: user.walletAddress,
+    amount: claimable,
+    currency: 'ULC',
+    type: 'vesting_claim',
+    referenceId: schedule.id,
+    timestamp
+  });
+
+  await batch.commit();
 }

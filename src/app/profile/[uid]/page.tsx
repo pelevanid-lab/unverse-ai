@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useWallet } from '@/hooks/use-wallet';
@@ -7,14 +6,16 @@ import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { UserProfile, ContentPost } from '@/lib/types';
-import { handleSubscription } from '@/lib/ledger';
+import { handleSubscription, handleTipping } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PostCard } from '@/components/feed/PostCard';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Coins, Calendar, Loader2 } from 'lucide-react';
+import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 export default function PublicProfilePage() {
   const { uid } = useParams();
@@ -24,6 +25,9 @@ export default function PublicProfilePage() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [tipping, setTipping] = useState(false);
+  const [tipAmount, setTipAmount] = useState('5');
+  const [isTipDialogOpen, setIsTipDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -38,27 +42,20 @@ export default function PublicProfilePage() {
       }
     };
 
-    const fetchPosts = () => {
-      const q = query(
-        collection(db, 'content'),
-        where('creatorId', '==', uid),
-        orderBy('createdAt', 'desc')
-      );
-      return onSnapshot(q, (snap) => {
+    const unsubPosts = onSnapshot(
+      query(collection(db, 'content'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
+      (snap) => {
         setPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost)));
-      });
-    };
+        setLoading(false);
+      }
+    );
 
     fetchProfile();
-    const unsubPosts = fetchPosts();
-    setLoading(false);
-
     return () => unsubPosts();
   }, [uid, router]);
 
   useEffect(() => {
     if (!currentUser || !uid) return;
-    // Check for active subscription in ledger
     const q = query(
       collection(db, 'ledger'),
       where('fromWallet', '==', currentUser.walletAddress),
@@ -66,7 +63,6 @@ export default function PublicProfilePage() {
       where('type', '==', 'subscription_payment')
     );
     const unsub = onSnapshot(q, (snap) => {
-      // For this prototype, any subscription record means subscribed
       if (!snap.empty) setIsSubscribed(true);
     });
     return () => unsub();
@@ -80,7 +76,6 @@ export default function PublicProfilePage() {
     
     setSubscribing(true);
     try {
-      // Mock USDT subscription: 10 USDT
       await handleSubscription(currentUser, profile?.walletAddress!, 10, uid as string);
       setIsSubscribed(true);
       toast({ title: "Subscribed!", description: `You now have premium access to ${profile?.username}.` });
@@ -90,11 +85,26 @@ export default function PublicProfilePage() {
     setSubscribing(false);
   };
 
+  const handleSendTip = async () => {
+    if (!isConnected || !currentUser || !profile) return;
+    setTipping(true);
+    try {
+      await handleTipping(currentUser, profile.walletAddress, parseFloat(tipAmount), uid as string);
+      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${profile.username}.` });
+      setIsTipDialogOpen(false);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
+    }
+    setTipping(false);
+  };
+
   if (loading || !profile) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Loader2 className="w-10 h-10 animate-spin text-primary" />
     </div>
   );
+
+  const isSelf = currentUser?.uid === uid;
 
   return (
     <div className="space-y-8 pb-12">
@@ -124,14 +134,57 @@ export default function PublicProfilePage() {
             ) : (
               <Button 
                 onClick={handleSubscribeClick} 
-                disabled={subscribing || currentUser?.uid === uid} 
+                disabled={subscribing || isSelf} 
                 className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20"
               >
                 {subscribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
                 Subscribe (10 USDT)
               </Button>
             )}
-            <Button variant="outline" className="h-12 rounded-2xl border-white/10 hover:bg-white/5">Tip Creator</Button>
+
+            <Dialog open={isTipDialogOpen} onOpenChange={setIsTipDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={isSelf} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
+                  <Gift className="w-4 h-4" /> Tip Creator
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="glass-card border-white/10">
+                <DialogHeader>
+                  <DialogTitle>Support {profile.username}</DialogTitle>
+                  <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Tip Amount (ULC)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['5', '20', '50'].map(amt => (
+                        <Button 
+                          key={amt} 
+                          variant={tipAmount === amt ? 'default' : 'outline'}
+                          onClick={() => setTipAmount(amt)}
+                          className="h-12 rounded-xl"
+                        >
+                          {amt}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Input 
+                    type="number" 
+                    value={tipAmount} 
+                    onChange={(e) => setTipAmount(e.target.value)}
+                    placeholder="Custom amount..."
+                    className="bg-muted border-none h-12"
+                  />
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleSendTip} disabled={tipping} className="w-full h-14 rounded-2xl gap-2">
+                    {tipping ? <Loader2 className="animate-spin w-4 h-4" /> : <Heart className="w-4 h-4" />}
+                    Send {tipAmount} ULC Tip
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>
@@ -165,10 +218,6 @@ export default function PublicProfilePage() {
         <main className="lg:col-span-3 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-headline font-bold">Content Feed</h2>
-            <div className="flex gap-2">
-              <Badge className="bg-primary">All Posts</Badge>
-              <Badge variant="outline">Premium Only</Badge>
-            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
