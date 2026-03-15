@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "isabella-avatar",
+      "description": "Isabella AI Muse Avatar",
+      "imageUrl": "https://picsum.photos/seed/isabella/400/400",
+      "imageHint": "ai influencer"
+    },
+    {
+      "id": "elena-avatar",
+      "description": "Elena AI Muse Avatar",
+      "imageUrl": "https://picsum.photos/seed/elena/400/400",
+      "imageHint": "fitness woman"
+    },
+    {
+      "id": "chloe-avatar",
+      "description": "Chloe AI Muse Avatar",
+      "imageUrl": "https://picsum.photos/seed/chloe/400/400",
+      "imageHint": "gamer girl"
+    }
+  ]
 }
