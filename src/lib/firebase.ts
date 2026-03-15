@@ -1,10 +1,11 @@
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDummyKey",
+  apiKey: "AIzaSyDummyKey_Please_Replace_With_Real_In_Console",
   authDomain: "unverse-139974452713.firebaseapp.com",
   projectId: "unverse-139974452713",
   storageBucket: "unverse-139974452713.appspot.com",
