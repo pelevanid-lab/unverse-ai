@@ -59,26 +59,37 @@ export type LedgerEntry = {
   metadata?: any;
 };
 
+export type SystemWalletType = 
+  | 'genesis_wallet'
+  | 'treasury_wallet'
+  | 'reserve_pool'
+  | 'burn_pool'
+  | 'staking_pool'
+  | 'creator_incentives'
+  | 'team_vesting'
+  | 'liquidity_pool'
+  | 'marketing_wallet'
+  | 'exchange_liquidity'
+  | 'presale_vault'
+  | 'platform_ops'
+  | 'buyback_vault'
+  | 'community_grants'
+  | 'security_reserve'
+  | 'ai_muse_vault'
+  | 'advisory_pool';
+
 export type SystemConfig = {
-  treasury_wallet_address: string;
   admin_wallet_address: string;
-  genesis_wallet_address: string;
-  reserve_pool_address: string;
-  burn_pool_address: string;
-  staking_pool_address: string;
+  genesis_initialized: boolean;
   ulc_presale_price: number;
   internal_ulc_purchase_price: number;
-  genesis_initialized: boolean;
+  ai_chat_cost: number;
+  premium_unlock_commission: number;
   subscription_split: {
     creator: number;
     platform: number;
-    platform_treasury_split: number;
-    platform_burn_split: number;
   };
-  premium_unlock_commission: number;
-  premium_commission_treasury_split: number;
-  premium_commission_staking_split: number;
-  ai_chat_cost: number;
+  wallets: Record<SystemWalletType, string>;
 };
 
 export type AIMuse = {
