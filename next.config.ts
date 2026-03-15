@@ -30,6 +30,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Web3, Wagmi ve Coinbase hatalarını susturan Webpack ayarı:
+  webpack: (config) => {
+    config.externals.push(
+      "pino-pretty",
+      "lokijs",
+      "encoding",
+      "@coinbase/cdp-sdk"
+    );
+    return config;
+  },
 };
 
 export default nextConfig;
