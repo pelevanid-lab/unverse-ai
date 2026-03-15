@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles } from 'lucide-react';
@@ -16,6 +15,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc, 
 import { useToast } from '@/hooks/use-toast';
 import { CreatorProfile, UserProfile } from '@/lib/types';
 import Link from 'next/link';
+import { ImageUploader } from '@/components/creator/ImageUploader';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   return (
@@ -55,11 +55,14 @@ export default function CreatorPanel() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [myContent, setMyContent] = useState<any[]>([]);
 
+  const [displayName, setDisplayName] = useState('');
   const [creatorBio, setCreatorBio] = useState('');
   const [category, setCategory] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [avatar, setAvatar] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
+  const [subscriptionPrice, setSubscriptionPrice] = useState(0);
+  const [premiumDefaultPrice, setPremiumDefaultPrice] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -70,11 +73,14 @@ export default function CreatorPanel() {
         const creatorDoc = await getDoc(creatorDocRef);
         if (creatorDoc.exists()) {
           const creatorData = creatorDoc.data() as CreatorProfile;
+          setDisplayName(creatorData.displayName || '');
           setCreatorBio(creatorData.creatorBio || '');
           setCategory(creatorData.category || '');
           setCoverImage(creatorData.coverImage || '');
           setAvatar(creatorData.avatar || '');
           setExternalUrl(creatorData.socialLinks?.x || '');
+          setSubscriptionPrice(creatorData.subscriptionPrice || 0);
+          setPremiumDefaultPrice(creatorData.premiumDefaultPrice || 0);
         }
       };
       fetchCreatorProfile();
@@ -108,12 +114,13 @@ export default function CreatorPanel() {
           uid: user.walletAddress,
           walletAddress: user.walletAddress,
           username: freshUserData.username || `creator_${user.walletAddress.substring(0, 8)}`,
+          displayName: ''  ,
           avatar: freshUserData.avatar || '',
           coverImage: '',
           creatorBio: '',
           category: '',
           socialLinks: { x: '' },
-          subscriptionPrice: 0,
+          subscriptionPrice: 10,
           premiumDefaultPrice: 5,
           totalSubscribers: 0,
           totalUnlocks: 0,
@@ -127,7 +134,7 @@ export default function CreatorPanel() {
       }
       
       toast({ title: "Welcome, Creator!", description: "Your creator profile is now active." });
-      await refreshUser(); // This triggers the UI update without a page reload.
+      await refreshUser();
 
     } catch (error) {
       console.error("Activation failed:", error);
@@ -145,11 +152,14 @@ export default function CreatorPanel() {
     try {
       const creatorDocRef = doc(db, 'creators', user.walletAddress);
       await updateDoc(creatorDocRef, {
+        displayName,
         creatorBio,
         category,
         coverImage,
         avatar,
         socialLinks: { x: externalUrl },
+        subscriptionPrice,
+        premiumDefaultPrice,
         updatedAt: Date.now(),
       });
       toast({ title: "Profile Updated", description: "Your public profile has been saved." });
@@ -231,13 +241,25 @@ export default function CreatorPanel() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSettingsUpdate} className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Avatar Image URL</Label>
-                  <Input value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cover Image URL</Label>
-                  <Input value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
+                <ImageUploader
+                  label="Avatar Image"
+                  currentImageUrl={avatar}
+                  onUploadComplete={setAvatar}
+                  recommendedSize="400x400px"
+                  storagePath="avatars"
+                  previewType='avatar'
+                />
+                <ImageUploader
+                  label="Cover Image"
+                  currentImageUrl={coverImage}
+                  onUploadComplete={setCoverImage}
+                  recommendedSize="1600x400px"
+                  storagePath="covers"
+                  previewType='cover'
+                />
+                 <div className="space-y-2">
+                  <Label>Display Name</Label>
+                  <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your public creator name" />
                 </div>
                 <div className="space-y-2">
                   <Label>External URL</Label>
@@ -251,6 +273,18 @@ export default function CreatorPanel() {
                   <Label>Creator Bio</Label>
                   <Textarea value={creatorBio} onChange={(e) => setCreatorBio(e.target.value)} placeholder="Tell the world your story..." />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Subscription Price (USDT)</Label>
+                    <Input type="number" value={subscriptionPrice} onChange={(e) => setSubscriptionPrice(parseFloat(e.target.value))} placeholder="10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Premium Default Price (ULC)</Label>
+                    <Input type="number" value={premiumDefaultPrice} onChange={(e) => setPremiumDefaultPrice(parseFloat(e.target.value))} placeholder="5" />
+                  </div>
+                </div>
+
                 <Button type="submit" disabled={settingsLoading} className="w-full">
                   {settingsLoading ? <Loader2 className="animate-spin" /> : 'Save Settings'}
                 </Button>

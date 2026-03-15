@@ -23,6 +23,7 @@ export type CreatorProfile = {
   uid: string; // Same as walletAddress
   walletAddress: string;
   username: string;
+  displayName?: string;
   avatar: string;
   coverImage: string;
   

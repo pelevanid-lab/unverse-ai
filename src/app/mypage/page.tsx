@@ -10,7 +10,9 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc, getDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, Muse, UserProfile } from '@/lib/types';
+import { CreatorProfile, LedgerEntry, Muse, UserProfile } from '@/lib/types';
+
+const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
 
 export default function MyPage() {
   const { user, isConnected, disconnectWallet, rawAddress } = useWallet();
@@ -18,11 +20,23 @@ export default function MyPage() {
   const [recentUnlocks, setRecentUnlocks] = useState<LedgerEntry[]>([]);
   const [tipsHistory, setTipsHistory] = useState<LedgerEntry[]>([]);
   const [ownedMuses, setOwnedMuses] = useState<Muse[]>([]);
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
 
   useEffect(() => {
     if (!user || !rawAddress) return;
 
     const addressFormats = Array.from(new Set([user.walletAddress, rawAddress]));
+
+    // Fetch creator profile if user is a creator
+    if (user.isCreator) {
+      const creatorDocRef = doc(db, 'creators', user.uid);
+      const unsubCreator = onSnapshot(creatorDocRef, (doc) => {
+        if (doc.exists()) {
+          setCreatorProfile(doc.data() as CreatorProfile);
+        }
+      });
+      return () => unsubCreator();
+    }
 
     // Fetch subscriptions
     const qSubs = query(
@@ -93,19 +107,23 @@ export default function MyPage() {
     );
   }
 
+  const displayName = creatorProfile?.displayName || user?.username;
+  const avatar = creatorProfile?.avatar || user?.avatar || NON_GENDER_AVATAR;
+  const bio = creatorProfile?.creatorBio || user?.bio;
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row items-center gap-8 pb-10 border-b border-white/10">
-        <Avatar className="w-24 h-24 border-4 border-primary/20 shadow-xl">
-          <AvatarImage src={user?.avatar} />
-          <AvatarFallback>{user?.username[0]}</AvatarFallback>
+        <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-xl">
+          <AvatarImage src={avatar} className="object-cover"/>
+          <AvatarFallback>{displayName?.[0]}</AvatarFallback>
         </Avatar>
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-4xl font-headline font-bold mb-1 flex items-center justify-center md:justify-start gap-2">
-            {user?.username}
+            {displayName}
             {user?.isCreator && <CheckCircle className="w-5 h-5 text-primary" />}
           </h1>
-          <p className="text-muted-foreground mb-4">{user?.bio}</p>
+          <p className="text-muted-foreground mb-4">{bio}</p>
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
             <div className="bg-muted px-4 py-1.5 rounded-full text-xs font-mono border border-white/5">{user?.walletAddress.slice(0, 16)}...</div>
             <Button variant="outline" size="sm" onClick={disconnectWallet} className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-full px-4">

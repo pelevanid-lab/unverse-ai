@@ -118,12 +118,25 @@ export default function PublicProfilePage() {
   );
 
   const isSelf = currentUser?.uid === uid;
-  const username = creatorProfile?.username || profile.username;
+  const displayName = creatorProfile?.displayName || creatorProfile?.username || profile.username;
   const avatar = creatorProfile?.avatar || profile.avatar;
   const bio = creatorProfile?.creatorBio || profile.bio;
   const coverImage = creatorProfile?.coverImage;
   const followers = creatorProfile?.totalSubscribers || 0;
   const socialLinks = creatorProfile?.socialLinks;
+
+  const formatUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      let hostname = urlObj.hostname;
+      if (hostname.startsWith('www.')) {
+        hostname = hostname.slice(4);
+      }
+      return hostname;
+    } catch (error) {
+      return url;
+    }
+  };
 
   return (
     <div className="relative pb-12">
@@ -138,12 +151,12 @@ export default function PublicProfilePage() {
         
         <div className="flex flex-col md:flex-row items-center gap-8 w-full">
           <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0">
-            <AvatarImage src={avatar} />
-            <AvatarFallback>{username[0]}</AvatarFallback>
+            <AvatarImage src={avatar} className="object-cover"/>
+            <AvatarFallback>{displayName[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-center md:text-left space-y-2">
             <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
-              {username}
+              {displayName}
               {profile.isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
@@ -176,7 +189,7 @@ export default function PublicProfilePage() {
               </DialogTrigger>
               <DialogContent className="glass-card border-white/10">
                 <DialogHeader>
-                  <DialogTitle>Support {username}</DialogTitle>
+                  <DialogTitle>Support {displayName}</DialogTitle>
                   <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -233,11 +246,10 @@ export default function PublicProfilePage() {
                {socialLinks?.x && (
                 <div className="pt-4 border-t border-white/5">
                   <p className="text-[10px] text-muted-foreground mb-2">External URL</p>
-                  <div className="flex gap-2">
-                    <Link href={socialLinks.x} target="_blank">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors"><ExternalLink className="w-4 h-4" /></div>
-                    </Link>
-                  </div>
+                  <Link href={socialLinks.x} target="_blank" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    <ExternalLink className="w-4 h-4" />
+                    {formatUrl(socialLinks.x)}
+                  </Link>
                 </div>
                )}
             </CardContent>
