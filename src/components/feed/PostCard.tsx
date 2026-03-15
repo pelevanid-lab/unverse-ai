@@ -1,3 +1,4 @@
+
 "use client"
 
 import Image from 'next/image';
@@ -12,6 +13,7 @@ import { handlePremiumUnlock } from '@/lib/ledger';
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import Link from 'next/link';
 
 export function PostCard({ post }: { post: ContentPost }) {
   const { user, isConnected } = useWallet();
@@ -21,18 +23,38 @@ export function PostCard({ post }: { post: ContentPost }) {
 
   useEffect(() => {
     const checkUnlock = async () => {
-      if (!user || !post.isPremium) return;
-      const q = query(
+      if (!user) return;
+      
+      // If user is the creator, it's unlocked
+      if (user.uid === post.creatorId) {
+        setIsUnlocked(true);
+        return;
+      }
+
+      // Check premium unlock or subscription
+      const qUnlock = query(
         collection(db, 'ledger'), 
         where('fromWallet', '==', user.walletAddress),
         where('referenceId', '==', post.id),
         where('type', '==', 'premium_unlock')
       );
-      const snap = await getDocs(q);
-      if (!snap.empty) setIsUnlocked(true);
+      const qSub = query(
+        collection(db, 'ledger'),
+        where('fromWallet', '==', user.walletAddress),
+        where('referenceId', '==', post.creatorId),
+        where('type', '==', 'subscription_payment')
+      );
+
+      const [unlockSnap, subSnap] = await Promise.all([getDocs(qUnlock), getDocs(qSub)]);
+      if (!unlockSnap.empty || !subSnap.empty) setIsUnlocked(true);
     };
-    checkUnlock();
-  }, [user, post.id, post.isPremium]);
+    
+    if (post.isPremium) {
+      checkUnlock();
+    } else {
+      setIsUnlocked(true);
+    }
+  }, [user, post.id, post.isPremium, post.creatorId]);
 
   const handleUnlockClick = async () => {
     if (!isConnected || !user) {
@@ -47,11 +69,18 @@ export function PostCard({ post }: { post: ContentPost }) {
 
     setLoading(true);
     try {
-      await handlePremiumUnlock(user, 'creator_wallet_placeholder', post.price, post.id);
+      // Find creator wallet address
+      const creatorRef = doc(db, 'users', post.creatorId);
+      const creatorSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', post.creatorId)));
+      const creatorData = creatorSnap.docs[0]?.data();
+      
+      if (!creatorData) throw new Error("Creator not found");
+
+      await handlePremiumUnlock(user, creatorData.walletAddress, post.price, post.id);
       setIsUnlocked(true);
       toast({ title: "Content Unlocked", description: "Check out the full post now!" });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Unlock Failed" });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Unlock Failed", description: e.message });
     }
     setLoading(false);
   };
@@ -61,16 +90,20 @@ export function PostCard({ post }: { post: ContentPost }) {
   return (
     <Card className="overflow-hidden glass-card group border-white/10 hover:border-primary/50 transition-all duration-300">
       <CardHeader className="p-4 flex flex-row items-center gap-3 space-y-0">
-        <Avatar className="w-10 h-10 border-2 border-primary/20">
-          <AvatarImage src={post.creatorAvatar} />
-          <AvatarFallback>{post.creatorName[0]}</AvatarFallback>
-        </Avatar>
+        <Link href={`/profile/${post.creatorId}`}>
+          <Avatar className="w-10 h-10 border-2 border-primary/20 hover:scale-105 transition-transform">
+            <AvatarImage src={post.creatorAvatar} />
+            <AvatarFallback>{post.creatorName[0]}</AvatarFallback>
+          </Avatar>
+        </Link>
         <div className="flex flex-col">
-          <span className="font-bold text-sm flex items-center gap-1">
-            {post.creatorName}
-            {post.creatorId.includes('ai') && <CheckCircle className="w-3 h-3 text-primary" />}
-          </span>
-          <span className="text-xs text-muted-foreground">@{post.creatorId}</span>
+          <Link href={`/profile/${post.creatorId}`} className="hover:text-primary transition-colors">
+            <span className="font-bold text-sm flex items-center gap-1">
+              {post.creatorName}
+              {post.creatorId.includes('ai') && <CheckCircle className="w-3 h-3 text-primary" />}
+            </span>
+          </Link>
+          <span className="text-xs text-muted-foreground">@{post.creatorId.slice(0, 10)}</span>
         </div>
       </CardHeader>
       
@@ -87,7 +120,7 @@ export function PostCard({ post }: { post: ContentPost }) {
               <Lock className="w-10 h-10 text-primary" />
             </div>
             <h3 className="font-headline font-bold text-xl mb-1">Premium Post</h3>
-            <p className="text-xs text-muted-foreground mb-6 max-w-[200px]">This exclusive content is locked by the creator.</p>
+            <p className="text-xs text-muted-foreground mb-6 max-w-[200px]">This exclusive content is locked. Subscribe to creator or unlock individually.</p>
             <Button onClick={handleUnlockClick} disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 rounded-full px-10 py-6 text-lg shadow-lg shadow-primary/20">
               <Coins className="w-5 h-5" /> Unlock for {post.price} ULC
             </Button>
