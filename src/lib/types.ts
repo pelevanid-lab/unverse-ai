@@ -17,6 +17,7 @@ export type UserProfile = {
   isCreator: boolean;
   createdAt: number;
   isFrozen?: boolean;
+  welcomeBonusClaimed?: boolean;
 };
 
 export type CreatorProfile = {
@@ -76,7 +77,8 @@ export type LedgerTransactionType =
   | 'admin_adjustment'
   | 'buyback_burn'
   | 'genesis_allocation'
-  | 'ai_chat_fee';
+  | 'ai_chat_fee'
+  | 'welcome_bonus';
 
 export type LedgerEntry = {
   id?: string;
