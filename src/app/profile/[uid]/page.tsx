@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost } from '@/lib/types';
+import { UserProfile, ContentPost, CreatorProfile } from '@/lib/types';
 import { handleSubscription, handleTipping } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,14 +13,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PostCard } from '@/components/feed/PostCard';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift } from 'lucide-react';
+import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 export default function PublicProfilePage() {
   const { uid } = useParams();
   const { user: currentUser, isConnected } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,21 +34,32 @@ export default function PublicProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!uid) return;
+
     const fetchProfile = async () => {
-      const docRef = doc(db, 'users', uid as string);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        setProfile(snap.data() as UserProfile);
+      const userDocRef = doc(db, 'users', uid as string);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data() as UserProfile;
+        setProfile(userData);
+
+        if (userData.isCreator) {
+          const creatorDocRef = doc(db, 'creators', uid as string);
+          const creatorSnap = await getDoc(creatorDocRef);
+          if (creatorSnap.exists()) {
+            setCreatorProfile(creatorSnap.data() as CreatorProfile);
+          }
+        }
       } else {
         router.push('/');
       }
+      setLoading(false);
     };
 
     const unsubPosts = onSnapshot(
       query(collection(db, 'content'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
       (snap) => {
         setPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost)));
-        setLoading(false);
       }
     );
 
@@ -78,7 +91,7 @@ export default function PublicProfilePage() {
     try {
       await handleSubscription(currentUser, profile?.walletAddress!, 10, uid as string);
       setIsSubscribed(true);
-      toast({ title: "Subscribed!", description: `You now have premium access to ${profile?.username}.` });
+      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.username || profile?.username}.` });
     } catch (e) {
       toast({ variant: 'destructive', title: "Subscription Failed", description: "Check your balance." });
     }
@@ -90,7 +103,7 @@ export default function PublicProfilePage() {
     setTipping(true);
     try {
       await handleTipping(currentUser, profile.walletAddress, parseFloat(tipAmount), uid as string);
-      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${profile.username}.` });
+      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${creatorProfile?.username || profile.username}.` });
       setIsTipDialogOpen(false);
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
@@ -105,28 +118,41 @@ export default function PublicProfilePage() {
   );
 
   const isSelf = currentUser?.uid === uid;
+  const username = creatorProfile?.username || profile.username;
+  const avatar = creatorProfile?.avatar || profile.avatar;
+  const bio = creatorProfile?.creatorBio || profile.bio;
+  const coverImage = creatorProfile?.coverImage;
+  const followers = creatorProfile?.totalSubscribers || 0;
+  const socialLinks = creatorProfile?.socialLinks;
 
   return (
-    <div className="space-y-8 pb-12">
-      <header className="relative py-12 px-6 rounded-3xl overflow-hidden glass-card border-white/10">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent -z-10" />
-        <div className="flex flex-col md:flex-row items-center gap-8">
-          <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl">
-            <AvatarImage src={profile.avatar} />
-            <AvatarFallback>{profile.username[0]}</AvatarFallback>
+    <div className="relative pb-12">
+      <Button variant="ghost" onClick={() => router.back()} className="absolute top-6 left-6 z-20 bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm rounded-full p-2 h-auto">
+        <ArrowLeft className="w-5 h-5" />
+      </Button>
+      <header className="relative pt-24 pb-12 px-6 rounded-3xl overflow-hidden glass-card border-white/10 flex items-end">
+        {coverImage && 
+          <img src={coverImage} alt="Cover image" className="absolute inset-0 w-full h-full object-cover -z-10" />
+        }
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent -z-10" />
+        
+        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+          <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0">
+            <AvatarImage src={avatar} />
+            <AvatarFallback>{username[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-center md:text-left space-y-2">
             <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
-              {profile.username}
+              {username}
               {profile.isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}
             </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl">{profile.bio}</p>
+            <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
-              <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> Creator</Badge>
+              {creatorProfile?.category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {creatorProfile.category}</Badge>}
               <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {new Date(profile.createdAt).toLocaleDateString()}</Badge>
             </div>
           </div>
-          <div className="flex flex-col gap-3 min-w-[200px]">
+          <div className="flex flex-col gap-3 min-w-[200px] shrink-0">
             {isSubscribed ? (
               <Button disabled className="bg-green-500/20 text-green-400 border border-green-500/30 gap-2 h-14 rounded-2xl w-full">
                 <Crown className="w-5 h-5" /> Active Subscriber
@@ -150,7 +176,7 @@ export default function PublicProfilePage() {
               </DialogTrigger>
               <DialogContent className="glass-card border-white/10">
                 <DialogHeader>
-                  <DialogTitle>Support {profile.username}</DialogTitle>
+                  <DialogTitle>Support {username}</DialogTitle>
                   <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -189,7 +215,7 @@ export default function PublicProfilePage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
         <aside className="lg:col-span-1 space-y-6">
           <Card className="glass-card border-white/10">
             <CardHeader>
@@ -198,19 +224,22 @@ export default function PublicProfilePage() {
             <CardContent className="space-y-4">
                <div className="flex justify-between items-center text-sm">
                  <span className="text-muted-foreground">Followers</span>
-                 <span className="font-bold">12.4k</span>
+                 <span className="font-bold">{followers}</span>
                </div>
                <div className="flex justify-between items-center text-sm">
                  <span className="text-muted-foreground">Posts</span>
                  <span className="font-bold">{posts.length}</span>
                </div>
-               <div className="pt-4 border-t border-white/5">
-                 <p className="text-[10px] text-muted-foreground mb-2">Social Links</p>
-                 <div className="flex gap-2">
-                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors">𝕏</div>
-                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors">📸</div>
-                 </div>
-               </div>
+               {socialLinks?.x && (
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-[10px] text-muted-foreground mb-2">External URL</p>
+                  <div className="flex gap-2">
+                    <Link href={socialLinks.x} target="_blank">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors"><ExternalLink className="w-4 h-4" /></div>
+                    </Link>
+                  </div>
+                </div>
+               )}
             </CardContent>
           </Card>
         </aside>

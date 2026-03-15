@@ -2,7 +2,7 @@
 "use client"
 
 import Link from 'next/link';
-import { Zap, Wallet, LayoutDashboard, Search, Users, Coins, Settings, TrendingUp, Menu, X } from 'lucide-react';
+import { Zap, Wallet, LayoutDashboard, Search, Users, Coins, Settings, TrendingUp, Menu, X, User as UserIcon } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
@@ -20,7 +20,6 @@ export function Navbar() {
     const checkAdmin = async () => {
       if (user && user.walletAddress) {
         const config = await getSystemConfig();
-        // Case-insensitive comparison for wallet addresses
         if (config && config.admin_wallet_address && user.walletAddress &&
             config.admin_wallet_address.toLowerCase() === user.walletAddress.toLowerCase()) {
           setIsAdmin(true);
@@ -79,9 +78,6 @@ export function Navbar() {
                 <Wallet className="w-4 h-4" />
                 {user?.walletAddress.slice(0, 6)}...
               </Button>
-              <Button variant="ghost" size="icon" className="sm:hidden">
-                <LayoutDashboard className="w-5 h-5" />
-              </Button>
             </Link>
           ) : (
             <Button onClick={connectWallet} className="bg-primary hover:bg-primary/90 px-6 rounded-full font-bold shadow-lg shadow-primary/20">
@@ -110,7 +106,20 @@ export function Navbar() {
                 {link.live && <Badge className="bg-green-500/20 text-green-400 border-none">LIVE</Badge>}
               </Link>
             ))}
+            
+            {/* My Page Link for connected users */}
+            {isConnected && (
+              <Link 
+                href="/mypage"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2"><UserIcon className='w-5 h-5'/> My Page</span>
+              </Link>
+            )}
+
             {isAdmin && <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="text-yellow-400">Admin</Link>}
+            
             <div className="pt-4 border-t border-white/10 flex items-center justify-between">
               <span className="text-sm font-body font-normal text-muted-foreground">Balance</span>
               <div className="flex items-center gap-2">

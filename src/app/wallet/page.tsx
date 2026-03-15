@@ -1,11 +1,12 @@
 
 "use client"
 
+import { useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Coins, ArrowUpRight, ArrowDownLeft, History, ShoppingBag, Lock, RefreshCw } from 'lucide-react';
+import { Coins, ArrowUpRight, ArrowDownLeft, History, ShoppingBag, Lock, RefreshCw, ChevronLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { buyULC, claimVestedTokens, calculateVestingClaimable } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +15,8 @@ import { db } from '@/lib/firebase';
 import { LedgerEntry, VestingSchedule } from '@/lib/types';
 
 export default function WalletPage() {
-  const { user, isConnected } = useWallet();
+  const router = useRouter();
+  const { user, isConnected, rawAddress } = useWallet();
   const [usdtAmount, setUsdtAmount] = useState('10');
   const [buying, setBuying] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -23,17 +25,21 @@ export default function WalletPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!user) return;
+    // Ensure we have both user profile and the raw address before querying.
+    if (!user || !rawAddress) return;
     
+    // Create a unique list of address formats to query against.
+    const addressFormats = Array.from(new Set([user.walletAddress, rawAddress]));
+
     const qIn = query(
       collection(db, 'ledger'),
-      where('toWallet', '==', user.walletAddress),
+      where('toWallet', 'in', addressFormats), // Use 'in' to find all incoming transactions
       orderBy('timestamp', 'desc'),
       limit(20)
     );
     const qOut = query(
       collection(db, 'ledger'),
-      where('fromWallet', '==', user.walletAddress),
+      where('fromWallet', 'in', addressFormats), // Use 'in' to find all outgoing transactions
       orderBy('timestamp', 'desc'),
       limit(20)
     );
@@ -60,7 +66,7 @@ export default function WalletPage() {
     });
 
     return () => { unsubIn(); unsubOut(); unsubSchedules(); };
-  }, [user]);
+  }, [user, rawAddress]); // Add rawAddress to dependency array
 
   const handleBuy = async () => {
     if (!isConnected || !user) return;
@@ -96,9 +102,19 @@ export default function WalletPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      <header>
-        <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
-        <p className="text-muted-foreground font-mono text-xs">{user?.walletAddress}</p>
+      <header className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
+          onClick={() => router.back()}
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </Button>
+        <div>
+            <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
+            <p className="text-muted-foreground font-mono text-xs">{user?.walletAddress}</p>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -171,7 +187,8 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent className="max-h-[400px] overflow-y-auto space-y-4">
             {history.map((tx) => {
-              const isIncoming = tx.toWallet === user?.walletAddress;
+              // Check if the transaction's 'to' address matches the user's wallet address (case-insensitive).
+              const isIncoming = tx.toWallet.toLowerCase() === user?.walletAddress;
               return (
                 <div key={tx.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-white/5">
                   <div className="flex items-center gap-3">

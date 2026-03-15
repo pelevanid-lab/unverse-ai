@@ -156,6 +156,7 @@ export function useWallet() {
     disconnectWallet,
     isConnected: !!user && isConnected,
     walletAddress: user?.walletAddress || '',
+    rawAddress: rawAddress, // Expose the original, raw address
     ulcBalance: user?.ulcBalance?.available || 0,
     lockedULC: user?.ulcBalance?.locked || 0,
     claimableULC: user?.ulcBalance?.claimable || 0,

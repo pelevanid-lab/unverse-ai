@@ -19,6 +19,36 @@ export type UserProfile = {
   isFrozen?: boolean;
 };
 
+export type CreatorProfile = {
+  uid: string; // Same as walletAddress
+  walletAddress: string;
+  username: string;
+  avatar: string;
+  coverImage: string;
+  
+  creatorBio: string;
+  category: string;
+
+  socialLinks?: {
+    x?: string;
+  };
+
+  // Monetization settings
+  subscriptionPrice: number; // Monthly price in USDT
+  premiumDefaultPrice: number; // Default unlock price in ULC
+  
+  // Creator Stats
+  totalSubscribers: number;
+  totalUnlocks: number;
+  totalTips: number;
+  totalRevenue: number; // Aggregate from all sources
+  
+  // Status
+  isActive: boolean; // To allow disabling a creator profile
+  updatedAt: number;
+  createdAt: number; // Timestamp of becoming a creator
+};
+
 export type ContentPost = {
   id: string;
   creatorId: string;

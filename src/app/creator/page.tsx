@@ -9,209 +9,252 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles } from 'lucide-react';
+import { useState, useEffect, FormEvent } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { handleCreatorWithdrawal } from '@/lib/ledger';
+import { CreatorProfile, UserProfile } from '@/lib/types';
 import Link from 'next/link';
 
+function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
+      <Card className="glass-card max-w-2xl p-8 border-primary/20 shadow-2xl shadow-primary/10">
+        <CardHeader className="p-0">
+          <div className='flex justify-center mb-4'>
+            <div className='p-4 bg-primary/10 rounded-full border border-primary/20'>
+              <Sparkles className="w-10 h-10 text-primary" />
+            </div>
+          </div>
+          <CardTitle className="text-4xl font-headline gradient-text">Become a UNVERSE Creator</CardTitle>
+          <CardDescription className="pt-2 text-base text-muted-foreground">
+            Join our ecosystem to monetize your content, engage with your audience through tokenized interactions, and build your digital empire on a decentralized platform.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 pt-8">
+          <Button
+            onClick={onBecomeCreator}
+            disabled={loading}
+            className="w-full h-14 text-lg font-bold rounded-2xl shadow-lg bg-primary hover:bg-primary/90"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : 'Activate Creator Profile'}
+          </Button>
+          <p className='text-xs text-muted-foreground mt-4'>Activation is instant. You can start publishing right away.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function CreatorPanel() {
-  const { user, isConnected } = useWallet();
-  const [isPremium, setIsPremium] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [withdrawing, setWithdrawing] = useState(false);
-  const [myContent, setMyContent] = useState<any[]>([]);
+  const { user, isConnected, refreshUser } = useWallet();
   const { toast } = useToast();
+
+  const [activationLoading, setActivationLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [myContent, setMyContent] = useState<any[]>([]);
+
+  const [creatorBio, setCreatorBio] = useState('');
+  const [category, setCategory] = useState('');
+  const [coverImage, setCoverImage] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'content'), where('creatorId', '==', user.uid), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      setMyContent(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsub();
+
+    if (user.isCreator && user.walletAddress) {
+      const fetchCreatorProfile = async () => {
+        const creatorDocRef = doc(db, 'creators', user.walletAddress!);
+        const creatorDoc = await getDoc(creatorDocRef);
+        if (creatorDoc.exists()) {
+          const creatorData = creatorDoc.data() as CreatorProfile;
+          setCreatorBio(creatorData.creatorBio || '');
+          setCategory(creatorData.category || '');
+          setCoverImage(creatorData.coverImage || '');
+          setAvatar(creatorData.avatar || '');
+          setExternalUrl(creatorData.socialLinks?.x || '');
+        }
+      };
+      fetchCreatorProfile();
+
+      const q = query(collection(db, 'content'), where('creatorId', '==', user.walletAddress), orderBy('createdAt', 'desc'));
+      const unsub = onSnapshot(q, (snap) => {
+        setMyContent(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      });
+      return () => unsub();
+    }
   }, [user]);
 
-  const handlePost = async (e: any) => {
+  const handleBecomeCreator = async () => {
+    if (!user || !user.walletAddress) return;
+    setActivationLoading(true);
+    try {
+      const userDocRef = doc(db, 'users', user.walletAddress);
+      const creatorDocRef = doc(db, 'creators', user.walletAddress);
+
+      await setDoc(userDocRef, { isCreator: true }, { merge: true });
+
+      const creatorDoc = await getDoc(creatorDocRef);
+      if (!creatorDoc.exists()) {
+        const freshUserDoc = await getDoc(userDocRef);
+        if (!freshUserDoc.exists()) {
+            throw new Error("User document could not be found or created.");
+        }
+        const freshUserData = freshUserDoc.data() as UserProfile;
+
+        const newCreatorProfile: CreatorProfile = {
+          uid: user.walletAddress,
+          walletAddress: user.walletAddress,
+          username: freshUserData.username || `creator_${user.walletAddress.substring(0, 8)}`,
+          avatar: freshUserData.avatar || '',
+          coverImage: '',
+          creatorBio: '',
+          category: '',
+          socialLinks: { x: '' },
+          subscriptionPrice: 0,
+          premiumDefaultPrice: 5,
+          totalSubscribers: 0,
+          totalUnlocks: 0,
+          totalTips: 0,
+          totalRevenue: 0,
+          isActive: true,
+          updatedAt: Date.now(),
+          createdAt: Date.now(),
+        };
+        await setDoc(creatorDocRef, newCreatorProfile);
+      }
+      
+      toast({ title: "Welcome, Creator!", description: "Your creator profile is now active." });
+      await refreshUser(); // This triggers the UI update without a page reload.
+
+    } catch (error) {
+      console.error("Activation failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      toast({ variant: 'destructive', title: "Activation Failed", description: errorMessage });
+    } finally {
+      setActivationLoading(false);
+    }
+  };
+
+  const handleSettingsUpdate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isConnected || !user) return;
-    setLoading(true);
-
-    const formData = new FormData(e.target);
-    const postData = {
-      creatorId: user.uid,
-      creatorName: user.username,
-      creatorAvatar: user.avatar,
-      title: formData.get('title'),
-      caption: formData.get('caption'),
-      mediaUrl: `https://picsum.photos/seed/${Math.random()}/800/800`,
-      isPremium: isPremium,
-      price: isPremium ? parseFloat(formData.get('price') as string) : 0,
-      createdAt: Date.now()
-    };
-
+    if (!user || !user.walletAddress) return;
+    setSettingsLoading(true);
     try {
-      await addDoc(collection(db, 'content'), postData);
-      toast({ title: "Content Published", description: "Your post is now live." });
-      e.target.reset();
-      setIsPremium(false);
-    } catch (err) {
-      toast({ variant: 'destructive', title: "Failed to Post" });
+      const creatorDocRef = doc(db, 'creators', user.walletAddress);
+      await updateDoc(creatorDocRef, {
+        creatorBio,
+        category,
+        coverImage,
+        avatar,
+        socialLinks: { x: externalUrl },
+        updatedAt: Date.now(),
+      });
+      toast({ title: "Profile Updated", description: "Your public profile has been saved." });
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Update Failed", description: "Could not save your profile." });
     }
-    setLoading(false);
+    setSettingsLoading(false);
   };
 
-  const handleWithdraw = async () => {
-    if (!user || user.ulcBalance.available <= 0) return;
-    setWithdrawing(true);
-    try {
-      await handleCreatorWithdrawal(user, user.ulcBalance.available);
-      toast({ title: "Withdrawal Initiated", description: "Processing your earnings." });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Withdrawal Failed", description: e.message });
-    }
-    setWithdrawing(false);
-  };
+  if (!isConnected || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <DollarSign className="w-16 h-16 text-primary" />
+        <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
+        <p className="text-muted-foreground">Connect your wallet to manage your content.</p>
+      </div>
+    );
+  }
 
-  if (!isConnected) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-      <DollarSign className="w-16 h-16 text-primary" />
-      <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
-      <p className="text-muted-foreground">Connect your wallet to manage your content.</p>
-    </div>
-  );
+  if (!user.isCreator) {
+    return <BecomeCreator onBecomeCreator={handleBecomeCreator} loading={activationLoading} />;
+  }
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-8 border-white/10">
+      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-8 border-white/10">
         <div>
+          <Link href="/mypage" className="mb-4 inline-block">
+            <Button variant="ghost" className="text-muted-foreground hover:text-white px-0 hover:bg-transparent">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to My Page
+            </Button>
+          </Link>
           <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
           <p className="text-muted-foreground mt-2">Manage your digital empire.</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <Card className="glass-card border-primary/20 bg-primary/5 flex items-center gap-4 px-6 py-3 rounded-2xl">
             <div>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Available Earnings</p>
               <p className="text-2xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
             </div>
-            <Button size="sm" onClick={handleWithdraw} disabled={withdrawing || user?.ulcBalance.available === 0} className="rounded-xl gap-2">
-              {withdrawing ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+            <Button size="sm" disabled className="rounded-xl gap-2">
+              <ArrowUpRight className="w-4 h-4" />
               Withdraw
             </Button>
           </Card>
-          <Link href={`/profile/${user?.uid}`}>
-            <Button variant="outline" className="h-full rounded-2xl gap-2"><ExternalLink className="w-4 h-4" /> View Public Profile</Button>
+          <Link href={`/profile/${user?.walletAddress}`} className="w-full">
+            <Button variant="outline" className="h-full w-full rounded-2xl gap-2">
+              <ExternalLink className="w-4 h-4" /> View Public Profile
+            </Button>
           </Link>
         </div>
       </header>
 
-      <Tabs defaultValue="create" className="w-full">
+      <Tabs defaultValue="settings" className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-14 bg-muted/20 p-1 rounded-2xl border border-white/5 mb-8">
-          <TabsTrigger value="create" className="rounded-xl gap-2 data-[state=active]:bg-primary">
-            <Plus className="w-4 h-4" /> New Post
-          </TabsTrigger>
-          <TabsTrigger value="content" className="rounded-xl gap-2 data-[state=active]:bg-primary">
-            <Upload className="w-4 h-4" /> Content
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl gap-2 data-[state=active]:bg-primary">
-            <BarChart3 className="w-4 h-4" /> Stats
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-xl gap-2 data-[state=active]:bg-primary">
-            <Settings className="w-4 h-4" /> Settings
-          </TabsTrigger>
+          <TabsTrigger value="create">New Post</TabsTrigger>
+          <TabsTrigger value="content">Content</TabsTrigger>
+          <TabsTrigger value="analytics">Stats</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="create">
-          <Card className="glass-card max-w-2xl mx-auto border-white/10">
-            <CardHeader>
-              <CardTitle>Publish Content</CardTitle>
-              <CardDescription>Upload media and set price.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePost} className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input name="title" placeholder="Post title..." required className="bg-muted/30 border-none h-12" />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Caption</Label>
-                  <Textarea name="caption" placeholder="Describe your post..." required className="bg-muted/30 border-none min-h-[120px]" />
-                </div>
-
-                <div className="border-2 border-dashed rounded-2xl p-12 text-center flex flex-col items-center gap-4 bg-muted/10 border-white/10">
-                  <Upload className="w-10 h-10 text-primary" />
-                  <p className="text-sm font-bold">Media Upload (Placeholder)</p>
-                </div>
-
-                <div className="flex items-center justify-between p-5 bg-muted/20 rounded-2xl border border-white/5">
-                  <div className="space-y-0.5">
-                    <Label className="font-bold">Premium Access</Label>
-                    <p className="text-[10px] text-muted-foreground">Require tokens to unlock.</p>
-                  </div>
-                  <Switch checked={isPremium} onCheckedChange={setIsPremium} />
-                </div>
-
-                {isPremium && (
-                  <div className="space-y-2 p-5 bg-primary/5 rounded-2xl border border-primary/20">
-                    <Label className="text-xs uppercase font-bold text-primary">Price ($ULC)</Label>
-                    <div className="relative">
-                      <Input name="price" type="number" defaultValue="5" className="bg-muted/30 border-none h-12 text-lg font-bold pl-12" />
-                      <Coins className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary" />
-                    </div>
-                  </div>
-                )}
-
-                <Button type="submit" disabled={loading} className="w-full h-16 text-lg font-bold rounded-2xl shadow-lg">
-                  {loading ? 'Publishing...' : 'Publish to Feed'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Publish New Content</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
         </TabsContent>
-
         <TabsContent value="content">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myContent.map((post) => (
-              <Card key={post.id} className="glass-card overflow-hidden">
-                <div className="relative aspect-video">
-                  <img src={post.mediaUrl} className="w-full h-full object-cover" />
-                  {post.isPremium && <Badge className="absolute top-2 right-2 bg-primary">Premium: {post.price} ULC</Badge>}
-                </div>
-                <CardContent className="p-4">
-                  <h4 className="font-bold truncate">{post.title}</h4>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Your Content</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
         </TabsContent>
-
         <TabsContent value="analytics">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="glass-card p-6">
-              <p className="text-xs font-bold uppercase text-muted-foreground">Total Views</p>
-              <div className="text-3xl font-bold mt-2 font-headline">0</div>
-            </Card>
-            <Card className="glass-card p-6">
-              <p className="text-xs font-bold uppercase text-muted-foreground">Earnings</p>
-              <div className="text-3xl font-bold mt-2 font-headline">{user?.totalEarnings.toFixed(2)} ULC</div>
-            </Card>
-          </div>
+          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Your Analytics</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
         </TabsContent>
 
         <TabsContent value="settings">
-          <Card className="glass-card max-w-2xl mx-auto">
+          <Card className="glass-card max-w-2xl mx-auto border-white/10">
             <CardHeader>
-              <CardTitle>Economic Settings</CardTitle>
+              <CardTitle>Creator Settings</CardTitle>
+              <CardDescription>Customize your public profile and monetization rules.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Label>Default Price ($ULC)</Label>
-                <Input type="number" defaultValue="5" className="w-24 text-right" />
-              </div>
-              <Button className="w-full">Save Rules</Button>
+            <CardContent>
+              <form onSubmit={handleSettingsUpdate} className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Avatar Image URL</Label>
+                  <Input value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cover Image URL</Label>
+                  <Input value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>External URL</Label>
+                  <Input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://your-website.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g., Digital Artist" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Creator Bio</Label>
+                  <Textarea value={creatorBio} onChange={(e) => setCreatorBio(e.target.value)} placeholder="Tell the world your story..." />
+                </div>
+                <Button type="submit" disabled={settingsLoading} className="w-full">
+                  {settingsLoading ? <Loader2 className="animate-spin" /> : 'Save Settings'}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>

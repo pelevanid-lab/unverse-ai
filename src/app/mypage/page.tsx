@@ -5,37 +5,36 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle } from 'lucide-react';
+import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Gift, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, UserProfile } from '@/lib/types';
+import { LedgerEntry, Muse, UserProfile } from '@/lib/types';
 
 export default function MyPage() {
-  const { user, isConnected, disconnectWallet } = useWallet();
+  const { user, isConnected, disconnectWallet, rawAddress } = useWallet();
   const [activeSubs, setActiveSubs] = useState<any[]>([]);
   const [recentUnlocks, setRecentUnlocks] = useState<LedgerEntry[]>([]);
+  const [tipsHistory, setTipsHistory] = useState<LedgerEntry[]>([]);
+  const [ownedMuses, setOwnedMuses] = useState<Muse[]>([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !rawAddress) return;
+
+    const addressFormats = Array.from(new Set([user.walletAddress, rawAddress]));
 
     // Fetch subscriptions
     const qSubs = query(
       collection(db, 'ledger'),
-      where('fromWallet', '==', user.walletAddress),
+      where('fromWallet', 'in', addressFormats),
       where('type', '==', 'subscription_payment')
     );
-    
     const unsubSubs = onSnapshot(qSubs, async (snap) => {
       const subs = await Promise.all(snap.docs.map(async (d) => {
         const data = d.data();
         const creatorSnap = await getDoc(doc(db, 'users', data.referenceId));
-        return { 
-          id: d.id, 
-          creator: creatorSnap.exists() ? creatorSnap.data() : null,
-          ...data 
-        };
+        return { id: d.id, creator: creatorSnap.exists() ? creatorSnap.data() : null, ...data };
       }));
       setActiveSubs(subs.filter(s => s.creator));
     });
@@ -43,18 +42,41 @@ export default function MyPage() {
     // Fetch premium unlocks
     const qUnlocks = query(
       collection(db, 'ledger'),
-      where('fromWallet', '==', user.walletAddress),
+      where('fromWallet', 'in', addressFormats),
       where('type', '==', 'premium_unlock')
     );
     const unsubUnlocks = onSnapshot(qUnlocks, (snap) => {
       setRecentUnlocks(snap.docs.map(d => ({ id: d.id, ...d.data() } as LedgerEntry)));
     });
 
+    // Fetch Tips (Sent & Received)
+    const qTipsSent = query(collection(db, 'ledger'), where('fromWallet', 'in', addressFormats), where('type', '==', 'tip'));
+    const qTipsReceived = query(collection(db, 'ledger'), where('toWallet', 'in', addressFormats), where('type', '==', 'tip'));
+
+    const processTips = (snap: any) => {
+        const data = snap.docs.map((d:any) => ({ id: d.id, ...d.data() } as LedgerEntry));
+        setTipsHistory(prev => {
+            const combined = [...prev, ...data].sort((a, b) => b.timestamp - a.timestamp);
+            return Array.from(new Set(combined.map(t => t.id))).map(id => combined.find(t => t.id === id)!);
+        });
+    }
+    const unsubTipsSent = onSnapshot(qTipsSent, processTips);
+    const unsubTipsReceived = onSnapshot(qTipsReceived, processTips);
+
+    // Fetch Owned Muses
+    const qMuses = query(collection(db, 'muses'), where('ownerId', '==', user.uid));
+    const unsubMuses = onSnapshot(qMuses, (snap) => {
+        setOwnedMuses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Muse)));
+    });
+
     return () => {
       unsubSubs();
       unsubUnlocks();
+      unsubTipsSent();
+      unsubTipsReceived();
+      unsubMuses();
     };
-  }, [user]);
+  }, [user, rawAddress]);
 
   if (!isConnected) {
     return (
@@ -146,28 +168,29 @@ export default function MyPage() {
             <Crown className="w-6 h-6 text-yellow-400" /> Active Subscriptions
           </h2>
           <div className="grid grid-cols-1 gap-4">
-            {activeSubs.map((sub) => (
-              <Card key={sub.id} className="glass-card border-white/10 hover:border-primary/30 transition-all">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <Avatar className="w-12 h-12">
-                    <AvatarImage src={sub.creator.avatar} />
-                    <AvatarFallback>{sub.creator.username[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-bold">{sub.creator.username}</p>
-                    <p className="text-[10px] text-muted-foreground">Subscribed on {new Date(sub.timestamp).toLocaleDateString()}</p>
-                  </div>
-                  <Link href={`/profile/${sub.creator.uid}`}>
-                    <Button variant="ghost" size="sm">Visit</Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-            {activeSubs.length === 0 && (
+            {activeSubs.length > 0 ? (
+              activeSubs.map((sub) => (
+                <Card key={sub.id} className="glass-card border-white/10 hover:border-primary/30 transition-all">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={sub.creator.avatar} />
+                      <AvatarFallback>{sub.creator.username[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-bold">{sub.creator.username}</p>
+                      <p className="text-[10px] text-muted-foreground">Subscribed on {new Date(sub.timestamp).toLocaleDateString()}</p>
+                    </div>
+                    <Link href={`/profile/${sub.creator.uid}`}>
+                      <Button variant="ghost" size="sm">Visit</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
               <Card className="glass-card border-white/5 bg-white/[0.02]">
                 <CardContent className="p-12 text-center space-y-4">
                   <p className="text-muted-foreground text-sm">You haven't subscribed to any creators yet.</p>
-                  <Link href="/">
+                  <Link href="/discover">
                     <Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Creators</Button>
                   </Link>
                 </CardContent>
@@ -181,16 +204,17 @@ export default function MyPage() {
             <Sparkles className="w-6 h-6 text-primary" /> Premium Unlocks
           </h2>
           <div className="grid grid-cols-1 gap-4">
-            {recentUnlocks.map((unlock) => (
-              <div key={unlock.id} className="flex items-center justify-between p-4 glass-card rounded-2xl border-white/5">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold">Content Unlock</span>
-                  <span className="text-[10px] text-muted-foreground">Ref: {unlock.referenceId?.slice(0, 8)}...</span>
+            {recentUnlocks.length > 0 ? (
+              recentUnlocks.map((unlock) => (
+                <div key={unlock.id} className="flex items-center justify-between p-4 glass-card rounded-2xl border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold">Content Unlock</span>
+                    <span className="text-[10px] text-muted-foreground">Ref: {unlock.referenceId?.slice(0, 8)}...</span>
+                  </div>
+                  <div className="text-sm font-bold text-orange-400">-{unlock.amount} ULC</div>
                 </div>
-                <div className="text-sm font-bold text-primary">-{unlock.amount} ULC</div>
-              </div>
-            ))}
-            {recentUnlocks.length === 0 && (
+              ))
+            ) : (
               <Card className="glass-card border-white/5 bg-white/[0.02]">
                 <CardContent className="p-12 text-center text-muted-foreground text-sm">
                   Unlock premium content to see it listed here.
@@ -199,6 +223,77 @@ export default function MyPage() {
             )}
           </div>
         </section>
+
+        {/* START of new sections */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+            <Gift className="w-6 h-6 text-pink-400" /> Tips History
+          </h2>
+          <div className="grid grid-cols-1 gap-4">
+            {tipsHistory.length > 0 ? (
+              tipsHistory.map((tip) => {
+                const isSent = tip.fromWallet.toLowerCase() === user.walletAddress;
+                return (
+                  <div key={tip.id} className="flex items-center justify-between p-4 glass-card rounded-2xl border-white/5">
+                      <div className="flex items-center gap-3">
+                        {isSent ? <ArrowUpRight className="w-5 h-5 text-orange-400"/> : <ArrowDownLeft className="w-5 h-5 text-green-400"/>}
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold">{isSent ? 'Tip Sent' : 'Tip Received'}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {isSent ? `To: ${tip.toWallet.slice(0,10)}` : `From: ${tip.fromWallet.slice(0,10)}`}...
+                            </span>
+                        </div>
+                      </div>
+                      <div className={`text-sm font-bold ${isSent ? 'text-orange-400' : 'text-green-400'}`}>
+                        {isSent ? '-' : '+'}{tip.amount} ULC
+                      </div>
+                  </div>
+                )
+              })
+            ) : (
+              <Card className="glass-card border-white/5 bg-white/[0.02]">
+                <CardContent className="p-12 text-center text-muted-foreground text-sm">
+                  You have no tip transaction history yet.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+
+        <section className="space-y-6">
+            <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+                <Bot className="w-6 h-6 text-teal-400" /> Owned AI Muses
+            </h2>
+            <div className="grid grid-cols-2 gap-4">
+                {ownedMuses.length > 0 ? (
+                    ownedMuses.map((muse) => (
+                        <Link key={muse.id} href={`/muses/${muse.id}/chat`} passHref>
+                          <Card className="glass-card aspect-square flex flex-col items-center justify-center text-center p-4 hover:border-primary/50 transition-colors h-full">
+                              <Avatar className="w-16 h-16 mb-2">
+                                  <AvatarImage src={muse.avatar} />
+                                  <AvatarFallback>{muse.name[0]}</AvatarFallback>
+                              </Avatar>
+                              <p className="font-bold text-sm">{muse.name}</p>
+                              <p className="text-xs text-muted-foreground">{muse.personality}</p>
+                          </Card>
+                        </Link>
+                    ))
+                ) : (
+                    <div className="col-span-2">
+                        <Card className="glass-card border-white/5 bg-white/[0.02]">
+                            <CardContent className="p-12 text-center space-y-4">
+                                <p className="text-muted-foreground text-sm">You don't own any Muses yet.</p>
+                                <Link href="/muses">
+                                    <Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Muses</Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+            </div>
+        </section>
+        {/* END of new sections */}
+
       </div>
     </div>
   );
