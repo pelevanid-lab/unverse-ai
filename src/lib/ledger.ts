@@ -2,14 +2,14 @@ import { db } from './firebase';
 import { 
   doc, setDoc, collection, addDoc, updateDoc, 
   increment, getDoc, query, where, getDocs, 
-  orderBy, limit, writeBatch, Timestamp 
+  orderBy, limit, writeBatch 
 } from 'firebase/firestore';
 import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule } from './types';
 
 const CONFIG_DOC_PATH = 'config/system';
 
 /**
- * getSystemConfig - Fetches the platform's global economic parameters.
+ * getSystemConfig - Fetches the platform's global economic parameters from Firestore.
  */
 export async function getSystemConfig(): Promise<SystemConfig | null> {
   const docRef = doc(db, CONFIG_DOC_PATH);
@@ -21,8 +21,8 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
 }
 
 /**
- * initializeSystemConfig - Sets up the platform's genesis parameters.
- * Only callable once by the primary admin.
+ * initializeSystemConfig - Sets up the platform's genesis parameters in Firestore.
+ * This is the primary "trigger" for platform metrics.
  */
 export async function initializeSystemConfig(adminAddress: string) {
   const config: SystemConfig = {
@@ -52,7 +52,74 @@ export async function initializeSystemConfig(adminAddress: string) {
 }
 
 /**
- * triggerGenesisAllocation - Grants the 50k ULC starter allocation with 24m vesting.
+ * recordTransaction - The central economic engine that writes to the 'ledger' collection.
+ * This function handles all ULC/USDT movements and updates user balances.
+ */
+export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | 'id'>) {
+  const timestamp = Date.now();
+  const ledgerRef = collection(db, 'ledger');
+  
+  // 1. Create the immutable ledger entry
+  const docRef = await addDoc(ledgerRef, {
+    ...entry,
+    timestamp
+  });
+
+  const batch = writeBatch(db);
+  
+  // 2. Update balances if it's a ULC transaction
+  if (entry.currency === 'ULC') {
+    if (entry.fromWallet && !isSystemPool(entry.fromWallet)) {
+      await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
+      await trackSpending(entry.fromWallet, entry.amount, batch);
+    }
+    if (entry.toWallet && !isSystemPool(entry.toWallet)) {
+      await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
+      await trackEarnings(entry.toWallet, entry.amount, batch);
+    }
+  }
+
+  await batch.commit();
+  return docRef.id;
+}
+
+async function updateWalletBalance(walletAddress: string, delta: number, field: string, batch: any) {
+  const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    batch.update(snap.docs[0].ref, {
+      [`ulcBalance.${field}`]: increment(delta)
+    });
+  }
+}
+
+async function trackSpending(walletAddress: string, amount: number, batch: any) {
+  const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    batch.update(snap.docs[0].ref, {
+      totalSpent: increment(amount)
+    });
+  }
+}
+
+async function trackEarnings(walletAddress: string, amount: number, batch: any) {
+  const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    batch.update(snap.docs[0].ref, {
+      totalEarnings: increment(amount)
+    });
+  }
+}
+
+function isSystemPool(address: string) {
+  const pools = ['system', 'system_genesis', 'burn_pool', 'staking_pool', 'treasury', 'system_vesting', '0xReserve_Pool', '0xBurn_Pool', '0xStaking_Pool', '0xTreasury_Main'];
+  return pools.includes(address);
+}
+
+/**
+ * triggerGenesisAllocation - Grants the starter ULC allocation with linear vesting.
  */
 export async function triggerGenesisAllocation(user: UserProfile) {
   const amount = 50000;
@@ -126,70 +193,12 @@ export async function seedMuses() {
   await batch.commit();
 }
 
-/**
- * recordTransaction - Core economic engine.
- */
-export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | 'id'>) {
-  const timestamp = Date.now();
-  const ledgerRef = collection(db, 'ledger');
-  
-  const docRef = await addDoc(ledgerRef, {
-    ...entry,
-    timestamp
-  });
-
-  const batch = writeBatch(db);
-  
-  // Wallet Address Lookups & Balance Updates
-  if (entry.currency === 'ULC') {
-    if (entry.fromWallet && !isSystemPool(entry.fromWallet)) {
-      await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
-    }
-    if (entry.toWallet && !isSystemPool(entry.toWallet)) {
-      await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
-    }
-  }
-
-  await batch.commit();
-  return docRef.id;
-}
-
-async function updateWalletBalance(walletAddress: string, delta: number, field: string, batch: any) {
-  const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
-  const snap = await getDocs(q);
-  if (!snap.empty) {
-    batch.update(snap.docs[0].ref, {
-      [`ulcBalance.${field}`]: increment(delta)
-    });
-  }
-}
-
-function isSystemPool(address: string) {
-  return ['system', 'system_genesis', 'burn_pool', 'staking_pool', 'treasury'].includes(address);
-}
-
-export async function processChatFee(user: UserProfile) {
-  const config = await getSystemConfig();
-  const fee = config?.ai_chat_cost || 0.5;
-
-  if (user.ulcBalance.available < fee) {
-    throw new Error("Insufficient ULC for AI interaction.");
-  }
-
-  await recordTransaction({
-    fromWallet: user.walletAddress,
-    toWallet: 'burn_pool',
-    amount: fee,
-    currency: 'ULC',
-    type: 'ai_chat_fee'
-  });
-}
-
 export async function buyULC(user: UserProfile, usdtAmount: number) {
   const config = await getSystemConfig();
   const rate = config?.internal_ulc_purchase_price || 0.015;
   const ulcAmount = usdtAmount / rate;
 
+  // Record USDT payment to treasury
   await recordTransaction({
     fromWallet: user.walletAddress,
     toWallet: 'treasury',
@@ -198,6 +207,7 @@ export async function buyULC(user: UserProfile, usdtAmount: number) {
     type: 'ulc_purchase'
   });
 
+  // Credit ULC from system to user
   await recordTransaction({
     fromWallet: 'system',
     toWallet: user.walletAddress,
@@ -210,7 +220,6 @@ export async function buyULC(user: UserProfile, usdtAmount: number) {
 }
 
 export async function handlePremiumUnlock(user: UserProfile, creatorWallet: string, amount: number, contentId: string) {
-  // Logic: 95% to creator, 2.5% to staking, 2.5% to treasury
   const creatorShare = amount * 0.95;
   const stakingShare = amount * 0.025;
   const treasuryShare = amount * 0.025;
@@ -243,36 +252,20 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
   });
 }
 
-export async function handleSubscription(user: UserProfile, creatorWallet: string, usdtAmount: number, creatorUid: string) {
-  await recordTransaction({
-    fromWallet: user.walletAddress,
-    toWallet: creatorWallet,
-    amount: usdtAmount * 0.9,
-    currency: 'USDT',
-    type: 'subscription_payment',
-    referenceId: creatorUid
-  });
-  
-  await recordTransaction({
-    fromWallet: user.walletAddress,
-    toWallet: 'treasury',
-    amount: usdtAmount * 0.1,
-    currency: 'USDT',
-    type: 'subscription_payment',
-    referenceId: creatorUid
-  });
-}
+export async function processChatFee(user: UserProfile) {
+  const config = await getSystemConfig();
+  const fee = config?.ai_chat_cost || 0.5;
 
-export async function handleTipping(user: UserProfile, creatorWallet: string, amount: number, creatorUid: string) {
-  if (user.ulcBalance.available < amount) throw new Error("Insufficient ULC");
-  
+  if (user.ulcBalance.available < fee) {
+    throw new Error("Insufficient ULC for AI interaction.");
+  }
+
   await recordTransaction({
     fromWallet: user.walletAddress,
-    toWallet: creatorWallet,
-    amount: amount,
+    toWallet: 'burn_pool',
+    amount: fee,
     currency: 'ULC',
-    type: 'tip',
-    referenceId: creatorUid
+    type: 'ai_chat_fee'
   });
 }
 
@@ -336,7 +329,7 @@ export async function handleStaking(user: UserProfile, amount: number) {
     toWallet: 'staking_pool',
     amount: amount,
     currency: 'ULC',
-    type: 'admin_adjustment', // Or define a 'stake' type
+    type: 'admin_adjustment',
     metadata: { action: 'stake' }
   });
 }
@@ -361,18 +354,6 @@ export async function handleUnstaking(user: UserProfile, amount: number) {
     currency: 'ULC',
     type: 'admin_adjustment',
     metadata: { action: 'unstake' }
-  });
-}
-
-export async function handleCreatorWithdrawal(user: UserProfile, amount: number) {
-  if (user.ulcBalance.available < amount) throw new Error("Insufficient balance for withdrawal.");
-
-  await recordTransaction({
-    fromWallet: user.walletAddress,
-    toWallet: 'treasury',
-    amount: amount,
-    currency: 'ULC',
-    type: 'creator_payout'
   });
 }
 
