@@ -22,12 +22,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (user) {
-        const conf = await getSystemConfig();
-        setConfig(conf);
-        if (conf && conf.admin_wallet_address === user.walletAddress) {
-          setAuthorized(true);
-        }
+      const conf = await getSystemConfig();
+      setConfig(conf);
+      if (user && conf && conf.admin_wallet_address === user.walletAddress) {
+        setAuthorized(true);
       }
     };
     checkAuth();
@@ -144,7 +142,7 @@ export default function AdminDashboard() {
               <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
                 <Database className="w-6 h-6 text-primary" /> Immutable Ledger
               </h2>
-              <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin-slow" />
+              <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
             </div>
             <Card className="glass-card overflow-hidden">
               <Table>

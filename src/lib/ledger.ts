@@ -47,22 +47,17 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp'>) {
   const timestamp = Date.now();
   const ledgerRef = collection(db, 'ledger');
   
-  // 1. Record the immutable ledger entry
   const newDoc = await addDoc(ledgerRef, {
     ...entry,
     timestamp
   });
 
-  // 2. Update balances based on currency and transaction type
-  // This is a simplified atomic-like update for the prototype
   const batch = writeBatch(db);
 
   if (entry.currency === 'ULC') {
-    // Deduct from sender if not a system pool
     if (entry.fromWallet && !isSystemPool(entry.fromWallet)) {
       await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
     }
-    // Add to receiver if not a system pool
     if (entry.toWallet && !isSystemPool(entry.toWallet)) {
       await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
     }
@@ -86,7 +81,7 @@ async function updateWalletBalance(walletAddress: string, delta: number, field: 
 }
 
 function isSystemPool(address: string) {
-  const systemPools = ['system', 'reserve_pool', 'genesis_wallet', 'burn_pool', 'staking_pool', 'treasury'];
+  const systemPools = ['system', 'reserve_pool', 'genesis_wallet', 'burn_pool', 'staking_pool', 'treasury', '0xTreasury_Main', '0xGenesis_Main', '0xReserve_Pool', '0xBurn_Pool', '0xStaking_Pool'];
   return systemPools.includes(address);
 }
 
@@ -97,7 +92,6 @@ export async function buyULC(user: UserProfile, usdtAmount: number) {
   const price = config.internal_ulc_purchase_price;
   const ulcAmount = usdtAmount / price;
 
-  // Record USDT payment to treasury
   await recordTransaction({
     fromWallet: user.walletAddress,
     toWallet: config.treasury_wallet_address,
@@ -106,7 +100,6 @@ export async function buyULC(user: UserProfile, usdtAmount: number) {
     type: 'ulc_purchase'
   });
 
-  // Record ULC delivery from reserve pool
   await recordTransaction({
     fromWallet: config.reserve_pool_address,
     toWallet: user.walletAddress,
@@ -127,7 +120,6 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
   const treasurySplit = commission * config.premium_commission_treasury_split;
   const stakingSplit = commission * config.premium_commission_staking_split;
 
-  // 1. User pays total
   await recordTransaction({
     fromWallet: user.walletAddress,
     toWallet: creatorWallet,
@@ -137,7 +129,6 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
     referenceId: contentId
   });
 
-  // 2. Commission to Treasury
   await recordTransaction({
     fromWallet: user.walletAddress,
     toWallet: config.treasury_wallet_address,
@@ -148,7 +139,6 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
     metadata: { part: 'treasury_commission' }
   });
 
-  // 3. Commission to Staking Pool
   await recordTransaction({
     fromWallet: user.walletAddress,
     toWallet: config.staking_pool_address,

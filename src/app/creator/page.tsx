@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Users, ExternalLink } from 'lucide-react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Users, ExternalLink, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
@@ -164,7 +164,7 @@ export default function CreatorPanel() {
             {myContent.map((post) => (
               <Card key={post.id} className="glass-card overflow-hidden">
                 <div className="relative aspect-video">
-                  <img src={post.mediaUrl} className="w-full h-full object-cover" />
+                  <img src={post.mediaUrl} className="w-full h-full object-cover" data-ai-hint="digital art" />
                   {post.isPremium && <Badge className="absolute top-2 right-2 bg-primary">Premium: {post.price} ULC</Badge>}
                 </div>
                 <CardContent className="p-4">

@@ -19,22 +19,6 @@ export type UserProfile = {
   isFrozen?: boolean;
 };
 
-export type CreatorProfile = {
-  uid: string;
-  name: string;
-  category: string;
-  bio: string;
-  coverImage: string;
-  avatar: string;
-  ulcUnlockPrice: number;
-  usdtSubscriptionPrice: number;
-  stats: {
-    totalEarnings: number;
-    subscribers: number;
-    unlocks: number;
-  };
-};
-
 export type ContentPost = {
   id: string;
   creatorId: string;
