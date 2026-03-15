@@ -124,7 +124,7 @@ async function updateWalletBalance(walletAddress: string, delta: number, field: 
 }
 
 function isSystemPool(address: string) {
-  const systemPools = ['system', 'reserve_pool', 'genesis_wallet', 'burn_pool', 'staking_pool', 'treasury', '0xTreasury_Main', '0xGenesis_Main', '0xReserve_Pool', '0xBurn_Pool', '0xStaking_Pool'];
+  const systemPools = ['system', 'reserve_pool', 'genesis_wallet', 'burn_pool', 'staking_pool', 'treasury', '0xTreasury_Main', '0xGenesis_Main', '0xReserve_Pool', '0xBurn_Pool', '0xStaking_Pool', 'system_vesting'];
   return systemPools.includes(address);
 }
 
@@ -317,4 +317,78 @@ export async function claimVestedTokens(user: UserProfile, schedule: VestingSche
   });
 
   await batch.commit();
+}
+
+export async function handleStaking(user: UserProfile, amount: number) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error("System not configured");
+
+  if (user.ulcBalance.available < amount) throw new Error("Insufficient balance");
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: config.staking_pool_address,
+    amount: amount,
+    currency: 'ULC',
+    type: 'staking_reward', // Used for both stake and reward for simplicity in this prototype
+    metadata: { action: 'stake' }
+  });
+
+  await updateDoc(doc(db, 'users', user.uid), {
+    'ulcBalance.available': increment(-amount),
+    'ulcBalance.locked': increment(amount)
+  });
+}
+
+export async function handleUnstaking(user: UserProfile, amount: number) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error("System not configured");
+
+  if (user.ulcBalance.locked < amount) throw new Error("Insufficient staked balance");
+
+  await recordTransaction({
+    fromWallet: config.staking_pool_address,
+    toWallet: user.walletAddress,
+    amount: amount,
+    currency: 'ULC',
+    type: 'staking_reward',
+    metadata: { action: 'unstake' }
+  });
+
+  await updateDoc(doc(db, 'users', user.uid), {
+    'ulcBalance.available': increment(amount),
+    'ulcBalance.locked': increment(-amount)
+  });
+}
+
+export async function triggerGenesisAllocation(user: UserProfile) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error("System not configured");
+
+  const allocationAmount = 50000; // 50k ULC allocation for testing
+  
+  // Create a vesting schedule
+  const schedule: Omit<VestingSchedule, 'id'> = {
+    uid: user.uid,
+    totalAmount: allocationAmount,
+    claimedAmount: 0,
+    startTime: Date.now(),
+    durationMonths: 24,
+    type: 'presale'
+  };
+
+  const scheduleRef = await addDoc(collection(db, 'vesting_schedules'), schedule);
+
+  await recordTransaction({
+    fromWallet: config.genesis_wallet_address,
+    toWallet: user.walletAddress,
+    amount: allocationAmount,
+    currency: 'ULC',
+    type: 'genesis_allocation',
+    referenceId: scheduleRef.id
+  });
+
+  await updateDoc(doc(db, 'users', user.uid), {
+    'ulcBalance.claimable': increment(allocationAmount)
+  });
 }

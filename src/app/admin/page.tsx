@@ -2,10 +2,10 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles, UserX, UserCheck, PlusCircle } from 'lucide-react';
+import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles, UserX, UserCheck, PlusCircle, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authorized) return;
     
-    const qLedger = query(collection(db, 'ledger'), orderBy('timestamp', 'desc'), limit(15));
+    const qLedger = query(collection(db, 'ledger'), orderBy('timestamp', 'desc'), limit(30));
     const unsubLedger = onSnapshot(qLedger, (snap) => {
       setRecentLedger(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LedgerEntry)));
     });
@@ -77,6 +77,18 @@ export default function AdminDashboard() {
       toast({ title: "Muses Seeded", description: "Official AI Muses have been added to the registry." });
     } catch (e) {
       toast({ variant: "destructive", title: "Seeding Failed" });
+    }
+    setLoading(false);
+  };
+
+  const handleGenesisAllocation = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      await triggerGenesisAllocation(user);
+      toast({ title: "Genesis Triggered", description: "50k ULC allocated with 24-month vesting." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Allocation Failed", description: e.message });
     }
     setLoading(false);
   };
@@ -117,7 +129,7 @@ export default function AdminDashboard() {
   };
 
   if (!isConnected) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
       <ShieldCheck className="w-16 h-16 text-muted-foreground" />
       <h1 className="text-3xl font-headline font-bold">Admin Portal</h1>
       <p className="text-muted-foreground">Connect your wallet to access system tools.</p>
@@ -150,16 +162,16 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-muted-foreground">Governance & Account Moderation</p>
         </div>
-        <Badge className="bg-yellow-400 text-black px-4 py-1">Super Admin</Badge>
+        <Badge className="bg-yellow-400 text-black px-4 py-1 uppercase tracking-tighter">Super Admin Mode</Badge>
       </header>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-muted/30 p-1 rounded-xl">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="ledger">Global Ledger</TabsTrigger>
+          <TabsTrigger value="users">User Base</TabsTrigger>
           <TabsTrigger value="muses">Muse Tools</TabsTrigger>
-          <TabsTrigger value="config">Config</TabsTrigger>
+          <TabsTrigger value="genesis">Genesis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -182,18 +194,18 @@ export default function AdminDashboard() {
             </Card>
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Treasury Balance</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-400">$12.4k USDT</div>
+                <div className="text-2xl font-bold text-green-400">{recentLedger.length} TXs</div>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Burn Total</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">System Health</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-400">45k ULC</div>
+                <div className="text-2xl font-bold text-blue-400">OPTIMAL</div>
               </CardContent>
             </Card>
           </div>
@@ -206,24 +218,24 @@ export default function AdminDashboard() {
                 <TableRow>
                   <TableHead>Type</TableHead>
                   <TableHead>From/To</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead className="text-right">Timestamp</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead className="text-right">Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recentLedger.map(tx => (
                   <TableRow key={tx.id}>
-                    <TableCell><Badge variant="outline">{tx.type.replace('_', ' ')}</Badge></TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px] whitespace-nowrap">{tx.type.replace(/_/g, ' ')}</Badge></TableCell>
                     <TableCell className="text-xs font-mono">
                       <div className="flex flex-col">
-                        <span>F: {tx.fromWallet.slice(0,10)}...</span>
-                        <span>T: {tx.toWallet.slice(0,10)}...</span>
+                        <span className="truncate max-w-[120px]">F: {tx.fromWallet}</span>
+                        <span className="truncate max-w-[120px]">T: {tx.toWallet}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-bold">
+                    <TableCell className="font-bold whitespace-nowrap">
                       {tx.amount.toFixed(2)} {tx.currency}
                     </TableCell>
-                    <TableCell className="text-right text-[10px]">{new Date(tx.timestamp).toLocaleString()}</TableCell>
+                    <TableCell className="text-right text-[10px] text-muted-foreground">{new Date(tx.timestamp).toLocaleTimeString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -238,15 +250,17 @@ export default function AdminDashboard() {
                 <TableRow>
                   <TableHead>Username</TableHead>
                   <TableHead>Wallet</TableHead>
+                  <TableHead>Balance</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {allUsers.map(u => (
                   <TableRow key={u.uid}>
                     <TableCell className="font-bold">{u.username}</TableCell>
-                    <TableCell className="text-xs font-mono">{u.walletAddress}</TableCell>
+                    <TableCell className="text-xs font-mono">{u.walletAddress.slice(0,10)}...</TableCell>
+                    <TableCell className="text-xs">{u.ulcBalance.available.toFixed(1)} ULC</TableCell>
                     <TableCell>
                       {u.isFrozen ? (
                         <Badge variant="destructive">Frozen</Badge>
@@ -260,7 +274,6 @@ export default function AdminDashboard() {
                         variant={u.isFrozen ? "outline" : "destructive"}
                         onClick={() => handleToggleFreeze(u.uid, !!u.isFrozen)}
                       >
-                        {u.isFrozen ? <UserCheck className="w-4 h-4 mr-2" /> : <UserX className="w-4 h-4 mr-2" />}
                         {u.isFrozen ? 'Unfreeze' : 'Freeze'}
                       </Button>
                     </TableCell>
@@ -298,42 +311,34 @@ export default function AdminDashboard() {
 
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle>Quick Tools</CardTitle>
+                <CardTitle>Legacy Seed Tools</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                  <Button onClick={handleSeedMuses} disabled={loading} className="w-full" variant="outline">
-                   Seed Default Official Muses
+                   Seed Default Muses (Isabella, Elena, Chloe)
                  </Button>
-                 <p className="text-[10px] text-muted-foreground text-center">Resets or adds the primary Isabella, Elena, and Chloe profiles.</p>
+                 <p className="text-[10px] text-muted-foreground text-center">Initial platform-owned influencers.</p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="config">
+        <TabsContent value="genesis">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>System Wallets & Rules</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-6 h-6 text-yellow-400" /> Genesis Allocation Tool
+              </CardTitle>
+              <CardDescription>Grant your current wallet a test allocation of 50,000 ULC (24mo Vesting).</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4 font-mono text-xs">
-                 <div className="flex justify-between border-b pb-2">
-                   <span className="text-muted-foreground">Treasury</span>
-                   <span>{config?.treasury_wallet_address}</span>
-                 </div>
-                 <div className="flex justify-between border-b pb-2">
-                   <span className="text-muted-foreground">Burn Pool</span>
-                   <span>{config?.burn_pool_address}</span>
-                 </div>
-                 <div className="flex justify-between border-b pb-2">
-                   <span className="text-muted-foreground">Reserve Pool</span>
-                   <span>{config?.reserve_pool_address}</span>
-                 </div>
-                 <div className="flex justify-between border-b pb-2">
-                   <span className="text-muted-foreground">Internal ULC Price</span>
-                   <span>${config?.internal_ulc_purchase_price} USDT</span>
-                 </div>
-              </div>
+            <CardContent className="space-y-6">
+               <div className="bg-yellow-400/10 border border-yellow-400/20 p-4 rounded-xl text-sm text-yellow-400">
+                 Warning: This tool is for simulation and testing purposes only. It will create a vesting schedule in Firestore for your active wallet.
+               </div>
+               <Button onClick={handleGenesisAllocation} disabled={loading} className="w-full bg-yellow-400 text-black hover:bg-yellow-500 font-bold h-14 text-lg">
+                 {loading ? <RefreshCw className="animate-spin mr-2" /> : <Zap className="mr-2" />}
+                 Grant 50k ULC Genesis Allocation
+               </Button>
             </CardContent>
           </Card>
         </TabsContent>
