@@ -2,10 +2,10 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, seedMuses } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   const [authorized, setAuthorized] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [recentLedger, setRecentLedger] = useState<LedgerEntry[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
 
   const handleInitialize = async () => {
     if (!user) return;
+    setLoading(true);
     try {
       const conf = await initializeSystemConfig(user.walletAddress);
       setConfig(conf);
@@ -50,6 +52,18 @@ export default function AdminDashboard() {
     } catch (e) {
       toast({ variant: "destructive", title: "Setup Failed" });
     }
+    setLoading(false);
+  };
+
+  const handleSeedMuses = async () => {
+    setLoading(true);
+    try {
+      await seedMuses();
+      toast({ title: "Muses Seeded", description: "Official AI Muses have been added to the registry." });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Seeding Failed" });
+    }
+    setLoading(false);
   };
 
   if (!isConnected) return (
@@ -69,8 +83,8 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground max-w-md">Only the primary system wallet can access this panel. If this is a fresh install, initialize the system as admin.</p>
         </div>
         {!config && (
-          <Button onClick={handleInitialize} className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold px-8">
-            Initialize System as Admin
+          <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold px-8">
+            {loading ? 'Initializing...' : 'Initialize System as Admin'}
           </Button>
         )}
       </div>
@@ -214,6 +228,18 @@ export default function AdminDashboard() {
 
           <section className="space-y-4">
             <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+              <Settings className="w-6 h-6 text-primary" /> Maintenance
+            </h2>
+            <Card className="glass-card p-4 space-y-4">
+               <Button onClick={handleSeedMuses} disabled={loading} className="w-full gap-2" variant="outline">
+                 <Sparkles className="w-4 h-4 text-primary" /> Seed Official Muses
+               </Button>
+               <p className="text-[10px] text-muted-foreground text-center">Initializes the registry with seed AI influencer profiles.</p>
+            </Card>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
               <Settings className="w-6 h-6 text-primary" /> Parameters
             </h2>
             <Card className="glass-card">
@@ -227,8 +253,8 @@ export default function AdminDashboard() {
                   <span className="font-bold">{(config?.subscription_split.platform * 100).toFixed(0)}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Unlock Commission</span>
-                  <span className="font-bold">{(config?.premium_unlock_commission * 100).toFixed(1)}%</span>
+                  <span className="text-muted-foreground">Chat Cost</span>
+                  <span className="font-bold">{config?.ai_chat_cost} ULC</span>
                 </div>
                 <Button variant="outline" className="w-full text-xs mt-2" size="sm">Modify Rules</Button>
               </CardContent>

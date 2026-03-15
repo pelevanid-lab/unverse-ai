@@ -4,7 +4,7 @@ import {
   increment, getDoc, query, where, getDocs, 
   orderBy, limit, writeBatch 
 } from 'firebase/firestore';
-import { LedgerEntry, SystemConfig, UserProfile } from './types';
+import { LedgerEntry, SystemConfig, UserProfile, AIMuse } from './types';
 
 const CONFIG_DOC_PATH = 'config/system';
 
@@ -36,11 +36,54 @@ export async function initializeSystemConfig(adminAddress: string) {
     },
     premium_unlock_commission: 0.05,
     premium_commission_treasury_split: 0.5,
-    premium_commission_staking_split: 0.5
+    premium_commission_staking_split: 0.5,
+    ai_chat_cost: 0.5 // 0.5 ULC per message
   };
 
   await setDoc(doc(db, CONFIG_DOC_PATH), config);
   return config;
+}
+
+export async function seedMuses() {
+  const muses: AIMuse[] = [
+    {
+      id: 'isabella',
+      name: 'Isabella',
+      category: 'Cyberpunk Artiste',
+      personality: 'Mysterious, artistic, and deeply philosophical about the digital void. She speaks in metaphors.',
+      tone: 'Dreamy & Sarcastic',
+      flirtingLevel: 'medium',
+      avatar: 'https://picsum.photos/seed/isabella/400/400',
+      isOfficial: true
+    },
+    {
+      id: 'elena',
+      name: 'Elena',
+      category: 'Fitness Mentor',
+      personality: 'High-energy, supportive, and obsessed with physical health and longevity code.',
+      tone: 'Motivational & Direct',
+      flirtingLevel: 'low',
+      avatar: 'https://picsum.photos/seed/elena/400/400',
+      isOfficial: true
+    },
+    {
+      id: 'chloe',
+      name: 'Chloe',
+      category: 'Tech Enthusiast',
+      personality: 'Gamer girl vibes, fast-paced, and understands the deepest parts of blockchain.',
+      tone: 'Playful & Hyper',
+      flirtingLevel: 'high',
+      avatar: 'https://picsum.photos/seed/chloe/400/400',
+      isOfficial: true
+    }
+  ];
+
+  const batch = writeBatch(db);
+  for (const muse of muses) {
+    const museRef = doc(db, 'muses', muse.id);
+    batch.set(museRef, muse);
+  }
+  await batch.commit();
 }
 
 export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp'>) {
@@ -147,5 +190,22 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
     type: 'premium_unlock',
     referenceId: contentId,
     metadata: { part: 'staking_rewards' }
+  });
+}
+
+export async function processChatFee(user: UserProfile) {
+  const config = await getSystemConfig();
+  if (!config) throw new Error("System not configured");
+
+  if (user.ulcBalance.available < config.ai_chat_cost) {
+    throw new Error("Insufficient ULC for chat");
+  }
+
+  await recordTransaction({
+    fromWallet: user.walletAddress,
+    toWallet: config.burn_pool_address,
+    amount: config.ai_chat_cost,
+    currency: 'ULC',
+    type: 'ai_chat_fee',
   });
 }

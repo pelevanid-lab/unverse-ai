@@ -44,7 +44,8 @@ export type LedgerTransactionType =
   | 'creator_payout'
   | 'admin_adjustment'
   | 'buyback_burn'
-  | 'genesis_allocation';
+  | 'genesis_allocation'
+  | 'ai_chat_fee';
 
 export type LedgerEntry = {
   id?: string;
@@ -77,6 +78,7 @@ export type SystemConfig = {
   premium_unlock_commission: number;
   premium_commission_treasury_split: number;
   premium_commission_staking_split: number;
+  ai_chat_cost: number;
 };
 
 export type AIMuse = {
@@ -87,4 +89,12 @@ export type AIMuse = {
   tone: string;
   flirtingLevel: 'none' | 'low' | 'medium' | 'high';
   avatar: string;
+  isOfficial?: boolean;
+};
+
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+  timestamp: number;
 };
