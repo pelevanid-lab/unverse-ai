@@ -6,7 +6,7 @@ import { UserProfile } from '@/lib/types';
 
 /**
  * useWallet - Manages user authentication and live profile data.
- * When a user connects, their profile is automatically synced with Firestore metrics.
+ * Exposes specific reactive wallet metrics as required.
  */
 export function useWallet() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -17,13 +17,11 @@ export function useWallet() {
       if (fbUser) {
         const userRef = doc(db, 'users', fbUser.uid);
         
-        // Live listener for user metrics (balances, earnings, status)
         const unsubscribeSnap = onSnapshot(userRef, async (userSnap) => {
           if (userSnap.exists()) {
             setUser(userSnap.data() as UserProfile);
             setLoading(false);
           } else {
-            // Automatic profile creation on first trigger
             const mockWallet = `0x${fbUser.uid.slice(0, 4)}${Math.random().toString(16).slice(2, 10)}`;
             const newUser: UserProfile = {
               uid: fbUser.uid,
@@ -68,5 +66,15 @@ export function useWallet() {
     auth.signOut();
   };
 
-  return { user, loading, connectWallet, disconnectWallet, isConnected: !!user };
+  return { 
+    user,
+    loading, 
+    connectWallet, 
+    disconnectWallet, 
+    isConnected: !!user,
+    walletAddress: user?.walletAddress || '',
+    ulcBalance: user?.ulcBalance.available || 0,
+    lockedULC: user?.ulcBalance.locked || 0,
+    claimableULC: user?.ulcBalance.claimable || 0
+  };
 }

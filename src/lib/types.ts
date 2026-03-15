@@ -61,35 +61,57 @@ export type LedgerEntry = {
 
 export type SystemWalletType = 
   | 'genesis_wallet'
-  | 'treasury_wallet'
   | 'reserve_pool'
+  | 'presale_pool'
+  | 'presale_vesting_pool'
+  | 'promo_pool'
+  | 'treasury_wallet'
+  | 'treasury_usdt_ledger'
+  | 'amm_reserve_pool_usdt'
+  | 'creator_incentive_pool'
+  | 'creator_vesting_pool'
+  | 'team_vesting_wallet'
+  | 'team_vesting_pool'
+  | 'liquidity_launch_pool'
+  | 'exchange_listing_pool'
   | 'burn_pool'
-  | 'staking_pool'
-  | 'creator_incentives'
-  | 'team_vesting'
-  | 'liquidity_pool'
-  | 'marketing_wallet'
-  | 'exchange_liquidity'
-  | 'presale_vault'
-  | 'platform_ops'
-  | 'buyback_vault'
-  | 'community_grants'
-  | 'security_reserve'
-  | 'ai_muse_vault'
-  | 'advisory_pool';
+  | 'staking_pool';
 
 export type SystemConfig = {
+  treasury_wallet_address: string;
+  treasury_network: string;
   admin_wallet_address: string;
-  genesis_initialized: boolean;
+  supported_usdt_networks: string[];
+  ulc_token_network: string;
+
   ulc_presale_price: number;
   internal_ulc_purchase_price: number;
-  ai_chat_cost: number;
-  premium_unlock_commission: number;
-  subscription_split: {
-    creator: number;
-    platform: number;
-  };
+
+  amm_launch_price: number;
+  amm_activation_threshold: number;
+  amm_enabled: boolean;
+  amm_mode: string;
+
+  wallet_integration_enabled: boolean;
+  subscription_split_enabled: boolean;
+  creator_payout_mode: string;
+
+  presale_vesting_months: number;
+  creator_incentive_vesting_months: number;
+  team_vesting_months: number;
+  team_vesting_cliff_months: number;
+
+  subscription_buyback_ratio: number;
+  subscription_treasury_ratio: number;
+
+  premium_commission_staking_ratio: number;
+  premium_commission_treasury_ratio: number;
+
+  emission_rate: number;
+  emission_max_reward: number;
+  
   wallets: Record<SystemWalletType, string>;
+  genesis_initialized: boolean;
 };
 
 export type AIMuse = {

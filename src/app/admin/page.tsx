@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { collection, query, orderBy, limit, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, UserProfile } from '@/lib/types';
+import { LedgerEntry, UserProfile, SystemConfig } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,9 +20,9 @@ import { generateMuseImage } from '@/ai/flows/generate-muse-image-flow';
 import Image from 'next/image';
 
 export default function AdminDashboard() {
-  const { user, isConnected } = useWallet();
+  const { user, isConnected, walletAddress } = useWallet();
   const [authorized, setAuthorized] = useState(false);
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<SystemConfig | null>(null);
   const [recentLedger, setRecentLedger] = useState<LedgerEntry[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [systemWallets, setSystemWallets] = useState<any[]>([]);
@@ -35,12 +35,12 @@ export default function AdminDashboard() {
     const checkAuth = async () => {
       const conf = await getSystemConfig();
       setConfig(conf);
-      if (user && conf && conf.admin_wallet_address === user.walletAddress) {
+      if (walletAddress && conf && conf.admin_wallet_address === walletAddress) {
         setAuthorized(true);
       }
     };
     checkAuth();
-  }, [user]);
+  }, [walletAddress]);
 
   useEffect(() => {
     if (!authorized) return;
@@ -61,13 +61,13 @@ export default function AdminDashboard() {
   }, [authorized]);
 
   const handleInitialize = async () => {
-    if (!user) return;
+    if (!walletAddress) return;
     setLoading(true);
     try {
-      const conf = await initializeSystemConfig(user.walletAddress);
+      const conf = await initializeSystemConfig(walletAddress);
       setConfig(conf);
       setAuthorized(true);
-      toast({ title: "System Initialized", description: "17-Wallet Protocol and Genesis Ledger established." });
+      toast({ title: "System Initialized", description: "OASIS_ROSE Network & 16-Wallet Protocol established." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: e.message });
     }
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       await triggerGenesisAllocation(user);
-      toast({ title: "Genesis Triggered", description: "50k ULC team grant recorded in ledger." });
+      toast({ title: "Genesis Triggered", description: "50k ULC team grant (36m linear) recorded." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Allocation Failed", description: e.message });
     }
@@ -139,9 +139,12 @@ export default function AdminDashboard() {
         <ShieldCheck className="w-16 h-16 text-destructive" />
         <h1 className="text-3xl font-headline font-bold">Unauthorized</h1>
         {!config && (
-          <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black">
-            {loading ? 'Initializing...' : 'Initialize 17-Wallet Protocol'}
-          </Button>
+          <div className="space-y-4">
+            <p className="text-muted-foreground max-w-sm">No protocol found. Initialize the Unverse system now.</p>
+            <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black px-12 h-14 rounded-2xl font-bold">
+              {loading ? 'Initializing OASIS_ROSE...' : 'Initialize 16-Wallet Protocol'}
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -150,8 +153,11 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 pb-12">
       <header className="flex justify-between items-center">
-        <h1 className="text-4xl font-headline font-bold text-yellow-400">Admin Console</h1>
-        <Badge className="bg-yellow-400 text-black">V1 Protocol Active</Badge>
+        <div>
+          <h1 className="text-4xl font-headline font-bold text-yellow-400">Admin Console</h1>
+          <p className="text-xs text-muted-foreground font-mono">Net: {config?.ulc_token_network}</p>
+        </div>
+        <Badge className="bg-yellow-400 text-black">V1.0 Protocol Active</Badge>
       </header>
 
       <Tabs defaultValue="wallets" className="space-y-6">
@@ -161,18 +167,19 @@ export default function AdminDashboard() {
           <TabsTrigger value="users">Moderation</TabsTrigger>
           <TabsTrigger value="studio">Muse Studio</TabsTrigger>
           <TabsTrigger value="genesis">Genesis</TabsTrigger>
+          <TabsTrigger value="config">System Config</TabsTrigger>
         </TabsList>
 
         <TabsContent value="wallets">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {systemWallets.map(w => (
               <Card key={w.id} className="glass-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-bold uppercase text-muted-foreground">{w.id.replace(/_/g, ' ')}</CardTitle>
+                  <CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">{w.id.replace(/_/g, ' ')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold font-headline">{w.balance.toLocaleString()} ULC</div>
-                  <div className="text-[10px] font-mono opacity-50 truncate">{w.address}</div>
+                  <div className="text-xl font-bold font-headline">{w.balance.toLocaleString()} {w.currency || 'ULC'}</div>
+                  <div className="text-[9px] font-mono opacity-50 truncate mt-1">{w.address}</div>
                 </CardContent>
               </Card>
             ))}
@@ -193,12 +200,12 @@ export default function AdminDashboard() {
               <TableBody>
                 {recentLedger.map(tx => (
                   <TableRow key={tx.id}>
-                    <TableCell><Badge variant="outline">{tx.type}</Badge></TableCell>
-                    <TableCell className="text-xs font-mono">
+                    <TableCell><Badge variant="outline" className="text-[9px] uppercase">{tx.type}</Badge></TableCell>
+                    <TableCell className="text-[10px] font-mono">
                       <div className="truncate w-32">F: {tx.fromWallet}</div>
                       <div className="truncate w-32">T: {tx.toWallet}</div>
                     </TableCell>
-                    <TableCell className="font-bold">{tx.amount.toFixed(2)} {tx.currency}</TableCell>
+                    <TableCell className="font-bold">{tx.amount.toLocaleString()} {tx.currency}</TableCell>
                     <TableCell className="text-right text-[10px] opacity-50">{new Date(tx.timestamp).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
@@ -245,17 +252,27 @@ export default function AdminDashboard() {
              <CardContent className="space-y-6">
                <form onSubmit={handleGenerateMuse} className="space-y-4">
                   <Input name="museName" placeholder="Muse Name" required />
-                  <Input name="museCategory" placeholder="Category" required />
-                  <Button type="submit" disabled={museGenLoading} className="w-full">
-                    {museGenLoading ? 'Generating...' : 'Generate Profile'}
+                  <Input name="museCategory" placeholder="Category (e.g. Digital Artist)" required />
+                  <Button type="submit" disabled={museGenLoading} className="w-full h-12 rounded-xl">
+                    {museGenLoading ? 'Generating Persona & Art...' : 'Generate Profile'}
                   </Button>
                </form>
-               <Button onClick={handleSeedMuses} variant="outline" className="w-full">Seed Default Influencers</Button>
+               <div className="relative">
+                 <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                 <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">Or</span></div>
+               </div>
+               <Button onClick={handleSeedMuses} variant="outline" className="w-full">Seed Default Influencers (Isabella, Elena, Chloe)</Button>
                {generatedPreview && (
-                 <div className="p-4 border rounded-xl space-y-4">
-                   <img src={generatedPreview.avatar} className="w-20 h-20 rounded-xl" />
-                   <h4 className="font-bold">{generatedPreview.name}</h4>
-                   <Button onClick={handleSaveMuse} className="w-full bg-green-500">Publish to /ai_muses</Button>
+                 <div className="p-4 border rounded-xl space-y-4 animate-in fade-in">
+                   <div className="flex gap-4">
+                      <img src={generatedPreview.avatar} className="w-20 h-20 rounded-xl object-cover" />
+                      <div>
+                        <h4 className="font-bold">{generatedPreview.name}</h4>
+                        <p className="text-xs text-muted-foreground">{generatedPreview.category}</p>
+                        <Badge variant="secondary" className="mt-2">{generatedPreview.flirtingLevel} Flirt</Badge>
+                      </div>
+                   </div>
+                   <Button onClick={handleSaveMuse} className="w-full bg-green-500 hover:bg-green-600 h-12 rounded-xl">Publish to /ai_muses</Button>
                  </div>
                )}
              </CardContent>
@@ -265,10 +282,40 @@ export default function AdminDashboard() {
         <TabsContent value="genesis">
            <Card className="glass-card p-10 text-center">
              <CardTitle className="text-4xl">Genesis Protocol</CardTitle>
-             <CardDescription className="text-lg mt-4">Initialize the ecosystem tokens (1 Billion ULC distribution).</CardDescription>
-             <Button onClick={handleGenesisAllocation} className="mt-8 bg-yellow-400 text-black h-16 px-12 text-xl rounded-2xl font-bold">
-               Grant Genesis Allocation (50k Team Vesting)
+             <CardDescription className="text-lg mt-4">Simulate initial distribution (1 Billion $ULC Allocation).</CardDescription>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 max-w-xl mx-auto">
+                <div className="p-4 bg-muted/20 rounded-xl text-left">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Reserve Pool</p>
+                   <p className="font-bold">420,000,000 ULC</p>
+                </div>
+                <div className="p-4 bg-muted/20 rounded-xl text-left">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Presale Pool</p>
+                   <p className="font-bold">100,000,000 ULC</p>
+                </div>
+             </div>
+             <Button onClick={handleGenesisAllocation} className="mt-8 bg-yellow-400 text-black h-16 px-12 text-xl rounded-2xl font-bold shadow-lg shadow-yellow-400/20">
+               Grant Personal Genesis Allocation (50k)
              </Button>
+           </Card>
+        </TabsContent>
+
+        <TabsContent value="config">
+           <Card className="glass-card">
+             <CardHeader>
+                <CardTitle>System Parameters</CardTitle>
+             </CardHeader>
+             <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                   {config && Object.entries(config).map(([key, value]) => (
+                     key !== 'wallets' && (
+                       <div key={key} className="flex justify-between border-b border-white/5 pb-2">
+                          <span className="text-muted-foreground font-mono">{key}</span>
+                          <span className="font-bold">{JSON.stringify(value)}</span>
+                       </div>
+                     )
+                   ))}
+                </div>
+             </CardContent>
            </Card>
         </TabsContent>
       </Tabs>
