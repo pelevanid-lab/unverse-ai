@@ -2,6 +2,7 @@ export type ULCBalance = {
   available: number;
   locked: number;
   claimable: number;
+  lastClaimTimestamp?: number;
 };
 
 export type UserProfile = {
@@ -15,6 +16,7 @@ export type UserProfile = {
   totalSpent: number;
   isCreator: boolean;
   createdAt: number;
+  isFrozen?: boolean;
 };
 
 export type CreatorProfile = {
@@ -46,18 +48,6 @@ export type ContentPost = {
   createdAt: number;
 };
 
-export type LedgerEntry = {
-  id: string;
-  fromWallet: string;
-  toWallet: string;
-  amount: number;
-  currency: 'ULC' | 'USDT';
-  type: LedgerTransactionType;
-  timestamp: number;
-  referenceId?: string;
-  metadata?: any;
-};
-
 export type LedgerTransactionType = 
   | 'premium_unlock'
   | 'subscription_payment'
@@ -72,17 +62,37 @@ export type LedgerTransactionType =
   | 'buyback_burn'
   | 'genesis_allocation';
 
+export type LedgerEntry = {
+  id?: string;
+  fromWallet: string;
+  toWallet: string;
+  amount: number;
+  currency: 'ULC' | 'USDT';
+  type: LedgerTransactionType;
+  timestamp: number;
+  referenceId?: string;
+  metadata?: any;
+};
+
 export type SystemConfig = {
   treasury_wallet_address: string;
   admin_wallet_address: string;
+  genesis_wallet_address: string;
+  reserve_pool_address: string;
+  burn_pool_address: string;
+  staking_pool_address: string;
   ulc_presale_price: number;
   internal_ulc_purchase_price: number;
   genesis_initialized: boolean;
-  subscription_buyback_ratio: number;
-  subscription_treasury_ratio: number;
-  premium_commission_staking_ratio: number;
-  premium_commission_treasury_ratio: number;
-  reserve_pool_balance: number;
+  subscription_split: {
+    creator: number;
+    platform: number;
+    platform_treasury_split: number;
+    platform_burn_split: number;
+  };
+  premium_unlock_commission: number;
+  premium_commission_treasury_split: number;
+  premium_commission_staking_split: number;
 };
 
 export type AIMuse = {

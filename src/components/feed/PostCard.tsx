@@ -1,48 +1,65 @@
 "use client"
 
 import Image from 'next/image';
-import { Lock, Coins, CheckCircle, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Lock, Coins, CheckCircle, Heart, MessageCircle, Share2, Unlock } from 'lucide-react';
 import { ContentPost } from '@/lib/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
-import { recordTransaction } from '@/lib/ledger';
+import { handlePremiumUnlock } from '@/lib/ledger';
+import { useState, useEffect } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export function PostCard({ post }: { post: ContentPost }) {
   const { user, isConnected } = useWallet();
   const { toast } = useToast();
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleUnlock = async () => {
-    if (!isConnected) {
-      toast({ title: "Error", description: "Please connect your wallet first." });
+  useEffect(() => {
+    const checkUnlock = async () => {
+      if (!user || !post.isPremium) return;
+      const q = query(
+        collection(db, 'ledger'), 
+        where('fromWallet', '==', user.walletAddress),
+        where('referenceId', '==', post.id),
+        where('type', '==', 'premium_unlock')
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) setIsUnlocked(true);
+    };
+    checkUnlock();
+  }, [user, post.id, post.isPremium]);
+
+  const handleUnlockClick = async () => {
+    if (!isConnected || !user) {
+      toast({ title: "Auth Required", description: "Connect your wallet to unlock." });
       return;
     }
 
-    if (user!.ulcBalance.available < post.price) {
-      toast({ title: "Insufficient Balance", description: `You need ${post.price} ULC to unlock this content.` });
+    if (user.ulcBalance.available < post.price) {
+      toast({ variant: 'destructive', title: "Insufficient ULC", description: `Required: ${post.price} ULC` });
       return;
     }
 
+    setLoading(true);
     try {
-      await recordTransaction({
-        fromWallet: user!.walletAddress,
-        toWallet: post.creatorId, // Simulating creator wallet
-        amount: post.price,
-        currency: 'ULC',
-        type: 'premium_unlock',
-        referenceId: post.id
-      });
-      toast({ title: "Success", description: "Content unlocked!" });
+      await handlePremiumUnlock(user, 'creator_wallet_placeholder', post.price, post.id);
+      setIsUnlocked(true);
+      toast({ title: "Content Unlocked", description: "Check out the full post now!" });
     } catch (e) {
-      toast({ title: "Error", description: "Failed to unlock content." });
+      toast({ variant: 'destructive', title: "Unlock Failed" });
     }
+    setLoading(false);
   };
 
+  const showLocked = post.isPremium && !isUnlocked;
+
   return (
-    <Card className="overflow-hidden glass-card group">
+    <Card className="overflow-hidden glass-card group border-white/10 hover:border-primary/50 transition-all duration-300">
       <CardHeader className="p-4 flex flex-row items-center gap-3 space-y-0">
         <Avatar className="w-10 h-10 border-2 border-primary/20">
           <AvatarImage src={post.creatorAvatar} />
@@ -57,23 +74,28 @@ export function PostCard({ post }: { post: ContentPost }) {
         </div>
       </CardHeader>
       
-      <div className="relative aspect-square">
+      <div className="relative aspect-square bg-muted/20">
         <Image 
           src={post.mediaUrl} 
           alt={post.title}
           fill
-          className={`object-cover transition-transform group-hover:scale-105 ${post.isPremium ? 'blur-lg scale-110 opacity-50' : ''}`}
+          className={`object-cover transition-all duration-500 ${showLocked ? 'blur-2xl scale-110 opacity-40' : 'group-hover:scale-105'}`}
         />
-        {post.isPremium && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-primary/20 p-4 rounded-full mb-4 border border-primary/50">
-              <Lock className="w-8 h-8 text-primary" />
+        {showLocked && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+            <div className="bg-primary/20 p-5 rounded-full mb-4 border border-primary/50 backdrop-blur-md">
+              <Lock className="w-10 h-10 text-primary" />
             </div>
-            <h3 className="font-headline font-bold text-xl mb-1">Premium Content</h3>
-            <p className="text-sm text-muted-foreground mb-4">Unlock for {post.price} ULC</p>
-            <Button onClick={handleUnlock} className="gap-2 bg-primary hover:bg-primary/90 rounded-full px-8">
-              <Coins className="w-4 h-4" /> Unlock
+            <h3 className="font-headline font-bold text-xl mb-1">Premium Post</h3>
+            <p className="text-xs text-muted-foreground mb-6 max-w-[200px]">This exclusive content is locked by the creator.</p>
+            <Button onClick={handleUnlockClick} disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 rounded-full px-10 py-6 text-lg shadow-lg shadow-primary/20">
+              <Coins className="w-5 h-5" /> Unlock for {post.price} ULC
             </Button>
+          </div>
+        )}
+        {!showLocked && post.isPremium && (
+          <div className="absolute top-4 right-4 bg-green-500/80 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+            <Unlock className="w-3 h-3" /> UNLOCKED
           </div>
         )}
       </div>

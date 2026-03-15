@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { UserProfile } from '@/lib/types';
 
 export function useWallet() {
@@ -11,38 +11,44 @@ export function useWallet() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const userRef = doc(db, 'users', fbUser.uid);
-        const userSnap = await getDoc(userRef);
+        
+        // Use onSnapshot for real-time balance updates
+        const unsubscribeSnap = onSnapshot(userRef, async (userSnap) => {
+          if (userSnap.exists()) {
+            setUser(userSnap.data() as UserProfile);
+            setLoading(false);
+          } else {
+            // Initialize new user
+            const mockWallet = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`;
+            const newUser: UserProfile = {
+              uid: fbUser.uid,
+              walletAddress: mockWallet,
+              username: `User_${fbUser.uid.slice(0, 5)}`,
+              bio: "Welcome to Unverse!",
+              avatar: `https://picsum.photos/seed/${fbUser.uid}/200/200`,
+              ulcBalance: { available: 100, locked: 0, claimable: 0 }, // Starter tokens for demo
+              totalEarnings: 0,
+              totalSpent: 0,
+              isCreator: false,
+              createdAt: Date.now()
+            };
+            await setDoc(userRef, newUser);
+            setUser(newUser);
+            setLoading(false);
+          }
+        });
 
-        if (userSnap.exists()) {
-          setUser(userSnap.data() as UserProfile);
-        } else {
-          // Initialize new user
-          const mockWallet = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`;
-          const newUser: UserProfile = {
-            uid: fbUser.uid,
-            walletAddress: mockWallet,
-            username: `User_${fbUser.uid.slice(0, 5)}`,
-            bio: "Welcome to Unverse!",
-            avatar: `https://picsum.photos/seed/${fbUser.uid}/200/200`,
-            ulcBalance: { available: 100, locked: 0, claimable: 0 }, // Starter tokens
-            totalEarnings: 0,
-            totalSpent: 0,
-            isCreator: false,
-            createdAt: Date.now()
-          };
-          await setDoc(userRef, newUser);
-          setUser(newUser);
-        }
+        return () => unsubscribeSnap();
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const connectWallet = async () => {
