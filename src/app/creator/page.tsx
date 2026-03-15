@@ -8,17 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Users, ExternalLink, Coins } from 'lucide-react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Users, ExternalLink, Coins, ArrowUpRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { handleCreatorWithdrawal } from '@/lib/ledger';
 import Link from 'next/link';
 
 export default function CreatorPanel() {
   const { user, isConnected } = useWallet();
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [myContent, setMyContent] = useState<any[]>([]);
   const { toast } = useToast();
 
@@ -60,6 +62,18 @@ export default function CreatorPanel() {
     setLoading(false);
   };
 
+  const handleWithdraw = async () => {
+      if (!user || user.ulcBalance.available <= 0) return;
+      setWithdrawing(true);
+      try {
+          await handleCreatorWithdrawal(user, user.ulcBalance.available);
+          toast({ title: "Withdrawal Successful", description: "Your earnings have been moved to the treasury for processing." });
+      } catch (e: any) {
+          toast({ variant: 'destructive', title: "Withdrawal Failed", description: e.message });
+      }
+      setWithdrawing(false);
+  }
+
   if (!isConnected) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
       <DollarSign className="w-16 h-16 text-primary" />
@@ -76,12 +90,18 @@ export default function CreatorPanel() {
           <p className="text-muted-foreground mt-2">Manage your digital empire and tokenized content.</p>
         </div>
         <div className="flex gap-4">
-          <div className="bg-primary/10 border border-primary/20 px-6 py-3 rounded-2xl">
-            <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Creator Earnings</p>
-            <p className="text-2xl font-bold font-headline">{user?.totalEarnings.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
-          </div>
-          <Link href={`/mypage`}>
-             <Button variant="outline" className="h-full rounded-2xl gap-2"><ExternalLink className="w-4 h-4" /> View Public Page</Button>
+          <Card className="glass-card border-primary/20 bg-primary/5 flex items-center gap-4 px-6 py-3 rounded-2xl">
+            <div>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Creator Earnings</p>
+                <p className="text-2xl font-bold font-headline">{user?.totalEarnings.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
+            </div>
+            <Button size="sm" onClick={handleWithdraw} disabled={withdrawing || user?.ulcBalance.available === 0} className="rounded-xl gap-2">
+                {withdrawing ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                Withdraw
+            </Button>
+          </Card>
+          <Link href={`/profile/${user?.uid}`}>
+             <Button variant="outline" className="h-full rounded-2xl gap-2"><ExternalLink className="w-4 h-4" /> Public Page</Button>
           </Link>
         </div>
       </header>

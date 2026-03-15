@@ -100,14 +100,40 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp'>) {
   if (entry.currency === 'ULC') {
     if (entry.fromWallet && !isSystemPool(entry.fromWallet)) {
       await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
+      if (entry.type === 'premium_unlock' || entry.type === 'tip') {
+          await updateEarningsStats(entry.fromWallet, 0, entry.amount, batch);
+      }
     }
     if (entry.toWallet && !isSystemPool(entry.toWallet)) {
       await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
+      if (entry.type === 'premium_unlock' || entry.type === 'tip') {
+          await updateEarningsStats(entry.toWallet, entry.amount, 0, batch);
+      }
     }
+  }
+
+  if (entry.currency === 'USDT') {
+      if (entry.toWallet && !isSystemPool(entry.toWallet) && entry.type === 'subscription_payment') {
+          await updateEarningsStats(entry.toWallet, entry.amount, 0, batch);
+      }
   }
 
   await batch.commit();
   return newDoc.id;
+}
+
+async function updateEarningsStats(walletAddress: string, earningsDelta: number, spentDelta: number, batch: any) {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('walletAddress', '==', walletAddress), limit(1));
+    const snap = await getDocs(q);
+    
+    if (!snap.empty) {
+      const userDoc = snap.docs[0];
+      batch.update(userDoc.ref, {
+        totalEarnings: increment(earningsDelta),
+        totalSpent: increment(spentDelta)
+      });
+    }
 }
 
 async function updateWalletBalance(walletAddress: string, delta: number, field: 'available' | 'locked' | 'claimable', batch: any) {
@@ -330,7 +356,7 @@ export async function handleStaking(user: UserProfile, amount: number) {
     toWallet: config.staking_pool_address,
     amount: amount,
     currency: 'ULC',
-    type: 'staking_reward', // Used for both stake and reward for simplicity in this prototype
+    type: 'staking_reward', 
     metadata: { action: 'stake' }
   });
 
@@ -365,9 +391,8 @@ export async function triggerGenesisAllocation(user: UserProfile) {
   const config = await getSystemConfig();
   if (!config) throw new Error("System not configured");
 
-  const allocationAmount = 50000; // 50k ULC allocation for testing
+  const allocationAmount = 50000; 
   
-  // Create a vesting schedule
   const schedule: Omit<VestingSchedule, 'id'> = {
     uid: user.uid,
     totalAmount: allocationAmount,
@@ -391,4 +416,20 @@ export async function triggerGenesisAllocation(user: UserProfile) {
   await updateDoc(doc(db, 'users', user.uid), {
     'ulcBalance.claimable': increment(allocationAmount)
   });
+}
+
+export async function handleCreatorWithdrawal(user: UserProfile, amount: number) {
+    if (user.ulcBalance.available < amount) throw new Error("Insufficient balance");
+    
+    const config = await getSystemConfig();
+    if (!config) throw new Error("System not configured");
+
+    await recordTransaction({
+        fromWallet: user.walletAddress,
+        toWallet: config.treasury_wallet_address,
+        amount: amount,
+        currency: 'ULC',
+        type: 'creator_payout',
+        metadata: { method: 'internal_transfer' }
+    });
 }
