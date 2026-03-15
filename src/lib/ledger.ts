@@ -37,7 +37,7 @@ export async function getSystemConfig(): Promise<SystemConfig | null> {
  * initializeSystemConfig - One-time setup of the platform architecture.
  * Records initial distributions to the ledger.
  */
-export async function initializeSystemConfig(adminAddress: string) {
+export async function initializeSystemConfig() {
   const existing = await getSystemConfig();
   if (existing) throw new Error("System already initialized.");
 
@@ -47,9 +47,9 @@ export async function initializeSystemConfig(adminAddress: string) {
   });
 
   const config: SystemConfig = {
-    treasury_wallet_address: `0xTRZ_${Math.random().toString(16).slice(2, 10)}`,
+    treasury_wallet_address: "",
     treasury_network: "TRON",
-    admin_wallet_address: adminAddress,
+    admin_wallet_address: "",
     supported_usdt_networks: ["TRON", "ETHEREUM", "BSC", "POLYGON"],
     ulc_token_network: "OASIS_ROSE",
 
@@ -88,7 +88,6 @@ export async function initializeSystemConfig(adminAddress: string) {
   batch.set(doc(db, CONFIG_DOC_PATH), config);
 
   // Initialize system wallet balances
-  // genesis_wallet is the source account for initial allocations
   SYSTEM_WALLETS.forEach(w => {
     batch.set(doc(db, 'system_wallets', w), {
       address: walletMap[w],
@@ -101,7 +100,6 @@ export async function initializeSystemConfig(adminAddress: string) {
   await batch.commit();
 
   // Execute Exact Genesis Distribution (Ledger-based)
-  // Total distribution: 1,000,000,000 from genesis_wallet
   const distributions: { wallet: SystemWalletType; amount: number }[] = [
     { wallet: 'reserve_pool', amount: 420000000 },
     { wallet: 'presale_pool', amount: 100000000 },
@@ -136,7 +134,6 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
   batch.set(docRef, { ...entry, timestamp });
 
   if (entry.currency === 'ULC') {
-    // Source Balance Management
     const fromSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.fromWallet || w === entry.fromWallet);
     if (fromSys) {
       batch.update(doc(db, 'system_wallets', fromSys), { balance: increment(-entry.amount), updatedAt: timestamp });
@@ -144,7 +141,6 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
       await updateWalletBalance(entry.fromWallet, -entry.amount, 'available', batch);
     }
 
-    // Destination Balance Management
     const toSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.toWallet || w === entry.toWallet);
     if (toSys) {
       batch.update(doc(db, 'system_wallets', toSys), { balance: increment(entry.amount), updatedAt: timestamp });
@@ -152,7 +148,6 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
       await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
     }
   } else if (entry.currency === 'USDT') {
-    // USDT Ledger tracking (metadata only in ledger, handled as external gateway)
     const toSys = SYSTEM_WALLETS.find(w => `0xSYS_${w.toUpperCase()}` === entry.toWallet || w === entry.toWallet);
     if (toSys === 'treasury_usdt_ledger') {
        batch.update(doc(db, 'system_wallets', 'treasury_usdt_ledger'), { balance: increment(entry.amount), updatedAt: timestamp });

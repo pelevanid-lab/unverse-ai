@@ -2,7 +2,7 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation, SYSTEM_WALLETS } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles, UserX, UserCheck, PlusCircle, Zap, Image as ImageIcon } from 'lucide-react';
@@ -35,7 +35,7 @@ export default function AdminDashboard() {
     const checkAuth = async () => {
       const conf = await getSystemConfig();
       setConfig(conf);
-      if (walletAddress && conf && conf.admin_wallet_address === walletAddress) {
+      if (walletAddress && conf && conf.admin_wallet_address === walletAddress && walletAddress !== "") {
         setAuthorized(true);
       }
     };
@@ -61,12 +61,10 @@ export default function AdminDashboard() {
   }, [authorized]);
 
   const handleInitialize = async () => {
-    if (!walletAddress) return;
     setLoading(true);
     try {
-      const conf = await initializeSystemConfig(walletAddress);
+      const conf = await initializeSystemConfig();
       setConfig(conf);
-      setAuthorized(true);
       toast({ title: "System Initialized", description: "OASIS_ROSE Network & 16-Wallet Protocol established." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: e.message });
@@ -78,7 +76,7 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       await seedMuses();
-      toast({ title: "Muses Seeded", description: "Official AI Muses added to /ai_muses collection." });
+      toast({ title: "Muses Seeded", description: "Official AI Muses added to registry." });
     } catch (e) {
       toast({ variant: "destructive", title: "Seeding Failed" });
     }
@@ -90,7 +88,7 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       await triggerGenesisAllocation(user);
-      toast({ title: "Genesis Triggered", description: "50k ULC team grant (36m linear) recorded." });
+      toast({ title: "Genesis Triggered", description: "50k ULC team grant recorded." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Allocation Failed", description: e.message });
     }
@@ -138,12 +136,21 @@ export default function AdminDashboard() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 text-center">
         <ShieldCheck className="w-16 h-16 text-destructive" />
         <h1 className="text-3xl font-headline font-bold">Unauthorized</h1>
-        {!config && (
+        {!config ? (
           <div className="space-y-4">
             <p className="text-muted-foreground max-w-sm">No protocol found. Initialize the Unverse system now.</p>
             <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black px-12 h-14 rounded-2xl font-bold">
               {loading ? 'Initializing OASIS_ROSE...' : 'Initialize 16-Wallet Protocol'}
             </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-destructive font-bold uppercase tracking-widest text-xs">Security Alert</p>
+            <p className="text-muted-foreground max-w-sm">
+              {config.admin_wallet_address === "" 
+                ? "The system is initialized but no Admin Wallet is assigned. Access is currently locked."
+                : "Your wallet is not recognized as the Platform Admin."}
+            </p>
           </div>
         )}
       </div>
@@ -272,7 +279,7 @@ export default function AdminDashboard() {
                         <Badge variant="secondary" className="mt-2">{generatedPreview.flirtingLevel} Flirt</Badge>
                       </div>
                    </div>
-                   <Button onClick={handleSaveMuse} className="w-full bg-green-500 hover:bg-green-600 h-12 rounded-xl">Publish to /ai_muses</Button>
+                   <Button onClick={handleSaveMuse} className="w-full bg-green-500 hover:bg-green-600 h-12 rounded-xl">Publish to Registry</Button>
                  </div>
                )}
              </CardContent>
