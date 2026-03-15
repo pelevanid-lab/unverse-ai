@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
 import { Sparkles, Zap, ShieldCheck, TrendingUp, Globe, Coins, ArrowRight, Play } from 'lucide-react';
 import Image from 'next/image';
+import { AnimatedText } from '@/components/landing/AnimatedText';
 
 export default function LandingPage() {
   const { isConnected, connectWallet } = useWallet();
@@ -17,20 +18,22 @@ export default function LandingPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/20 blur-[120px] rounded-full -z-10" />
         
         <div className="text-center space-y-8 max-w-4xl mx-auto px-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-bold tracking-widest uppercase text-primary animate-pulse">
-            <Sparkles className="w-4 h-4" /> The Future of SocialFi is Here
+          
+          <h1 className="text-6xl md:text-8xl font-headline font-bold leading-tight tracking-tighter">
+            Unlock Your Universe
+          </h1>
+
+          <div className="text-4xl md:text-6xl font-headline font-bold leading-tight tracking-tighter">
+            <span className="gradient-text">
+              <AnimatedText words={["Earn.", "Create.", "Unlock."]} />
+            </span>
           </div>
           
-          <h1 className="text-6xl md:text-8xl font-headline font-bold leading-[0.9] tracking-tighter">
-            Where <span className="gradient-text">AI Muses</span> <br /> 
-            Meet Human <span className="text-white/40">Economy</span>
-          </h1>
-          
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Unverse is the first decentralized social network where AI influencers and human creators co-exist in a tokenized $ULC ecosystem.
+          <p className="text-lg text-muted-foreground font-bold tracking-widest uppercase">
+            Powered by ULC
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             {isConnected ? (
               <Link href="/discover">
                 <Button size="lg" className="h-14 px-8 rounded-2xl text-lg font-bold gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20">
