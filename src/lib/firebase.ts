@@ -3,19 +3,20 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// TODO: Replace this entire object with your project's Firebase configuration.
-// You can find it in your Firebase project settings for your web app.
-// The projectId should be "studio-1417373480-b2959".
+// Firebase configuration is securely loaded from environment variables.
 const firebaseConfig = {
-  apiKey: "AIzaSyCbVLB9dpn4gu8jD1s4PfG8Zz_dVqOopC0",
-  authDomain: "studio-1417373480-b2959.firebaseapp.com",
-  projectId: "studio-1417373480-b2959",
-  storageBucket: "studio-1417373480-b2959.firebasestorage.app",
-  messagingSenderId: "646607853116",
-  appId: "1:646607853116:web:2b01343ea1eccf43e71539"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+// Initialize Firebase
+// Check if the app is already initialized to prevent errors during hot-reloads
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
