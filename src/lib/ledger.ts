@@ -80,7 +80,8 @@ export async function initializeSystemConfig(adminAddress: string) {
     emission_max_reward: 20,
     
     genesis_initialized: true,
-    wallets: walletMap as any
+    wallets: walletMap as any,
+    ai_chat_cost: 0.5
   };
 
   const batch = writeBatch(db);
@@ -181,7 +182,7 @@ export async function triggerGenesisAllocation(user: UserProfile) {
     totalAmount: amount,
     claimedAmount: 0,
     startTime,
-    durationMonths: 36, // Updated to Team Vesting standard
+    durationMonths: 36, 
     type: 'team'
   };
 
@@ -282,8 +283,9 @@ export async function toggleUserFreeze(uid: string, status: boolean) {
 }
 
 export async function handleSubscription(user: UserProfile, creatorWallet: string, amount: number, creatorId: string) {
-  const buybackRatio = 0.5; // From config
-  const treasuryRatio = 0.5; // From config
+  const config = await getSystemConfig();
+  const buybackRatio = config?.subscription_buyback_ratio || 0.5;
+  const treasuryRatio = config?.subscription_treasury_ratio || 0.5;
 
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: amount * 0.9, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_usdt_ledger', amount: amount * 0.1 * treasuryRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
@@ -296,6 +298,5 @@ export async function handleTipping(user: UserProfile, toWallet: string, amount:
 }
 
 export async function handleCreatorWithdrawal(user: UserProfile, amount: number) {
-  // Creator earnings withdrawal route
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: 'treasury_wallet', amount, currency: 'ULC', type: 'creator_payout' });
 }

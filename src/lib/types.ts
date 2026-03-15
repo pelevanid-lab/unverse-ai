@@ -79,10 +79,10 @@ export type SystemWalletType =
 
 export type SystemConfig = {
   treasury_wallet_address: string;
-  treasury_network: string;
+  treasury_network: 'TRON';
   admin_wallet_address: string;
   supported_usdt_networks: string[];
-  ulc_token_network: string;
+  ulc_token_network: 'OASIS_ROSE';
 
   ulc_presale_price: number;
   internal_ulc_purchase_price: number;
@@ -90,11 +90,11 @@ export type SystemConfig = {
   amm_launch_price: number;
   amm_activation_threshold: number;
   amm_enabled: boolean;
-  amm_mode: string;
+  amm_mode: 'inactive' | 'active';
 
   wallet_integration_enabled: boolean;
   subscription_split_enabled: boolean;
-  creator_payout_mode: string;
+  creator_payout_mode: 'split' | 'direct';
 
   presale_vesting_months: number;
   creator_incentive_vesting_months: number;
@@ -112,6 +112,7 @@ export type SystemConfig = {
   
   wallets: Record<SystemWalletType, string>;
   genesis_initialized: boolean;
+  ai_chat_cost?: number;
 };
 
 export type AIMuse = {
