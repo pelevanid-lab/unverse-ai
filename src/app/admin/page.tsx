@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useWallet } from '@/hooks/use-wallet';
@@ -5,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles, UserX, UserCheck, PlusCircle, Zap } from 'lucide-react';
+import { ShieldCheck, Database, Coins, Flame, Wallet, Users, Activity, Settings, RefreshCw, Sparkles, UserX, UserCheck, PlusCircle, Zap, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { generateAiMuseProfileDescriptions } from '@/ai/flows/generate-ai-muse-profile-descriptions';
+import { generateMuseImage } from '@/ai/flows/generate-muse-image-flow';
+import Image from 'next/image';
 
 export default function AdminDashboard() {
   const { user, isConnected } = useWallet();
@@ -25,6 +28,7 @@ export default function AdminDashboard() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [museGenLoading, setMuseGenLoading] = useState(false);
+  const [generatedPreview, setGeneratedPreview] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -110,22 +114,40 @@ export default function AdminDashboard() {
     const category = formData.get('museCategory') as string;
 
     try {
+      // 1. Generate Profile using Genkit
       const profile = await generateAiMuseProfileDescriptions({ name, category });
-      const newMuse = {
+      
+      // 2. Generate Avatar Image using Imagen
+      const imagePrompt = `A high-quality professional studio portrait of an AI influencer named ${name} who is a ${category}. ${profile.personality}. High fashion, digital art style.`;
+      const imageResult = await generateMuseImage({ prompt: imagePrompt });
+
+      setGeneratedPreview({
         id: name.toLowerCase().replace(/\s/g, '_'),
         name,
         category,
         ...profile,
-        avatar: `https://picsum.photos/seed/${name}/400/400`,
+        avatar: imageResult.imageUrl,
         isOfficial: true
-      };
-      await addDoc(collection(db, 'muses'), newMuse);
-      toast({ title: "Muse Created", description: `${name} has been added via AI.` });
-      (e.target as HTMLFormElement).reset();
+      });
+      
+      toast({ title: "AI Generation Complete", description: "Profile and Avatar ready for review." });
     } catch (e) {
       toast({ variant: 'destructive', title: "Generation Failed" });
     }
     setMuseGenLoading(false);
+  };
+
+  const handleSaveMuse = async () => {
+    if (!generatedPreview) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'muses'), generatedPreview);
+      toast({ title: "Muse Published", description: `${generatedPreview.name} is now live.` });
+      setGeneratedPreview(null);
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Save Failed" });
+    }
+    setLoading(false);
   };
 
   if (!isConnected) return (
@@ -145,7 +167,7 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground max-w-md">Only the primary system wallet can access this panel.</p>
         </div>
         {!config && (
-          <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold px-8">
+          <Button onClick={handleInitialize} disabled={loading} className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold px-8 rounded-full h-12">
             {loading ? 'Initializing...' : 'Initialize System as Admin'}
           </Button>
         )}
@@ -162,59 +184,59 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-muted-foreground">Governance & Account Moderation</p>
         </div>
-        <Badge className="bg-yellow-400 text-black px-4 py-1 uppercase tracking-tighter">Super Admin Mode</Badge>
+        <Badge className="bg-yellow-400 text-black px-4 py-1 uppercase tracking-tighter font-bold">Super Admin Mode</Badge>
       </header>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-muted/30 p-1 rounded-xl">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="ledger">Global Ledger</TabsTrigger>
-          <TabsTrigger value="users">User Base</TabsTrigger>
-          <TabsTrigger value="muses">Muse Tools</TabsTrigger>
-          <TabsTrigger value="genesis">Genesis</TabsTrigger>
+        <TabsList className="bg-muted/30 p-1 rounded-2xl h-14 border border-white/5">
+          <TabsTrigger value="overview" className="rounded-xl px-6">Overview</TabsTrigger>
+          <TabsTrigger value="ledger" className="rounded-xl px-6">Global Ledger</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-xl px-6">User Base</TabsTrigger>
+          <TabsTrigger value="muses" className="rounded-xl px-6">Muse Studio</TabsTrigger>
+          <TabsTrigger value="genesis" className="rounded-xl px-6">Genesis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Total Users</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Total Users</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{allUsers.length}</div>
+                <div className="text-3xl font-bold font-headline">{allUsers.length}</div>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Genesis Wallet</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Genesis Wallet</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">100M ULC</div>
+                <div className="text-3xl font-bold font-headline text-yellow-400">100M ULC</div>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Recent Activity</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground tracking-widest">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-400">{recentLedger.length} TXs</div>
+                <div className="text-3xl font-bold font-headline text-green-400">{recentLedger.length} TXs</div>
               </CardContent>
             </Card>
             <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-muted-foreground">System Health</CardTitle>
+                <CardTitle className="text-xs font-bold uppercase text-muted-foreground tracking-widest">System Health</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-400">OPTIMAL</div>
+                <div className="text-3xl font-bold font-headline text-blue-400">OPTIMAL</div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="ledger">
-          <Card className="glass-card overflow-hidden">
+          <Card className="glass-card overflow-hidden rounded-2xl border-white/5">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-white/5">
                 <TableRow>
                   <TableHead>Type</TableHead>
                   <TableHead>From/To</TableHead>
@@ -224,18 +246,18 @@ export default function AdminDashboard() {
               </TableHeader>
               <TableBody>
                 {recentLedger.map(tx => (
-                  <TableRow key={tx.id}>
-                    <TableCell><Badge variant="outline" className="text-[10px] whitespace-nowrap">{tx.type.replace(/_/g, ' ')}</Badge></TableCell>
+                  <TableRow key={tx.id} className="hover:bg-white/5">
+                    <TableCell><Badge variant="outline" className="text-[10px] whitespace-nowrap bg-muted/20 border-white/5">{tx.type.replace(/_/g, ' ')}</Badge></TableCell>
                     <TableCell className="text-xs font-mono">
-                      <div className="flex flex-col">
-                        <span className="truncate max-w-[120px]">F: {tx.fromWallet}</span>
-                        <span className="truncate max-w-[120px]">T: {tx.toWallet}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="truncate max-w-[150px] opacity-60">F: {tx.fromWallet}</span>
+                        <span className="truncate max-w-[150px] font-bold">T: {tx.toWallet}</span>
                       </div>
                     </TableCell>
                     <TableCell className="font-bold whitespace-nowrap">
-                      {tx.amount.toFixed(2)} {tx.currency}
+                      {tx.amount.toFixed(2)} <span className="text-[10px] text-muted-foreground">{tx.currency}</span>
                     </TableCell>
-                    <TableCell className="text-right text-[10px] text-muted-foreground">{new Date(tx.timestamp).toLocaleTimeString()}</TableCell>
+                    <TableCell className="text-right text-[10px] text-muted-foreground">{new Date(tx.timestamp).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -244,9 +266,9 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="users">
-          <Card className="glass-card">
+          <Card className="glass-card rounded-2xl border-white/5 overflow-hidden">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-white/5">
                 <TableRow>
                   <TableHead>Username</TableHead>
                   <TableHead>Wallet</TableHead>
@@ -257,13 +279,16 @@ export default function AdminDashboard() {
               </TableHeader>
               <TableBody>
                 {allUsers.map(u => (
-                  <TableRow key={u.uid}>
-                    <TableCell className="font-bold">{u.username}</TableCell>
-                    <TableCell className="text-xs font-mono">{u.walletAddress.slice(0,10)}...</TableCell>
-                    <TableCell className="text-xs">{u.ulcBalance.available.toFixed(1)} ULC</TableCell>
+                  <TableRow key={u.uid} className="hover:bg-white/5">
+                    <TableCell className="font-bold flex items-center gap-2">
+                      <Image src={u.avatar} alt="" width={24} height={24} className="rounded-full" />
+                      {u.username}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono opacity-50">{u.walletAddress.slice(0,12)}...</TableCell>
+                    <TableCell className="text-xs font-bold">{u.ulcBalance.available.toFixed(1)} ULC</TableCell>
                     <TableCell>
                       {u.isFrozen ? (
-                        <Badge variant="destructive">Frozen</Badge>
+                        <Badge variant="destructive" className="animate-pulse">Frozen</Badge>
                       ) : (
                         <Badge className="bg-green-500">Active</Badge>
                       )}
@@ -273,6 +298,7 @@ export default function AdminDashboard() {
                         size="sm" 
                         variant={u.isFrozen ? "outline" : "destructive"}
                         onClick={() => handleToggleFreeze(u.uid, !!u.isFrozen)}
+                        className="rounded-xl h-8 px-4"
                       >
                         {u.isFrozen ? 'Unfreeze' : 'Freeze'}
                       </Button>
@@ -286,58 +312,99 @@ export default function AdminDashboard() {
 
         <TabsContent value="muses">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="glass-card">
+            <Card className="glass-card rounded-3xl border-white/10 shadow-xl">
               <CardHeader>
-                <CardTitle>AI Muse Generator</CardTitle>
-                <CardDescription>Use Genkit to automatically craft a new Muse profile.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /> AI Muse Studio</CardTitle>
+                <CardDescription>Use Genkit (LLM) and Imagen (Visual) to create a platform influencer.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleGenerateMuse} className="space-y-4">
+                <form onSubmit={handleGenerateMuse} className="space-y-6">
                   <div className="space-y-2">
-                    <Label>Muse Name</Label>
-                    <Input name="museName" placeholder="e.g. Luna Moon" required />
+                    <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Muse Name</Label>
+                    <Input name="museName" placeholder="e.g. Nova Silver" required className="bg-muted/30 border-none h-12" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Category</Label>
-                    <Input name="museCategory" placeholder="e.g. Crypto Oracle" required />
+                    <Label className="text-xs font-bold uppercase tracking-widest opacity-60">Category / Theme</Label>
+                    <Input name="museCategory" placeholder="e.g. Metaverse Architect" required className="bg-muted/30 border-none h-12" />
                   </div>
-                  <Button type="submit" disabled={museGenLoading} className="w-full gap-2">
-                    {museGenLoading ? <RefreshCw className="animate-spin w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
-                    Generate & Seed Muse
+                  <Button type="submit" disabled={museGenLoading} className="w-full h-14 rounded-2xl gap-2 font-bold bg-primary hover:bg-primary/90">
+                    {museGenLoading ? <RefreshCw className="animate-spin w-5 h-5" /> : <Zap className="w-5 h-5" />}
+                    Generate Full AI Profile
                   </Button>
                 </form>
+
+                {generatedPreview && (
+                  <div className="mt-8 p-6 bg-white/5 rounded-3xl border border-primary/20 space-y-4 animate-in slide-in-from-bottom-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-primary">
+                        <Image src={generatedPreview.avatar} alt="Avatar" fill className="object-cover" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xl">{generatedPreview.name}</h4>
+                        <Badge>{generatedPreview.category}</Badge>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground"><span className="font-bold text-primary">Personality:</span> {generatedPreview.personality}</p>
+                      <p className="text-xs text-muted-foreground"><span className="font-bold text-primary">Tone:</span> {generatedPreview.tone}</p>
+                    </div>
+                    <Button onClick={handleSaveMuse} disabled={loading} className="w-full h-12 rounded-xl bg-green-500 hover:bg-green-600 font-bold">
+                      Publish Official Muse
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            <Card className="glass-card">
+            <Card className="glass-card rounded-3xl border-white/10">
               <CardHeader>
-                <CardTitle>Legacy Seed Tools</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Settings className="w-5 h-5 text-muted-foreground" /> System Seed Tools</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <Button onClick={handleSeedMuses} disabled={loading} className="w-full" variant="outline">
-                   Seed Default Muses (Isabella, Elena, Chloe)
-                 </Button>
-                 <p className="text-[10px] text-muted-foreground text-center">Initial platform-owned influencers.</p>
+                 <div className="p-6 bg-muted/20 rounded-2xl border border-white/5 space-y-4">
+                    <p className="text-sm text-muted-foreground">Reset or seed the initial platform Influencers (Isabella, Elena, Chloe).</p>
+                    <Button onClick={handleSeedMuses} disabled={loading} className="w-full h-12 rounded-xl" variant="outline">
+                      Seed Default Muses
+                    </Button>
+                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
         <TabsContent value="genesis">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-6 h-6 text-yellow-400" /> Genesis Allocation Tool
+          <Card className="glass-card rounded-3xl border-white/10 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/5 blur-[100px] -z-10" />
+            <CardHeader className="p-10">
+              <CardTitle className="text-3xl font-headline font-bold flex items-center gap-3">
+                <Zap className="w-8 h-8 text-yellow-400" /> Genesis Allocation Tool
               </CardTitle>
-              <CardDescription>Grant your current wallet a test allocation of 50,000 ULC (24mo Vesting).</CardDescription>
+              <CardDescription className="text-lg">Grant test allocations to bootstrap the ecosystem.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-               <div className="bg-yellow-400/10 border border-yellow-400/20 p-4 rounded-xl text-sm text-yellow-400">
-                 Warning: This tool is for simulation and testing purposes only. It will create a vesting schedule in Firestore for your active wallet.
+            <CardContent className="px-10 pb-10 space-y-8">
+               <div className="bg-yellow-400/10 border border-yellow-400/20 p-6 rounded-2xl text-yellow-400">
+                 <h4 className="font-bold mb-2 flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Administrative Protocol</h4>
+                 <p className="text-sm">This tool creates a 24-month linear vesting schedule. Use this to simulate institutional or team-based token locks.</p>
                </div>
-               <Button onClick={handleGenesisAllocation} disabled={loading} className="w-full bg-yellow-400 text-black hover:bg-yellow-500 font-bold h-14 text-lg">
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-4">
+                   <Label className="font-bold uppercase tracking-widest text-xs opacity-60">Grant Recipient</Label>
+                   <div className="p-4 bg-muted/50 rounded-2xl border border-white/5 font-mono text-xs">
+                     {user?.walletAddress}
+                   </div>
+                 </div>
+                 <div className="space-y-4">
+                   <Label className="font-bold uppercase tracking-widest text-xs opacity-60">Allocation Size</Label>
+                   <div className="p-4 bg-muted/50 rounded-2xl border border-white/5 font-bold text-xl">
+                     50,000 ULC
+                   </div>
+                 </div>
+               </div>
+
+               <Button onClick={handleGenesisAllocation} disabled={loading} className="w-full bg-yellow-400 text-black hover:bg-yellow-500 font-bold h-16 text-xl rounded-2xl shadow-xl shadow-yellow-400/10">
                  {loading ? <RefreshCw className="animate-spin mr-2" /> : <Zap className="mr-2" />}
-                 Grant 50k ULC Genesis Allocation
+                 Grant Genesis Allocation
                </Button>
             </CardContent>
           </Card>

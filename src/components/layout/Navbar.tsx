@@ -1,15 +1,20 @@
+
 "use client"
 
 import Link from 'next/link';
-import { Zap, Wallet, LayoutDashboard, Search, Users, Coins, Settings, TrendingUp } from 'lucide-react';
+import { Zap, Wallet, LayoutDashboard, Search, Users, Coins, Settings, TrendingUp, Menu, X } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { getSystemConfig } from '@/lib/ledger';
+import { Badge } from '@/components/ui/badge';
+import { usePathname } from 'next/navigation';
 
 export function Navbar() {
   const { user, isConnected, connectWallet } = useWallet();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -23,6 +28,13 @@ export function Navbar() {
     checkAdmin();
   }, [user]);
 
+  const navLinks = [
+    { name: 'Discover', href: '/discover' },
+    { name: 'AI Muses', href: '/muses' },
+    { name: 'Staking', href: '/staking', live: true },
+    { name: 'Tokenomics', href: '/tokenomics' },
+  ];
+
   return (
     <nav className="border-b bg-card/50 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -32,14 +44,20 @@ export function Navbar() {
             <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link href="/" className="hover:text-primary transition-colors">Discover</Link>
-            <Link href="/muses" className="hover:text-primary transition-colors">AI Muses</Link>
-            <Link href="/staking" className="hover:text-primary transition-colors flex items-center gap-1.5">
-              Staking <Badge variant="secondary" className="scale-75 origin-left bg-green-500/20 text-green-400 border-none">LIVE</Badge>
-            </Link>
-            <Link href="/tokenomics" className="hover:text-primary transition-colors">Tokenomics</Link>
-            {isAdmin && <Link href="/admin" className="text-yellow-400 hover:text-yellow-300 transition-colors font-bold">Admin</Link>}
+          <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
+            {navLinks.map((link) => (
+              <Link 
+                key={link.name} 
+                href={link.href} 
+                className={`hover:text-primary transition-colors flex items-center gap-1.5 ${pathname === link.href ? 'text-primary' : 'text-muted-foreground'}`}
+              >
+                {link.name}
+                {link.live && (
+                  <Badge className="scale-75 origin-left bg-green-500/20 text-green-400 border-none px-1.5 py-0 h-4">LIVE</Badge>
+                )}
+              </Link>
+            ))}
+            {isAdmin && <Link href="/admin" className={`text-yellow-400 hover:text-yellow-300 transition-colors font-bold ${pathname === '/admin' ? 'underline' : ''}`}>Admin</Link>}
           </div>
         </div>
 
@@ -51,7 +69,7 @@ export function Navbar() {
           
           {isConnected ? (
             <Link href="/mypage">
-              <Button variant="outline" size="sm" className="gap-2 hidden sm:flex border-white/10 hover:bg-white/5">
+              <Button variant="outline" size="sm" className="gap-2 hidden sm:flex border-white/10 hover:bg-white/5 rounded-full px-4">
                 <Wallet className="w-4 h-4" />
                 {user?.walletAddress.slice(0, 6)}...
               </Button>
@@ -60,16 +78,43 @@ export function Navbar() {
               </Button>
             </Link>
           ) : (
-            <Button onClick={connectWallet} className="bg-primary hover:bg-primary/90 px-6 rounded-full font-bold">
+            <Button onClick={connectWallet} className="bg-primary hover:bg-primary/90 px-6 rounded-full font-bold shadow-lg shadow-primary/20">
               Connect Wallet
             </Button>
           )}
+
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </Button>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden bg-card/95 backdrop-blur-2xl border-b border-white/10 absolute w-full animate-in slide-in-from-top-4 duration-300">
+          <div className="p-6 flex flex-col gap-6 font-headline font-bold text-lg">
+            {navLinks.map((link) => (
+              <Link 
+                key={link.name} 
+                href={link.href} 
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between"
+              >
+                {link.name}
+                {link.live && <Badge className="bg-green-500/20 text-green-400 border-none">LIVE</Badge>}
+              </Link>
+            ))}
+            {isAdmin && <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="text-yellow-400">Admin</Link>}
+            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              <span className="text-sm font-body font-normal text-muted-foreground">Balance</span>
+              <div className="flex items-center gap-2">
+                <Coins className="w-5 h-5 text-primary" />
+                <span>{user?.ulcBalance.available.toFixed(2) || '0.00'} ULC</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
-}
-
-function Badge({ children, variant, className }: { children: React.ReactNode, variant?: any, className?: string }) {
-  return <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>{children}</div>;
 }
