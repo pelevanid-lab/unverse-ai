@@ -27,9 +27,8 @@ export type CreatorProfile = {
   displayName?: string;
   avatar: string;
   coverImage: string;
-  
   creatorBio: string;
-  category: string;
+  category: string; // Added back based on schema
 
   socialLinks?: {
     x?: string;
@@ -55,9 +54,11 @@ export type CreatorProfile = {
 export type ContentPost = {
   id: string;
   creatorId: string;
-  creatorName: string;
-  creatorAvatar: string;
+  creatorName: string; // Denormalized for quick display
+  creatorAvatar: string; // Denormalized for quick display
+  creator?: CreatorProfile; // Optional: To be populated client-side
   mediaUrl: string;
+  mediaType: 'image' | 'video'; // Added based on logical structure
   caption: string;
   isPremium: boolean;
   priceULC: number;
@@ -79,8 +80,8 @@ export type CreatorMedia = {
   isPremium: boolean;
   priceULC: number;
   status: 'draft' | 'scheduled';
-  scheduledAt?: number;
-  createdAt: number;
+  scheduledFor?: number;
+  createdAt: any; // Firestore Timestamp
 };
 
 export type LedgerTransactionType = 
@@ -109,6 +110,12 @@ export type LedgerEntry = {
   timestamp: number;
   referenceId?: string;
   metadata?: any;
+};
+
+export type SystemWallet = {
+  address: string;
+  balance: number;
+  currency: string;
 };
 
 export type SystemWalletType = 
@@ -162,7 +169,7 @@ export type SystemConfig = {
   emission_rate: number;
   emission_max_reward: number;
   
-  wallets: Record<SystemWalletType, string>;
+  wallets: Record<SystemWalletType, SystemWallet>; // Corrected based on schema
   genesis_initialized: boolean;
   ai_chat_cost?: number;
 };
@@ -193,4 +200,14 @@ export type VestingSchedule = {
   startTime: number;
   durationMonths: number;
   type: 'presale' | 'creator' | 'team';
+};
+
+// New type based on the discovered 'subscriptions' collection
+export type Subscription = {
+  id?: string;
+  userId: string;
+  creatorId: string;
+  amount: number;
+  status: string;
+  createdAt: number;
 };

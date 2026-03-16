@@ -78,7 +78,7 @@ export async function initializeSystemConfig() {
     emission_rate: 0.000002,
     emission_max_reward: 20,
     genesis_initialized: true,
-    wallets: walletData as any, // Centralized wallet data
+    wallets: walletData, // Centralized wallet data
     ai_chat_cost: 0.5
   };
 
