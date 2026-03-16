@@ -51,16 +51,35 @@ export type CreatorProfile = {
   createdAt: number; // Timestamp of becoming a creator
 };
 
+// Represents a published post visible in the main feed
 export type ContentPost = {
   id: string;
   creatorId: string;
   creatorName: string;
   creatorAvatar: string;
-  title: string;
-  caption: string;
   mediaUrl: string;
+  caption: string;
   isPremium: boolean;
-  price: number;
+  priceULC: number;
+  createdAt: number;
+  
+  // Engagement Metrics
+  likes: number;
+  unlockCount: number;
+  earningsULC: number;
+};
+
+// Represents media uploaded by a creator, not yet published
+export type CreatorMedia = {
+  id: string;
+  creatorId: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  caption: string;
+  isPremium: boolean;
+  priceULC: number;
+  status: 'draft' | 'scheduled';
+  scheduledAt?: number;
   createdAt: number;
 };
 

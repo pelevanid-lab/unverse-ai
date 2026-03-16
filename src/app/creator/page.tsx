@@ -8,14 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles } from 'lucide-react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles, Image, Video } from 'lucide-react';
 import { useState, useEffect, FormEvent } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc, getDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
-import { CreatorProfile, UserProfile } from '@/lib/types';
+import { CreatorProfile, UserProfile, CreatorMedia, ContentPost } from '@/lib/types';
 import Link from 'next/link';
 import { ImageUploader } from '@/components/creator/ImageUploader';
+import { ContainerTab } from '@/components/creator/ContainerTab';
+import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
+import { StatsTab } from '@/components/creator/StatsTab';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   return (
@@ -48,12 +52,12 @@ function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => vo
 }
 
 export default function CreatorPanel() {
-  const { user, isConnected, refreshUser } = useWallet();
+  const { user, isConnected } = useWallet();
   const { toast } = useToast();
 
   const [activationLoading, setActivationLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [myContent, setMyContent] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('container');
 
   const [displayName, setDisplayName] = useState('');
   const [creatorBio, setCreatorBio] = useState('');
@@ -84,12 +88,6 @@ export default function CreatorPanel() {
         }
       };
       fetchCreatorProfile();
-
-      const q = query(collection(db, 'content'), where('creatorId', '==', user.walletAddress), orderBy('createdAt', 'desc'));
-      const unsub = onSnapshot(q, (snap) => {
-        setMyContent(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      });
-      return () => unsub();
     }
   }, [user]);
 
@@ -134,7 +132,6 @@ export default function CreatorPanel() {
       }
       
       toast({ title: "Welcome, Creator!", description: "Your creator profile is now active." });
-      await refreshUser();
 
     } catch (error) {
       console.error("Activation failed:", error);
@@ -194,7 +191,13 @@ export default function CreatorPanel() {
             </Button>
           </Link>
           <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
-          <p className="text-muted-foreground mt-2">Manage your digital empire.</p>
+           <div className='flex items-center gap-4 mt-2'>
+             <p className="text-muted-foreground">Manage your digital empire.</p>
+             <div className="flex items-center gap-1">
+                <Button variant={activeTab === 'analytics' ? 'secondary' : 'ghost'} size='icon' onClick={() => setActiveTab('analytics')}><BarChart3 className="w-5 h-5"/></Button>
+                <Button variant={activeTab === 'settings' ? 'secondary' : 'ghost'} size='icon' onClick={() => setActiveTab('settings')}><Settings className="w-5 h-5"/></Button>
+             </div>
+           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <Card className="glass-card border-primary/20 bg-primary/5 flex items-center gap-4 px-6 py-3 rounded-2xl">
@@ -215,22 +218,20 @@ export default function CreatorPanel() {
         </div>
       </header>
 
-      <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-14 bg-muted/20 p-1 rounded-2xl border border-white/5 mb-8">
-          <TabsTrigger value="create">New Post</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="analytics">Stats</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-14 bg-muted/20 p-1 rounded-2xl border border-white/5 mb-8">
+          <TabsTrigger value="container">Container</TabsTrigger>
+          <TabsTrigger value="published">Publish Contents</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="create">
-          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Publish New Content</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
+        <TabsContent value="container">
+         <ContainerTab />
         </TabsContent>
-        <TabsContent value="content">
-          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Your Content</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
+        <TabsContent value="published">
+          <PublishContentsTab />
         </TabsContent>
         <TabsContent value="analytics">
-          <Card className="glass-card max-w-2xl mx-auto"><CardHeader><CardTitle>Your Analytics</CardTitle><CardDescription>This section is under construction.</CardDescription></CardHeader></Card>
+          <StatsTab />
         </TabsContent>
 
         <TabsContent value="settings">

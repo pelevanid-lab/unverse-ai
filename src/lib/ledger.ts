@@ -4,7 +4,7 @@ import {
   increment, getDoc, query, where, getDocs, 
   limit, writeBatch 
 } from 'firebase/firestore';
-import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule, SystemWalletType } from './types';
+import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule, SystemWalletType, ContentPost } from './types';
 
 const CONFIG_DOC_PATH = 'config/system';
 
@@ -234,6 +234,13 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: creatorShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.staking_pool.address, amount: stakingShare, currency: 'ULC', type: 'staking_reward', referenceId: contentId });
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount: treasuryShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
+}
+
+export async function handleUnlocking(user: UserProfile, post: ContentPost, creatorWalletAddress: string) {
+    if (!post.isPremium || !post.priceULC) {
+        throw new Error("This content is not a premium post or has no price.");
+    }
+    await handlePremiumUnlock(user, creatorWalletAddress, post.priceULC, post.id);
 }
 
 export async function processChatFee(user: UserProfile) {

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useWallet } from '@/hooks/use-wallet';
@@ -11,12 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PostCard } from '@/components/feed/PostCard';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { ProfileContentFeed } from '@/components/profile/ProfileContentFeed';
 
 export default function PublicProfilePage() {
   const { uid } = useParams();
@@ -57,7 +58,7 @@ export default function PublicProfilePage() {
     };
 
     const unsubPosts = onSnapshot(
-      query(collection(db, 'content'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
+      query(collection(db, 'posts'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
       (snap) => {
         setPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost)));
       }
@@ -257,18 +258,7 @@ export default function PublicProfilePage() {
         </aside>
 
         <main className="lg:col-span-3 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-headline font-bold">Content Feed</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {posts.map(post => <PostCard key={post.id} post={post} />)}
-            {posts.length === 0 && (
-              <div className="col-span-full py-24 text-center glass-card rounded-3xl border-dashed border-2 border-white/5">
-                <p className="text-muted-foreground">This creator hasn't posted anything yet.</p>
-              </div>
-            )}
-          </div>
+            <ProfileContentFeed posts={posts} creator={profile} isSubscribed={isSubscribed}/>
         </main>
       </div>
     </div>
