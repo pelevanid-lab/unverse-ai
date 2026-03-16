@@ -1,4 +1,5 @@
-import type {NextConfig} from 'next';
+
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -30,8 +31,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Web3, Wagmi ve Coinbase hatalarını susturan Webpack ayarı:
-  webpack: (config) => {
+  // Conditionally apply webpack configuration
+  webpack: (config, { isServer, dev, nextRuntime }) => {
+    if (process.env.TURBOPACK) {
+      return config;
+    }
     config.externals.push(
       "pino-pretty",
       "lokijs",

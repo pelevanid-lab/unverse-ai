@@ -41,7 +41,6 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
       await updateDoc(postRef, { caption });
       toast({ title: 'Post Updated Successfully!' });
       setIsEditing(false);
-      // No need to call onClose(), we want the modal to stay open.
     } catch (error) {
       console.error("Update failed:", error);
       toast({ variant: 'destructive', title: 'Failed to Update Post' });
@@ -89,9 +88,9 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
             <div className="space-y-4">
               <Label htmlFor="caption" className="text-lg font-medium">Caption</Label>
               {isEditing ? (
-                <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} className="h-40 bg-input/50" />
+                <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} className="bg-input/50" rows={1} maxLength={140} />
               ) : (
-                <p className="text-sm text-muted-foreground min-h-[10rem] whitespace-pre-wrap border rounded-md p-3 bg-black/20">{caption || 'No caption provided.'}</p>
+                <p className="text-sm text-muted-foreground border rounded-md p-3 bg-black/20 truncate">{caption || 'No caption provided.'}</p>
               )}
             </div>
             <div className="flex flex-col space-y-3 mt-4">

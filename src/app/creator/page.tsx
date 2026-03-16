@@ -200,15 +200,11 @@ export default function CreatorPanel() {
            </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-          <Card className="glass-card border-primary/20 bg-primary/5 flex items-center gap-4 px-6 py-3 rounded-2xl">
+          <Card className="glass-card border-primary/20 bg-primary/5 flex items-center justify-center text-center px-6 py-3 rounded-2xl">
             <div>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Available Earnings</p>
               <p className="text-2xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
             </div>
-            <Button size="sm" disabled className="rounded-xl gap-2">
-              <ArrowUpRight className="w-4 h-4" />
-              Withdraw
-            </Button>
           </Card>
           <Link href={`/profile/${user?.walletAddress}`} className="w-full">
             <Button variant="outline" className="h-full w-full rounded-2xl gap-2">

@@ -1,123 +1,128 @@
 
 "use client";
 
-import { ContentPost, UserProfile } from "@/lib/types";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Heart, Coins, Lock, Gift, X, MessageCircle } from "lucide-react";
-import { useWallet } from "@/hooks/use-wallet";
-import { handleTipping, handleUnlocking } from "@/lib/ledger";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect, useRef } from 'react';
+import { ContentPost, UserProfile } from '@/lib/types';
+import { handleUnlock } from '@/lib/unlock';
+import { useWallet } from '@/hooks/use-wallet';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Lock, Loader2, X } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 interface PostViewerModalProps {
   post: ContentPost;
   creator: UserProfile;
   isSubscribed: boolean;
+  unlockedPostIds: string[];
   onClose: () => void;
+  onPostUnlocked: (postId: string) => void;
 }
 
-export function PostViewerModal({ post, creator, isSubscribed, onClose }: PostViewerModalProps) {
+export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, onClose, onPostUnlocked }: PostViewerModalProps) {
   const { user: currentUser, isConnected } = useWallet();
   const { toast } = useToast();
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const overlayTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const canView = !post.isPremium || isSubscribed || isUnlocked;
+  const isOwner = currentUser?.uid === creator.uid;
+  const canView = isOwner || !post.isPremium || isSubscribed || unlockedPostIds.includes(post.id);
+  const mediaUrl = post.media?.url || post.mediaUrl;
+  const isImage = post.media?.type === 'image' || (mediaUrl && (mediaUrl.includes('.webp') || mediaUrl.includes('.png') || mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('image')));
 
-  const handleUnlockClick = async () => {
-    if (!currentUser || !isConnected) {
-      toast({ variant: "destructive", title: "Please connect your wallet" });
+  useEffect(() => {
+    if (isImage) {
+      setShowOverlay(true);
       return;
     }
+    if (overlayTimeout.current) clearTimeout(overlayTimeout.current);
+    if (showOverlay) {
+      overlayTimeout.current = setTimeout(() => setShowOverlay(false), 3500);
+    }
+    return () => {
+      if (overlayTimeout.current) clearTimeout(overlayTimeout.current);
+    };
+  }, [showOverlay, isImage]);
+
+  const handleInteraction = () => {
+    if (!isImage) setShowOverlay(true);
+  };
+
+  const handleUnlockPost = async () => {
+    if (!currentUser || !isConnected) {
+      toast({ title: "Connect Wallet", description: "Please connect your wallet to unlock content." });
+      return;
+    }
+    setUnlocking(true);
     try {
-      await handleUnlocking(currentUser, post, creator.walletAddress);
-      setIsUnlocked(true);
-      toast({ title: "Post Unlocked!" });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Failed to unlock post" });
+      await handleUnlock(currentUser, post);
+      toast({ title: "Post Unlocked!", description: "You can now view this premium content." });
+      onPostUnlocked(post.id);
+    } catch (error: any) {
+      toast({ title: "Unlock Failed", description: error.message || "An unknown error occurred.", variant: "destructive" });
+    } finally {
+      setUnlocking(false);
     }
   };
-
-  const handleLikeClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent modal from closing if someone clicks fast
-    toast({ title: "Liked!" });
-  };
   
-  const handleTipClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toast({ title: "Tipped!" });
-  };
-
-  const handleCommentClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toast({ title: "Comment section coming soon!" });
-  };
-  
-  const isImage = post.mediaUrl.includes('.webp') || post.mediaUrl.includes('.png') || post.mediaUrl.includes('.jpg') || post.mediaUrl.includes('.jpeg') || post.mediaUrl.includes('image');
+  const isOverlayVisible = isImage || showOverlay;
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] flex flex-col glass-card p-0 border-0 bg-transparent">
-        {/* Accessibility elements (Visually Hidden) */}
-        <DialogTitle className="sr-only">Post by {creator.displayName}</DialogTitle>
-        <DialogDescription className="sr-only">{post.caption || 'A media post'}</DialogDescription>
-
-        <div className="relative w-full h-full flex items-center justify-center">
+      <DialogContent className="max-w-screen h-screen p-4 flex items-center justify-center bg-black/90 backdrop-blur-sm border-0">
+        <div className="relative w-full h-full flex items-center justify-center" onClick={handleInteraction}>
           
-          {/* Close Button - Top Right */}
-          <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-10 w-10 p-0 rounded-full bg-black/50 hover:bg-black/80 border-0">
-              <X className="h-6 w-6" />
-          </Button>
-
-          {/* Media Content */}
-          <div className="w-full h-full flex items-center justify-center bg-black/90 rounded-lg overflow-hidden">
-            {canView ? (
+          {/* Media element constrained to viewport dimensions */}
+          <div className="relative flex justify-center items-center w-full h-full">
+            {!canView ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-8 z-30">
+                    <Lock className="w-16 h-16 mx-auto text-primary mb-4" />
+                    <h2 className="text-3xl font-bold font-headline mb-2">Content Locked</h2>
+                    <p className="text-muted-foreground mb-6">Subscribe to {creator.username} or unlock this post to view.</p>
+                    <Button onClick={(e) => { e.stopPropagation(); handleUnlockPost(); }} disabled={unlocking} size="lg" className="w-full max-w-xs h-14 rounded-2xl gap-2 font-bold text-lg">
+                        {unlocking ? <Loader2 className="animate-spin" /> : <Lock className="w-5 h-5" />} Unlock for {post.unlockPrice} ULC
+                    </Button>
+                </div>
+            ) : mediaUrl && (
                 isImage ? (
-                <img src={post.mediaUrl} alt={post.caption || 'post'} className="max-w-full max-h-full w-auto h-auto object-contain"/>
-              ) : (
-                <video src={post.mediaUrl} controls autoPlay className="max-w-full max-h-full w-auto h-auto" />
-              )
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center text-white">
-                  <Lock className="w-20 h-20 text-primary mb-6"/>
-                  <h3 className="text-2xl font-bold">Content Locked</h3>
-                  <p className="text-lg text-muted-foreground mb-6">Subscribe or unlock to view this exclusive content.</p>
-                  <Button onClick={handleUnlockClick} className="w-full max-w-sm gap-2 font-bold text-lg h-14 bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Lock size={20}/> Unlock for {post.priceULC} ULC
-                  </Button>
-              </div>
+                    <img src={mediaUrl} alt={post.caption || 'Post'} className="object-contain block max-w-full max-h-full" />
+                ) : (
+                    <video src={mediaUrl} controls autoPlay muted loop className="object-contain block max-w-full max-h-full" />
+                )
             )}
           </div>
 
-          {/* Interaction Icons & Caption - Bottom */}
-          {canView && (
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent text-white">
-                <h2 className="text-2xl font-bold mb-2">{post.caption}</h2>
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4 text-white/80">
-                        <div className="flex items-center gap-1.5">
-                            <Heart size={18}/> 
-                            <span>{post.likes || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <Coins size={18}/> 
-                            <span>{(post.earningsULC || 0).toFixed(2)}</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button onClick={handleLikeClick} variant="ghost" size="icon" className="rounded-full bg-black/30 hover:bg-white/20 hover:text-red-500">
-                          <Heart className="h-6 w-6" />
-                        </Button>
-                         <Button onClick={handleCommentClick} variant="ghost" size="icon" className="rounded-full bg-black/30 hover:bg-white/20">
-                          <MessageCircle className="h-6 w-6" />
-                        </Button>
-                        <Button onClick={handleTipClick} variant="ghost" size="icon" className="rounded-full bg-black/30 hover:bg-white/20 hover:text-primary">
-                          <Gift className="h-6 w-6" />
-                        </Button>
-                    </div>
+          {/* --- OVERLAY START --- */}
+          <div className={`absolute inset-0 z-20 transition-opacity duration-300 pointer-events-none ${isOverlayVisible ? 'opacity-100' : 'opacity-0'}`}>
+            <header className="absolute top-0 left-0 right-0 flex items-start justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
+              <Link href={`/profile/${creator.uid}`} onClick={(e) => e.stopPropagation()} className="pointer-events-auto">
+                <div className="flex items-center gap-3 group">
+                  <Avatar className="w-11 h-11 border-2 border-white/80 group-hover:border-primary transition-colors">
+                    <AvatarImage src={creator.avatar} />
+                    <AvatarFallback>{creator.username ? creator.username[0] : 'C'}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-bold text-white group-hover:text-primary transition-colors">{creator.username}</h3>
+                    <p className="text-xs text-white/70">{new Date(post.createdAt).toLocaleString()}</p>
+                  </div>
                 </div>
-            </div>
-          )}
+              </Link>
+              <Button variant="ghost" size="icon" onClick={onClose} className="bg-black/50 hover:bg-black/80 rounded-full w-10 h-10 pointer-events-auto">
+                  <X className="w-6 h-6" />
+              </Button>
+            </header>
+
+            {canView && post.caption && (
+              <footer className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+                  <p className="text-base text-white font-medium">{post.caption}</p>
+              </footer>
+            )}
+          </div>
+          {/* --- OVERLAY END --- */}
+
         </div>
       </DialogContent>
     </Dialog>

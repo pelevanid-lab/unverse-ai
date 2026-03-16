@@ -4,11 +4,11 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { ContentPost } from '@/lib/types';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { ContentPost, LedgerEntry } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Heart, Lock, Coins } from 'lucide-react';
-import { ViewPostModal } from './ViewPostModal'; // Import the new modal component
+import { Loader2, Lock } from 'lucide-react';
+import { ViewPostModal } from './ViewPostModal';
 
 export function PublishContentsTab() {
   const { user } = useWallet();
@@ -22,9 +22,45 @@ export function PublishContentsTab() {
     setLoading(true);
     const q = query(collection(db, 'posts'), where('creatorId', '==', user.walletAddress));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
-      setPosts(fetchedPosts.sort((a, b) => b.createdAt - a.createdAt)); // Sort by newest
+      
+      const premiumPostIds = fetchedPosts
+        .filter(p => p.isPremium)
+        .map(p => p.id);
+
+      let postsWithStats = fetchedPosts;
+
+      if (premiumPostIds.length > 0) {
+        const ledgerQuery = query(
+          collection(db, 'ledger'),
+          where('type', '==', 'premium_unlock'),
+          where('referenceId', 'in', premiumPostIds)
+        );
+        
+        const ledgerSnapshot = await getDocs(ledgerQuery);
+        const unlocks = ledgerSnapshot.docs.map(doc => doc.data() as LedgerEntry);
+
+        postsWithStats = fetchedPosts.map(post => {
+          if (post.isPremium) {
+            const postUnlocks = unlocks.filter(u => u.referenceId === post.id);
+            return {
+              ...post,
+              unlockCount: postUnlocks.length,
+              revenue: postUnlocks.reduce((sum, u) => sum + u.amount, 0),
+            };
+          }
+          return post;
+        });
+      }
+      
+      const sortedPosts = postsWithStats.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+
+      setPosts(sortedPosts);
       setLoading(false);
     });
 
@@ -45,44 +81,38 @@ export function PublishContentsTab() {
             </div>
           ) : posts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>You haven\'t published any content yet.</p>
+              <p>You haven't published any content yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {posts.map(post => {
-                const isImage = post.mediaUrl.includes('.webp') || post.mediaUrl.includes('.png') || post.mediaUrl.includes('.jpg') || post.mediaUrl.includes('.jpeg') || post.mediaUrl.includes('image');
+                const mediaUrl = post.mediaUrl;
+                const isImage = mediaUrl?.includes('.webp') || mediaUrl?.includes('.png') || mediaUrl?.includes('.jpg') || mediaUrl?.includes('.jpeg') || mediaUrl?.includes('image');
+
                 return (
                   <div 
                     key={post.id} 
                     className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50"
-                    onClick={() => setSelectedPost(post)} // Set the selected post on click
+                    onClick={() => setSelectedPost(post)}
                   >
-                    {isImage ? (
-                         <img src={post.mediaUrl} alt={post.caption || 'post'} className="w-full h-full object-cover" />
-                    ):(
-                        <video src={post.mediaUrl} muted loop playsInline className="w-full h-full object-cover" />
+                    {mediaUrl && (
+                      isImage ? (
+                        <img src={mediaUrl} alt={post.caption || 'post'} className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={mediaUrl} muted loop playsInline className="w-full h-full object-cover" />
+                      )
                     )}
                  
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                      <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                        <div className="flex items-center gap-3 text-xs">
-                            <div className="flex items-center gap-1">
-                                <Heart size={14} />
-                                <span>{post.likes || 0}</span>
+                        {post.isPremium && (
+                            <div className="flex items-center gap-3 text-xs font-semibold">
+                              <div className="flex items-center gap-1">
+                                  <Lock size={14} />
+                                  <span>{post.unlockCount || 0}</span>
+                              </div>
                             </div>
-                            
-                            {post.isPremium && (
-                                <div className="flex items-center gap-1">
-                                    <Lock size={14} />
-                                    <span>{post.unlockCount || 0}</span>
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-1">
-                                <Coins size={14} />
-                                <span>{(post.earningsULC || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
+                        )}
                     </div>
                   </div>
                 )

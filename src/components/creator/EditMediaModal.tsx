@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -23,13 +24,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface EditMediaModalProps {
   media: CreatorMedia;
-  creatorProfile: CreatorProfile; // Receive the creator profile as a prop
+  creatorProfile: CreatorProfile;
   onClose: () => void;
   onPublished: () => void;
 }
 
 export function EditMediaModal({ media, creatorProfile, onClose, onPublished }: EditMediaModalProps) {
-  const { user } = useWallet(); // Keep for user ID
+  const { user } = useWallet();
   const { toast } = useToast();
   const [caption, setCaption] = useState(media.caption || '');
   const [isPremium, setIsPremium] = useState(media.isPremium || false);
@@ -49,7 +50,6 @@ export function EditMediaModal({ media, creatorProfile, onClose, onPublished }: 
     try {
       const postData: Omit<ContentPost, 'id'> = {
         creatorId: user.uid,
-        // Use the passed creatorProfile for name and avatar
         creatorName: creatorProfile.displayName, 
         creatorAvatar: creatorProfile.avatar,
         mediaUrl: media.mediaUrl,
@@ -143,7 +143,7 @@ export function EditMediaModal({ media, creatorProfile, onClose, onPublished }: 
                   <div className="space-y-4">
                       <div>
                           <Label htmlFor="caption" className='text-base'>Caption</Label>
-                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Add a catchy caption..." className="mt-2 h-28 bg-input/50" />
+                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Add a catchy caption..." className="mt-2 bg-input/50" rows={1} maxLength={140} />
                       </div>
                       <div className="flex items-center justify-between rounded-lg border p-4 bg-black/20">
                           <div className='space-y-1'>
