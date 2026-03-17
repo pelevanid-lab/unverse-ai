@@ -5,56 +5,52 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Wallet, Loader2, CheckCircle, ChevronLeft } from 'lucide-react';
+import { Wallet, Loader2, CheckCircle, ChevronLeft, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserProfile } from '@/lib/types';
+import { UserProfile, NetworkWallet } from '@/lib/types';
 import Link from 'next/link';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
-function TronPaymentWallet({ user }: { user: UserProfile }) {
+
+// Specific component for a single network wallet (TRON, TON, etc.)
+function NetworkWalletManager({ user, network, onConnect }: { user: UserProfile, network: 'TRON' | 'TON', onConnect: (network: 'TRON' | 'TON', address: string) => Promise<void> }) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const walletInfo = user.paymentWallets?.[network];
 
-    const handleConnect = async () => {
-        const tronWeb = (window as any).tronWeb;
-        if (!tronWeb) {
-            toast({
-                variant: "destructive",
-                title: "TronLink Not Found",
-                description: "Please install the TronLink browser extension to connect a TRON wallet.",
-            });
-            return;
+    const handleConnectClick = async () => {
+        let provider;
+        let connectRequest;
+        let getAddress;
+
+        if (network === 'TRON') {
+            provider = (window as any).tronWeb;
+            if (!provider) {
+                toast({ variant: "destructive", title: "TronLink Not Found", description: "Please install TronLink extension." });
+                return;
+            }
+            connectRequest = () => provider.request({ method: 'tron_requestAccounts' });
+            getAddress = () => provider.defaultAddress.base58;
+        }
+        // NOTE: Placeholder for TON connection logic. 
+        // This will require a specific TON wallet provider library (e.g., TonConnectUI).
+        else if (network === 'TON') {
+             toast({ title: "Coming Soon!", description: "TON wallet integration is currently under development." });
+             return; // Prevent execution for now
         }
 
         setIsLoading(true);
         try {
-            await tronWeb.request({ method: 'tron_requestAccounts' });
-            const connectedAddress = tronWeb.defaultAddress.base58;
-            if (!connectedAddress) {
-                throw new Error("Wallet connection was cancelled or failed.");
-            }
-
-            const userRef = doc(db, 'users', user.uid);
-            await updateDoc(userRef, {
-                paymentWalletAddress: connectedAddress,
-                paymentNetwork: 'TRON',
-                paymentWalletVerified: true
-            });
-
-            toast({
-                title: "Payment Wallet Connected",
-                description: `Your wallet ${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)} has been set for payments.`,
-            });
-
+            await connectRequest();
+            const address = getAddress();
+            if (!address) throw new Error("Wallet connection failed.");
+            await onConnect(network, address);
         } catch (error: any) {
-            console.error("Failed to connect payment wallet:", error);
-            toast({
-                variant: "destructive",
-                title: "Connection Failed",
-                description: error.message || "Could not connect your payment wallet. Please try again.",
-            });
+            toast({ variant: "destructive", title: `${network} Connection Failed`, description: error.message });
         } finally {
             setIsLoading(false);
         }
@@ -62,62 +58,43 @@ function TronPaymentWallet({ user }: { user: UserProfile }) {
 
     const handleDisconnect = async () => {
         if (!user.uid) return;
-
         setIsLoading(true);
         try {
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, {
-                paymentWalletAddress: "",
-                paymentNetwork: "",
-                paymentWalletVerified: false
+                [`paymentWallets.${network}`]: null, // Remove the specific wallet
             });
-            toast({
-                title: "Payment Wallet Disconnected",
-                description: "Your payment wallet has been removed.",
-            });
-        } catch (error) {
-            console.error("Failed to disconnect payment wallet:", error);
-            toast({
-                variant: "destructive",
-                title: "Disconnection Failed",
-                description: "Could not disconnect your payment wallet. Please try again.",
-            });
+            toast({ title: `${network} Wallet Disconnected` });
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Disconnection Failed", description: error.message });
         } finally {
             setIsLoading(false);
         }
     };
-    
-    const hasPaymentWallet = user.paymentWalletAddress && user.paymentWalletVerified;
 
     return (
-         <Card className="glass-card border-white/10">
+        <Card className="glass-card border-white/10">
             <CardHeader>
-                <CardTitle>TRON Payment Wallet</CardTitle>
-                <CardDescription>
-                    {hasPaymentWallet 
-                        ? "This wallet is currently used for all on-chain payments."
-                        : "Connect a TRON wallet for all on-chain payments, like buying ULC or subscriptions."}
-                </CardDescription>
+                <CardTitle className="flex items-center justify-between">
+                    <span>{network} Payment Wallet</span>
+                    {user.preferredPaymentNetwork === network && <div className="flex items-center gap-1 text-xs text-yellow-400"><Star size={14}/> Preferred</div>}
+                </CardTitle>
+                <CardDescription>Connect your {network} wallet for on-chain payments.</CardDescription>
             </CardHeader>
             <CardContent>
-                {hasPaymentWallet ? (
+                {walletInfo && walletInfo.verified ? (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-white/10">
-                            <div className='font-mono text-sm'>
-                                {user.paymentWalletAddress}
-                            </div>
-                            <div className='flex items-center gap-2 text-xs'>
-                                    <span className='bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full'>TRON</span>
-                                    <span className='flex items-center gap-1 text-green-400'><CheckCircle size={14}/> Connected</span>
-                            </div>
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg font-mono text-sm">
+                           {walletInfo.address.slice(0, 6)}...{walletInfo.address.slice(-4)}
+                           <span className='flex items-center gap-1 text-green-400 text-xs'><CheckCircle size={14}/> Connected</span>
                         </div>
-                        <Button variant="outline" className='border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive' onClick={handleDisconnect} disabled={isLoading}>
+                        <Button variant="outline" className='border-destructive/50 text-destructive' onClick={handleDisconnect} disabled={isLoading}>
                             {isLoading ? <Loader2 className="animate-spin h-4 w-4"/> : 'Disconnect'}
                         </Button>
                     </div>
                 ) : (
-                    <Button onClick={handleConnect} disabled={isLoading} className="bg-primary hover:bg-primary/90">
-                        {isLoading ? <Loader2 className="animate-spin"/> : 'Connect TRON Wallet'}
+                    <Button onClick={handleConnectClick} disabled={isLoading} className="bg-primary hover:bg-primary/90">
+                        {isLoading ? <Loader2 className="animate-spin"/> : `Connect ${network} Wallet`}
                     </Button>
                 )}
             </CardContent>
@@ -128,27 +105,47 @@ function TronPaymentWallet({ user }: { user: UserProfile }) {
 export default function PaymentWalletsPage() {
     const router = useRouter();
     const { user, isConnected } = useWallet();
+    const [preferredNetwork, setPreferredNetwork] = useState(user?.preferredPaymentNetwork || 'TRON');
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
 
     if (!isConnected || !user) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                  <Wallet className="w-12 h-12 text-primary" />
                  <h1 className="text-3xl font-headline font-bold">Payment Wallets</h1>
-                 <p className="text-muted-foreground max-w-sm">Please connect your main wallet to continue.</p>
-                 <Link href="/"><Button>Connect Now</Button></Link>
+                 <p className="text-muted-foreground">Please connect your main identity wallet first.</p>
             </div>
         )
     }
 
+    const handleWalletConnect = async (network: 'TRON' | 'TON', address: string) => {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+            [`paymentWallets.${network}`]: { address, verified: true },
+             // Set as preferred if it's the first wallet connected
+            ...(!user.paymentWallets && { preferredPaymentNetwork: network })
+        });
+        toast({ title: `${network} Wallet Connected`, description: `Address: ${address.slice(0,6)}...` });
+    };
+
+    const handleSavePreferences = async () => {
+        setIsSaving(true);
+        try {
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, { preferredPaymentNetwork: preferredNetwork });
+            toast({ title: "Preferences Saved", description: `${preferredNetwork} is now your default payment network.` });
+        } catch (error: any) {
+             toast({ variant: "destructive", title: "Save Failed", description: error.message });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-12">
             <header className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-10 w-10 rounded-full bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-colors"
-                  onClick={() => router.back()}
-                >
+                <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full bg-white/5">
                   <ChevronLeft className="w-6 h-6" />
                 </Button>
                 <div>
@@ -157,8 +154,32 @@ export default function PaymentWalletsPage() {
                 </div>
             </header>
 
-            <TronPaymentWallet user={user} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <NetworkWalletManager user={user} network="TRON" onConnect={handleWalletConnect} />
+                <NetworkWalletManager user={user} network="TON" onConnect={handleWalletConnect} />
+            </div>
 
+            <Card className="glass-card border-white/10">
+                <CardHeader>
+                    <CardTitle>Preferences</CardTitle>
+                    <CardDescription>Select your default network for making payments.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <RadioGroup value={preferredNetwork} onValueChange={(v) => setPreferredNetwork(v as 'TRON' | 'TON')}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="TRON" id="r-tron" disabled={!user.paymentWallets?.TRON} />
+                            <Label htmlFor="r-tron">TRON</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="TON" id="r-ton" disabled={!user.paymentWallets?.TON} />
+                            <Label htmlFor="r-ton">TON</Label>
+                        </div>
+                    </RadioGroup>
+                    <Button onClick={handleSavePreferences} disabled={isSaving || preferredNetwork === user.preferredPaymentNetwork}>
+                        {isSaving ? <Loader2 className="animate-spin"/> : 'Save Preference'}
+                    </Button>
+                </CardContent>
+            </Card>
         </div>
     );
 }
