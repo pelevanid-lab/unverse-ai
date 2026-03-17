@@ -15,10 +15,10 @@ import { db } from '@/lib/firebase';
 import { LedgerEntry, VestingSchedule, SystemConfig, UserProfile, Creator } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Link from 'next/link';
 
-// A. WALLET OVERVIEW COMPONENT - ROBUST FIX
+
 function BalanceCard({ user }: { user: UserProfile | null }) {
-    // Default to 0 if user or ulcBalance is not available to prevent crash
     const available = user?.ulcBalance?.available ?? 0;
     const staked = user?.ulcBalance?.staked ?? 0;
 
@@ -39,7 +39,6 @@ function BalanceCard({ user }: { user: UserProfile | null }) {
     );
 }
 
-// B. BUY ULC COMPONENT (No changes needed)
 function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (amount: number, network: 'TRON' | 'TON') => Promise<void> }) {
     const [usdtAmount, setUsdtAmount] = useState('10');
     const [purchaseState, setPurchaseState] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
@@ -67,9 +66,16 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
 
     return (
         <Card className="glass-card border-white/10"> 
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShoppingBag/> Buy ULC</CardTitle>
-                <CardDescription>Purchase ULC tokens with USDT.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2"><ShoppingBag/> Buy ULC</CardTitle>
+                    <CardDescription>Purchase ULC tokens with USDT.</CardDescription>
+                </div>
+                <Link href="/payment-wallets">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
+                        <WalletIcon className="w-4 h-4"/> Payment Wallets
+                    </Button>
+                </Link>
             </CardHeader>
             <CardContent className="space-y-4">
                  <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="grid grid-cols-2 gap-2">
@@ -95,7 +101,6 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     );
 }
 
-// D. USDT EARNINGS & CLAIM COMPONENT (No changes needed)
 function UsdtEarningsCard({ creator, onClaim, loading }: { creator: Creator, onClaim: () => void, loading: boolean }) {
     const [earnings, setEarnings] = useState<{ available: number, pending: number }>({ available: 0, pending: 0 });
     useEffect(() => {
@@ -105,9 +110,16 @@ function UsdtEarningsCard({ creator, onClaim, loading }: { creator: Creator, onC
     const canClaim = earnings.available > 0 && earnings.pending === 0;
     return (
         <Card className="glass-card border-white/10 bg-gradient-to-br from-purple-500/10 to-blue-500/10">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">USDT Earnings</CardTitle>
-                <CardDescription>Claim your earnings from subscriptions.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2">USDT Earnings</CardTitle>
+                    <CardDescription>Claim your earnings from subscriptions.</CardDescription>
+                </div>
+                <Link href="/creator/collection-wallets">
+                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
+                        <WalletIcon className="w-4 h-4"/> Collection Wallets
+                    </Button>
+                </Link>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="p-4 rounded-lg bg-background/50"><p className="text-sm text-muted-foreground">Available to Claim</p><p className="text-3xl font-bold text-green-400">${earnings.available.toFixed(2)}</p></div>
@@ -121,10 +133,8 @@ function UsdtEarningsCard({ creator, onClaim, loading }: { creator: Creator, onC
     );
 }
 
-// C. HISTORY COMPONENT - LOGIC FIXED
 function HistoryCard({ history, user }: { history: LedgerEntry[], user: UserProfile | null }) {
     const getTxUrl = (txHash: string, network?: string) => network === 'TON' ? `https://tonscan.org/tx/${txHash}` : `https://tronscan.org/#/transaction/${txHash}`;
-    // Normalize addresses for reliable comparison
     const userAddresses = [user?.walletAddress, user?.rawAddress].filter(Boolean).map(a => a.toLowerCase());
 
     return (
@@ -180,7 +190,6 @@ export default function WalletPage() {
     getSystemConfig().then(setSystemConfig).catch(err => toast({ variant: 'destructive', title: 'Error', description: 'Could not load system configuration.' }));
   }, [toast]);
 
-  // EFFICIENT HISTORY QUERY
   useEffect(() => {
     if (!user?.walletAddress) return;
 

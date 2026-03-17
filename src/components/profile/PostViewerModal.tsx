@@ -6,7 +6,7 @@ import { ContentPost, UserProfile } from '@/lib/types';
 import { handleUnlock } from '@/lib/unlock';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Lock, Loader2, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -73,6 +73,8 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-screen h-screen p-4 flex items-center justify-center bg-black/90 backdrop-blur-sm border-0">
+        <DialogTitle className="sr-only">Post by {creator.username}</DialogTitle>
+        <DialogDescription className="sr-only">{post.caption || 'A post from the creator.'}</DialogDescription>
         <div className="relative w-full h-full flex items-center justify-center" onClick={handleInteraction}>
           
           {/* Media element constrained to viewport dimensions */}
