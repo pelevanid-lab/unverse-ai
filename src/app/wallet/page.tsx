@@ -6,78 +6,112 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Coins, ArrowUpRight, ArrowDownLeft, History, ShoppingBag, Lock, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Coins, ArrowUpRight, ArrowDownLeft, History, ShoppingBag, Lock, RefreshCw, ChevronLeft, CheckCircle, XCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { buyULC, claimVestedTokens, calculateVestingClaimable } from '@/lib/ledger';
+import { confirmUlcPurchase, getSystemConfig, claimVestedTokens, calculateVestingClaimable } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, VestingSchedule } from '@/lib/types';
+import { LedgerEntry, VestingSchedule, SystemConfig } from '@/lib/types';
+
+// TRON USDT Contract Address
+const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 export default function WalletPage() {
   const router = useRouter();
   const { user, isConnected, rawAddress } = useWallet();
   const [usdtAmount, setUsdtAmount] = useState('10');
-  const [buying, setBuying] = useState(false);
+  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
+  const [purchaseState, setPurchaseState] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const [claiming, setClaiming] = useState(false);
   const [history, setHistory] = useState<LedgerEntry[]>([]);
   const [schedules, setSchedules] = useState<VestingSchedule[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Ensure we have both user profile and the raw address before querying.
+    getSystemConfig().then(setSystemConfig);
+
     if (!user || !rawAddress) return;
     
-    // Create a unique list of address formats to query against.
     const addressFormats = Array.from(new Set([user.walletAddress, rawAddress]));
 
-    const qIn = query(
-      collection(db, 'ledger'),
-      where('toWallet', 'in', addressFormats), // Use 'in' to find all incoming transactions
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-    const qOut = query(
-      collection(db, 'ledger'),
-      where('fromWallet', 'in', addressFormats), // Use 'in' to find all outgoing transactions
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
+    const qIn = query(collection(db, 'ledger'), where('toWallet', 'in', addressFormats), orderBy('timestamp', 'desc'), limit(20));
+    const qOut = query(collection(db, 'ledger'), where('fromWallet', 'in', addressFormats), orderBy('timestamp', 'desc'), limit(20));
 
-    const unsubIn = onSnapshot(qIn, (snap) => {
+    const unsubIn = onSnapshot(qIn, snap => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LedgerEntry));
-      setHistory(prev => {
-        const combined = [...prev, ...data].sort((a, b) => b.timestamp - a.timestamp);
-        return Array.from(new Set(combined.map(t => t.id))).map(id => combined.find(t => t.id === id)!);
-      });
+      setHistory(prev => [...prev, ...data].sort((a, b) => b.timestamp - a.timestamp).filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i));
     });
 
-    const unsubOut = onSnapshot(qOut, (snap) => {
+    const unsubOut = onSnapshot(qOut, snap => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LedgerEntry));
-      setHistory(prev => {
-        const combined = [...prev, ...data].sort((a, b) => b.timestamp - a.timestamp);
-        return Array.from(new Set(combined.map(t => t.id))).map(id => combined.find(t => t.id === id)!);
-      });
+      setHistory(prev => [...prev, ...data].sort((a, b) => b.timestamp - a.timestamp).filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i));
     });
 
     const qSchedules = query(collection(db, 'vesting'), where('uid', '==', user.uid));
-    const unsubSchedules = onSnapshot(qSchedules, (snap) => {
+    const unsubSchedules = onSnapshot(qSchedules, snap => {
       setSchedules(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as VestingSchedule)));
     });
 
     return () => { unsubIn(); unsubOut(); unsubSchedules(); };
-  }, [user, rawAddress]); // Add rawAddress to dependency array
+  }, [user, rawAddress]);
 
   const handleBuy = async () => {
-    if (!isConnected || !user) return;
-    setBuying(true);
-    try {
-      const amount = await buyULC(user, parseFloat(usdtAmount));
-      toast({ title: "Purchase Success", description: `Received ${amount.toFixed(2)} ULC!` });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Purchase Failed" });
+    if (!isConnected || !user || !systemConfig) return;
+
+    if (!user.paymentWalletAddress) {
+        toast({
+            variant: 'destructive',
+            title: "Payment Wallet Not Configured",
+            description: "Please configure your TRON payment wallet in Settings.",
+            action: <Button onClick={() => router.push('/mypage')}>Go to Settings</Button>
+        });
+        return;
     }
-    setBuying(false);
+    
+    const tronWeb = (window as any).tronWeb;
+    if (!tronWeb || tronWeb.defaultAddress.base58.toLowerCase() !== user.paymentWalletAddress.toLowerCase()) {
+        toast({ variant: 'destructive', title: "Incorrect Wallet Selected", description: `Please switch to your configured payment wallet (${user.paymentWalletAddress.slice(0, 6)}...) in your TronLink extension.` });
+        return;
+    }
+
+    const amount = parseFloat(usdtAmount);
+    if (isNaN(amount) || amount <= 0) {
+        toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid USDT amount." });
+        return;
+    }
+
+    setPurchaseState('pending');
+    try {
+      const toAddress = systemConfig.wallets.treasury_wallet.address;
+      if (!toAddress) throw new Error("Treasury address not configured.");
+      
+      const amountInSun = amount * 1_000_000; // USDT has 6 decimals
+
+      const contract = await tronWeb.contract().at(USDT_CONTRACT_ADDRESS);
+      const txHash = await contract.transfer(toAddress, amountInSun).send({ feeLimit: 100_000_000 });
+
+      if (!txHash) throw new Error("Transaction failed to broadcast.");
+
+      const creditedUlc = await confirmUlcPurchase(user, amount, txHash);
+      
+      setPurchaseState('success');
+      toast({ 
+        title: "Purchase Successful!", 
+        description: `You received ${creditedUlc.toFixed(2)} ULC. Your balance will update shortly.`
+      });
+
+    } catch (e: any) {
+        setPurchaseState('failed');
+        console.error("Purchase process failed:", e);
+        toast({ 
+            variant: 'destructive', 
+            title: "Purchase Failed", 
+            description: e.message || "The transaction was rejected or failed."
+        });
+    } finally {
+        setTimeout(() => setPurchaseState('idle'), 3000);
+    }
   };
 
   const handleClaim = async (schedule: VestingSchedule) => {
@@ -91,6 +125,19 @@ export default function WalletPage() {
     }
     setClaiming(false);
   };
+  
+  const renderPurchaseButton = () => {
+    switch (purchaseState) {
+        case 'pending':
+            return <RefreshCw className="animate-spin" />;
+        case 'success':
+            return <CheckCircle className="text-green-500" />;
+        case 'failed':
+            return <XCircle className="text-red-500" />;
+        default:
+            return 'Purchase';
+    }
+  }
 
   if (!isConnected) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -117,22 +164,14 @@ export default function WalletPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-primary/10 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-primary">Available</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} ULC</div>
-          </CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-primary">Available</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} ULC</div></CardContent>
         </Card>
         <Card className="bg-muted border-white/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase text-muted-foreground">Locked</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold font-headline">{user?.ulcBalance.locked.toFixed(2)} ULC</div>
-          </CardContent>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-muted-foreground">Locked</CardTitle></CardHeader>
+          <CardContent><div className="text-3xl font-bold font-headline">{user?.ulcBalance.locked.toFixed(2)} ULC</div></CardContent>
         </Card>
       </div>
 
@@ -140,7 +179,7 @@ export default function WalletPage() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-primary" /> Buy ULC</CardTitle>
-            <CardDescription>Exchange USDT for platform tokens.</CardDescription>
+            <CardDescription>Exchange USDT for platform tokens via TRON network.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -151,12 +190,13 @@ export default function WalletPage() {
                   value={usdtAmount} 
                   onChange={(e) => setUsdtAmount(e.target.value)}
                   className="bg-muted border-none h-12"
+                  disabled={purchaseState === 'pending'}
                 />
-                <Button onClick={handleBuy} disabled={buying} className="bg-primary px-8">
-                  {buying ? <RefreshCw className="animate-spin" /> : 'Purchase'}
+                <Button onClick={handleBuy} disabled={purchaseState !== 'idle'} className="bg-primary px-8 w-32">
+                  {renderPurchaseButton()}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Estimated Receipt: <span className="text-primary font-bold">{(parseFloat(usdtAmount) / 0.015).toFixed(2)} ULC</span></p>
+              <p className="text-xs text-muted-foreground">Estimated Receipt: <span className="text-primary font-bold">{(parseFloat(usdtAmount) / (systemConfig?.internal_ulc_purchase_price || 0.015)).toFixed(2)} ULC</span></p>
             </div>
 
             {schedules.length > 0 && (
@@ -187,15 +227,14 @@ export default function WalletPage() {
           </CardHeader>
           <CardContent className="max-h-[400px] overflow-y-auto space-y-4">
             {history.map((tx) => {
-              // Check if the transaction's 'to' address matches the user's wallet address (case-insensitive).
-              const isIncoming = tx.toWallet.toLowerCase() === user?.walletAddress;
+              const isIncoming = tx.toWallet.toLowerCase() === user?.walletAddress.toLowerCase();
               return (
                 <div key={tx.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-white/5">
                   <div className="flex items-center gap-3">
                     {isIncoming ? <ArrowDownLeft className="text-green-400" /> : <ArrowUpRight className="text-red-400" />}
                     <div>
                       <p className="text-sm font-bold capitalize">{tx.type.replace(/_/g, ' ')}</p>
-                      <p className="text-[10px] text-muted-foreground">{new Date(tx.timestamp).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(tx.timestamp).toLocaleString()}</p>
                     </div>
                   </div>
                   <p className={`text-sm font-bold ${isIncoming ? 'text-green-400' : 'text-red-400'}`}>

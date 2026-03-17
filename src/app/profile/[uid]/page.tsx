@@ -1,199 +1,193 @@
 
 "use client"
 
-import { useWallet } from '@/hooks/use-wallet';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
-import { UserProfile, ContentPost, CreatorProfile, LedgerEntry } from '@/lib/types';
-import { handleSubscription, handleTipping } from '@/lib/ledger';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useWallet } from '@/hooks/use-wallet';
+import { Creator, ContentPost, UserProfile } from '@/lib/types';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Crown, Lock, Loader2, Link as LinkIcon, Twitter } from 'lucide-react';
+import { handleSubscription, handleUnlocking } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { ProfileContentFeed } from '@/components/profile/ProfileContentFeed';
 
-export default function PublicProfilePage() {
-  const { uid } = useParams();
-  const { user: currentUser, isConnected } = useWallet();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
+const COVER_IMAGE = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Fcover_default.webp?alt=media&token=e024b433-2895-41a4-9548-6126685511dc';
+
+export default function ProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const uid = params.uid as string;
+  const { user, isConnected } = useWallet();
+  const { toast } = useToast();
+
+  const [creator, setCreator] = useState<Creator | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [unlockedPostIds, setUnlockedPostIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
-  const [tipping, setTipping] = useState(false);
-  const [tipAmount, setTipAmount] = useState('5');
-  const [isTipDialogOpen, setIsTipDialogOpen] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
+  const [unlocking, setUnlocking] = useState<string | null>(null); // Post ID being unlocked
 
-  const handlePostUnlocked = (postId: string) => {
-    setUnlockedPostIds(prev => [...new Set([...prev, postId])]);
-  };
+  const isSubscribed = user?.activeSubscriptionIds?.includes(uid) ?? false;
 
   useEffect(() => {
     if (!uid) return;
 
-    const fetchProfile = async () => {
-      const userDocRef = doc(db, 'users', uid as string);
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data() as UserProfile;
-        setProfile(userData);
-
-        if (userData.isCreator) {
-          const creatorDocRef = doc(db, 'creators', uid as string);
-          const creatorSnap = await getDoc(creatorDocRef);
-          if (creatorSnap.exists()) {
-            setCreatorProfile(creatorSnap.data() as CreatorProfile);
-          }
-        }
+    const creatorRef = doc(db, 'creators', uid);
+    const unsubCreator = onSnapshot(creatorRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCreator(snapshot.data() as Creator);
       } else {
-        router.push('/');
+        // Handle case where creator profile doesn't exist
+        console.log("Creator profile not found.");
       }
       setLoading(false);
-    };
-
-    const unsubPosts = onSnapshot(
-      query(collection(db, 'posts'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
-      async (snap) => {
-        const postsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
-        const premiumPostIds = postsData.filter(p => p.isPremium).map(p => p.id);
-        
-        let postsWithStats = postsData;
-
-        if (premiumPostIds.length > 0) {
-          const ledgerQuery = query(
-            collection(db, 'ledger'),
-            where('type', '==', 'premium_unlock'),
-            where('referenceId', 'in', premiumPostIds)
-          );
-          const ledgerSnapshot = await getDocs(ledgerQuery);
-          const unlocks = ledgerSnapshot.docs.map(doc => doc.data() as LedgerEntry);
-
-          postsWithStats = postsData.map(post => {
-            if (post.isPremium) {
-              const postUnlocks = unlocks.filter(u => u.referenceId === post.id);
-              post.unlockCount = postUnlocks.length;
-              post.revenue = postUnlocks.reduce((sum, u) => sum + u.amount, 0);
-            }
-            return post;
-          });
-        }
-        setPosts(postsWithStats);
-      }
-    );
-
-    fetchProfile();
-    return () => unsubPosts();
-  }, [uid, router]);
-
-  useEffect(() => {
-    if (!currentUser || !uid) return;
-
-    const qSub = query(
-      collection(db, 'ledger'),
-      where('fromWallet', '==', currentUser.walletAddress),
-      where('referenceId', '==', uid),
-      where('type', '==', 'subscription_payment')
-    );
-    const unsubSub = onSnapshot(qSub, (snap) => setIsSubscribed(!snap.empty));
-
-    const qUnlock = query(
-      collection(db, 'ledger'),
-      where('fromWallet', '==', currentUser.walletAddress),
-      where('type', '==', 'premium_unlock')
-    );
-    const unsubUnlock = onSnapshot(qUnlock, (snap) => {
-        const ids = snap.docs.map(d => d.data().referenceId);
-        setUnlockedPostIds(ids);
     });
 
-    return () => { unsubSub(); unsubUnlock(); };
-  }, [currentUser, uid]);
+    const postsQuery = query(collection(db, 'posts'), where("creatorId", "==", uid), orderBy("createdAt", "desc"));
+    const unsubPosts = onSnapshot(postsQuery, (snapshot) => {
+      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost)));
+    });
 
-  const handleSubscribeClick = async () => {
-    if (!isConnected || !currentUser) {
-      toast({ title: "Connect Required", description: "Login to subscribe." });
-      return;
+    return () => {
+      unsubCreator();
+      unsubPosts();
+    };
+  }, [uid]);
+
+  const handleSubscribe = async () => {
+    if (!user || !creator) return;
+
+    if (!user.paymentWalletAddress) {
+        toast({
+            variant: 'destructive',
+            title: "Payment Wallet Not Configured",
+            description: "Please configure your TRON payment wallet in Settings before subscribing.",
+            action: <Button onClick={() => router.push('/mypage')}>Go to Settings</Button>
+        });
+        return;
     }
-    
+
+    const tronWeb = (window as any).tronWeb;
+    if (!tronWeb || tronWeb.defaultAddress.base58.toLowerCase() !== user.paymentWalletAddress.toLowerCase()) {
+        toast({ 
+            variant: 'destructive', 
+            title: "Incorrect Wallet for Payment", 
+            description: `Please switch to your designated payment wallet (${user.paymentWalletAddress.slice(0, 6)}...) in TronLink to proceed.` 
+        });
+        return;
+    }
+
     setSubscribing(true);
     try {
-      await handleSubscription(currentUser, profile?.walletAddress!, creatorProfile?.subscriptionPrice || 10, uid as string);
-      setIsSubscribed(true);
-      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.displayName || profile?.username}.` });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Subscription Failed", description: e.message || "Check your balance." });
+        await handleSubscription(user, creator, creator.subscriptionPrice, creator.uid);
+        toast({ title: "Subscribed!", description: `You now have access to ${creator.username}\'s exclusive content.` });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Subscription failed", description: error.message });
+    } finally {
+        setSubscribing(false);
     }
-    setSubscribing(false);
   };
 
-  const handleSendTip = async () => {
-    if (!isConnected || !currentUser || !profile) return;
-    setTipping(true);
+  const handleUnlock = async (post: ContentPost) => {
+    if (!user || !creator) return;
+    if (!post.isPremium || !post.priceULC) return;
+
+    if (user.ulcBalance.available < post.priceULC) {
+        toast({ variant: 'destructive', title: "Insufficient ULC", description: "You don\'t have enough ULC to unlock this post." });
+        return;
+    }
+
+    setUnlocking(post.id);
     try {
-      await handleTipping(currentUser, profile.walletAddress, parseFloat(tipAmount), uid as string);
-      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${creatorProfile?.displayName || profile.username}.` });
-      setIsTipDialogOpen(false);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
+        await handleUnlocking(user, post, creator.walletAddress);
+        toast({ title: "Content Unlocked!", description: `You can now view ${post.title}.` });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Unlock failed", description: error.message });
+    } finally {
+        setUnlocking(null);
     }
-    setTipping(false);
-  };
+  }
 
-  if (loading || !profile) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="w-10 h-10 animate-spin text-primary" />
-    </div>
-  );
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  }
 
-  const isSelf = currentUser?.uid === uid;
-  const displayName = creatorProfile?.displayName || profile.username;
-  const avatar = creatorProfile?.avatar || profile.avatar;
-  const bio = creatorProfile?.creatorBio || profile.bio;
-  const coverImage = creatorProfile?.coverImage;
-  const subPrice = creatorProfile?.subscriptionPrice || 10;
+  if (!creator) {
+    return <div className="text-center py-20">Creator profile not found.</div>;
+  }
+
+  const socialLinks = creator.socialLinks || {};
 
   return (
-    <div className="relative pb-12">
-      <Button variant="ghost" onClick={() => router.back()} className="absolute top-6 left-6 z-20 bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm rounded-full p-2 h-auto"><ArrowLeft className="w-5 h-5" /></Button>
-      <header className="relative pt-24 pb-12 px-6 rounded-3xl overflow-hidden glass-card border-white/10 flex items-end">
-        {coverImage && <img src={coverImage} alt="Cover" className="absolute inset-0 w-full h-full object-cover -z-10" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent -z-10" />
-        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
-          <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0"><AvatarImage src={avatar} className="object-cover"/><AvatarFallback>{displayName[0]}</AvatarFallback></Avatar>
-          <div className="flex-1 text-center md:text-left space-y-2">
-            <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">{displayName}{profile.isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}</h1>
-            <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
-              {creatorProfile?.category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {creatorProfile.category}</Badge>}
-              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {new Date(profile.createdAt).toLocaleDateString()}</Badge>
+    <div className="pb-12">
+      <div className="h-48 md:h-64 bg-secondary relative">
+        <img src={creator.coverImage || COVER_IMAGE} alt="Cover" className="w-full h-full object-cover" />
+        <div className="absolute -bottom-16 left-6">
+          <Avatar className="w-32 h-32 border-4 border-background shadow-lg">
+            <AvatarImage src={creator.avatar || NON_GENDER_AVATAR} alt={creator.username} />
+            <AvatarFallback>{creator.username[0]}</AvatarFallback>
+          </Avatar>
+        </div>
+      </div>
+
+      <div className="pt-20 px-6 space-y-4">
+        <div className="flex justify-between items-start">
+            <div>
+                <h1 className="text-3xl font-bold font-headline">{creator.username}</h1>
+                <p className="text-muted-foreground">{creator.bio}</p>
+                <div className="flex items-center gap-4 mt-2">
+                    {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary"><Twitter size={18}/></a>}
+                    {socialLinks.website && <a href={socialLinks.website} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary"><LinkIcon size={18}/></a>}
+                </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-3 min-w-[200px] shrink-0">
-            {isSubscribed ? (
-              <Button disabled className="bg-green-500/20 text-green-400 border border-green-500/30 gap-2 h-14 rounded-2xl w-full"><Crown className="w-5 h-5" /> Subscribed</Button>
-            ) : (
-              <Button onClick={handleSubscribeClick} disabled={subscribing || isSelf} className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20">
-                {subscribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />} Subscribe ({subPrice} USDT)
+            {isConnected && user?.uid !== uid && (
+              <Button onClick={handleSubscribe} disabled={isSubscribed || subscribing} className="bg-primary hover:bg-primary/90 rounded-full px-8 shadow-lg">
+                {subscribing ? <Loader2 className="animate-spin"/> : (isSubscribed ? 'Subscribed' : `Subscribe - ${creator.subscriptionPrice} ULC`)}
               </Button>
             )}
-            {/* Tip Button Dialog is removed from here, but logic remains */}
-          </div>
         </div>
-      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        <main className="lg:col-span-3 space-y-6">
-            <ProfileContentFeed posts={posts} creator={profile} isSubscribed={isSubscribed} unlockedPostIds={unlockedPostIds} onPostUnlocked={handlePostUnlocked} />
-        </main>
+        <Tabs defaultValue="content" className="w-full pt-4">
+          <TabsList>
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="about">About</TabsTrigger>
+          </TabsList>
+          <TabsContent value="content">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+              {posts.map(post => {
+                const isUnlocked = !post.isPremium || (user?.unlockedPostIds?.includes(post.id) ?? false) || isSubscribed;
+                return (
+                  <Card key={post.id} className="overflow-hidden relative">
+                    <CardContent className="p-4">
+                      <h3 className="font-bold truncate">{post.title}</h3>
+                      <p className="text-xs text-muted-foreground h-10 overflow-hidden">{post.content}</p>
+                    </CardContent>
+                    {isUnlocked ? (
+                        <Link href={`/post/${post.id}`} className="block p-4 bg-muted/30 text-center font-bold text-primary hover:bg-muted">
+                           View Content
+                        </Link>
+                    ) : (
+                      <div className="p-4 bg-black/50 text-center font-bold text-white flex items-center justify-center flex-col gap-2 h-full">
+                        <Lock size={24} className="text-yellow-400"/>
+                        <p>Unlock for {post.priceULC} ULC</p>
+                        <Button size="sm" onClick={() => handleUnlock(post)} disabled={unlocking === post.id} className="w-full">
+                          {unlocking === post.id ? <Loader2 className="animate-spin"/> : 'Unlock Now'}
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                )
+              })}
+            </div>
+          </TabsContent>
+          <TabsContent value="about">
+             <Card className="mt-6"><CardContent className="p-6"><p>{creator.bio || "No information available."}</p></CardContent></Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

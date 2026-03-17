@@ -5,9 +5,10 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Creator, LedgerEntry } from '@/lib/types';
@@ -53,7 +54,8 @@ export default function MyPage() {
 
     let unsubCreator: () => void = () => {};
     if (user.isCreator) {
-      unsubCreator = onSnapshot(doc(db, 'creators', user.uid), (doc) => {
+      const creatorRef = doc(db, 'creators', user.uid);
+      unsubCreator = onSnapshot(creatorRef, (doc) => {
         if (doc.exists()) setCreatorProfile(doc.data() as Creator);
       });
     }
@@ -62,7 +64,7 @@ export default function MyPage() {
   }, [user, rawAddress]);
 
 
-  if (!isConnected) {
+  if (!isConnected || !user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
         <div className="p-6 bg-primary/10 rounded-full"><Sparkles className="w-12 h-12 text-primary" /></div>
@@ -131,7 +133,7 @@ export default function MyPage() {
       </div>
 
       <div className="space-y-4 pt-4">
-        <h2 className="text-xl font-headline font-bold">My Content</h2>
+        <h2 className="text-xl font-headline font-bold">My Content & Settings</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Link href="/my-unlocks" passHref>
                 <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
@@ -161,6 +163,17 @@ export default function MyPage() {
                         <div className='flex items-center gap-4'>
                             <Bot className="w-6 h-6 text-teal-400" />
                             <p className="font-bold">Owned AI Muses</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    </CardContent>
+                </Card>
+            </Link>
+            <Link href="/payment-wallets" passHref>
+                <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
+                    <CardContent className="p-6 flex items-center justify-between">
+                        <div className='flex items-center gap-4'>
+                            <Wallet className="w-6 h-6 text-blue-400" />
+                            <p className="font-bold">Payment Wallets</p>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground" />
                     </CardContent>
