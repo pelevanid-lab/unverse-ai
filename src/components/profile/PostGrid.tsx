@@ -6,34 +6,41 @@ import { ContentPost, UserProfile } from '@/lib/types';
 import { Lock } from 'lucide-react';
 import { PostViewerModal } from './PostViewerModal';
 import { useWallet } from '@/hooks/use-wallet';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface PostGridProps {
   postsToShow: ContentPost[];
-  creator?: UserProfile;
   subscribedToCreatorIds?: string[];
   unlockedPostIds: string[];
   onPostUnlocked: (postId: string) => void;
 }
 
-export function PostGrid({ postsToShow, creator: initialCreator, subscribedToCreatorIds = [], unlockedPostIds = [], onPostUnlocked }: PostGridProps) {
+export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPostIds = [], onPostUnlocked }: PostGridProps) {
   const [selectedPost, setSelectedPost] = useState<ContentPost | null>(null);
   const [postCreator, setPostCreator] = useState<UserProfile | null>(null);
   const { user } = useWallet();
 
-  const handlePostClick = (post: ContentPost) => {
-    const creatorForModal: UserProfile = {
-        uid: post.creatorId,
-        username: post.creatorName,
-        avatar: post.creatorAvatar || '',
-        walletAddress: '',
-        followerCount: 0,
-        followingCount: 0,
-        totalTips: 0,
-        referralCode: ''
-    };
-    
-    setPostCreator(creatorForModal);
-    setSelectedPost(post);
+  const handlePostClick = async (post: ContentPost) => {
+    if (!post.creatorId) return;
+    const creatorRef = doc(db, "users", post.creatorId);
+    const creatorSnap = await getDoc(creatorRef);
+    if (creatorSnap.exists()) {
+      setPostCreator(creatorSnap.data() as UserProfile);
+      setSelectedPost(post);
+    } else {
+      // Fallback for missing creator profile
+      const creatorForModal: UserProfile = {
+          uid: post.creatorId,
+          username: post.creatorName,
+          avatar: post.creatorAvatar || '',
+          walletAddress: '',
+          isCreator: true,
+          createdAt: 0,
+      };
+      setPostCreator(creatorForModal);
+      setSelectedPost(post);
+    }
   }
 
   const handleCloseModal = () => {

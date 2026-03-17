@@ -6,14 +6,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost, CreatorProfile, SystemConfig } from '@/lib/types';
+import { UserProfile, ContentPost, SystemConfig } from '@/lib/types';
 import { recordTransaction, getSystemConfig } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -23,7 +23,6 @@ export default function PublicProfilePage() {
   const { uid } = useParams();
   const { user: currentUser, isConnected, ulcBalance } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,30 +39,14 @@ export default function PublicProfilePage() {
     setLoading(true);
     getSystemConfig().then(setSystemConfig);
 
-    let unsubCreator: () => void = () => {};
-
     const userDocRef = doc(db, 'users', uid as string);
     const unsubUser = onSnapshot(userDocRef, (userSnap) => {
       if (userSnap.exists()) {
-        const userData = userSnap.data() as UserProfile;
-        setProfile(userData);
-
-        if (userData.isCreator) {
-          const creatorDocRef = doc(db, 'creators', uid as string);
-          unsubCreator = onSnapshot(creatorDocRef, (creatorSnap) => {
-            if (creatorSnap.exists()) {
-              setCreatorProfile(creatorSnap.data() as CreatorProfile);
-            }
-            setLoading(false);
-          });
-        } else {
-          setCreatorProfile(null);
-          setLoading(false);
-        }
+        setProfile(userSnap.data() as UserProfile);
       } else {
-        setLoading(false);
         router.push('/');
       }
+      setLoading(false);
     });
 
     const unsubPosts = onSnapshot(
@@ -75,7 +58,6 @@ export default function PublicProfilePage() {
 
     return () => {
       unsubUser();
-      unsubCreator();
       unsubPosts();
     };
   }, [uid, router]);
@@ -89,11 +71,12 @@ export default function PublicProfilePage() {
   }, [currentUser, uid]);
 
   const handleSubscribeClick = async () => {
-    if (!isConnected || !currentUser || !creatorProfile || !systemConfig) {
+    if (!isConnected || !currentUser || !profile?.isCreator || !systemConfig) {
       toast({ title: "Connect Required", description: "Login to subscribe." });
       return;
     }
-    if (ulcBalance < creatorProfile.subscriptionPrice) {
+    const subscriptionPrice = profile.creatorData?.subscriptionPriceMonthly ?? 0;
+    if (ulcBalance < subscriptionPrice) {
       toast({ variant: 'destructive', title: "Insufficient ULC", description: "You need more ULC to subscribe." });
       return;
     }
@@ -102,12 +85,12 @@ export default function PublicProfilePage() {
       await recordTransaction({
         type: 'subscription_payment_ulc',
         userId: currentUser.uid,
-        creatorId: creatorProfile.uid,
-        amount: creatorProfile.subscriptionPrice,
+        creatorId: profile.uid,
+        amount: subscriptionPrice,
         currency: 'ULC',
-        platformFee: creatorProfile.subscriptionPrice * systemConfig.platform_subscription_fee_split
+        platformFee: subscriptionPrice * systemConfig.platform_subscription_fee_split
       });
-      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.username || profile?.username}.` });
+      toast({ title: "Subscribed!", description: `You now have premium access to ${profile.username}.` });
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Subscription Failed", description: e.message || "An unknown error occurred." });
     } finally {
@@ -116,7 +99,7 @@ export default function PublicProfilePage() {
   };
 
   const handleSendTip = async () => {
-    if (!isConnected || !currentUser || !profile || !creatorProfile || !systemConfig) return;
+    if (!isConnected || !currentUser || !profile?.isCreator || !systemConfig) return;
     const numericTipAmount = parseFloat(tipAmount);
     if (isNaN(numericTipAmount) || numericTipAmount <= 0) {
         toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid tip amount." });
@@ -131,12 +114,12 @@ export default function PublicProfilePage() {
       await recordTransaction({
         type: 'tip_payment_ulc',
         userId: currentUser.uid,
-        creatorId: creatorProfile.uid,
+        creatorId: profile.uid,
         amount: numericTipAmount,
         currency: 'ULC',
         platformFee: numericTipAmount * systemConfig.platform_tip_fee_split
       });
-      toast({ title: "Tip Sent!", description: `You sent ${numericTipAmount} ULC to ${creatorProfile?.username || profile.username}.` });
+      toast({ title: "Tip Sent!", description: `You sent ${numericTipAmount} ULC to ${profile.username}.` });
       setIsTipDialogOpen(false);
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
@@ -154,11 +137,8 @@ export default function PublicProfilePage() {
   if (!profile) return null;
 
   const isSelf = currentUser?.uid === uid;
-  const displayName = creatorProfile?.displayName || creatorProfile?.username || profile.username;
-  const avatar = creatorProfile?.avatar || profile.avatar;
-  const bio = creatorProfile?.creatorBio || profile.bio;
-  const coverImage = creatorProfile?.coverImage;
-  const subscriptionPrice = creatorProfile?.subscriptionPrice ?? 0;
+  const { username, bio, avatar, isCreator, creatorData } = profile;
+  const { coverImage, category, subscriptionPriceMonthly } = creatorData || {};
 
   return (
     <div className="relative pb-12">
@@ -174,16 +154,16 @@ export default function PublicProfilePage() {
         <div className="flex flex-col md:flex-row items-center gap-8 w-full">
           <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0">
             <AvatarImage src={avatar} className="object-cover"/>
-            <AvatarFallback>{displayName?.[0]}</AvatarFallback>
+            <AvatarFallback>{username?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-center md:text-left space-y-2">
             <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
-              {displayName}
-              {profile.isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}
+              {username}
+              {isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}
             </h1>
             <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
-              {creatorProfile?.category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {creatorProfile.category}</Badge>}
+              {category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {category}</Badge>}
               <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</Badge>
             </div>
           </div>
@@ -195,23 +175,23 @@ export default function PublicProfilePage() {
             ) : (
               <Button 
                 onClick={handleSubscribeClick} 
-                disabled={isProcessing === 'subscribe' || isSelf || !creatorProfile}
+                disabled={isProcessing === 'subscribe' || isSelf || !isCreator}
                 className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20"
               >
                 {isProcessing === 'subscribe' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
-                Subscribe ({subscriptionPrice} ULC)
+                Subscribe ({subscriptionPriceMonthly ?? 0} ULC)
               </Button>
             )}
 
             <Dialog open={isTipDialogOpen} onOpenChange={setIsTipDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" disabled={isSelf || !creatorProfile} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
+                <Button variant="outline" disabled={isSelf || !isCreator} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
                   <Gift className="w-4 h-4" /> Tip Creator
                 </Button>
               </DialogTrigger>
               <DialogContent className="glass-card border-white/10">
                 <DialogHeader>
-                  <DialogTitle>Support {displayName}</DialogTitle>
+                  <DialogTitle>Support {username}</DialogTitle>
                   <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -252,7 +232,7 @@ export default function PublicProfilePage() {
 
       <div className="mt-4">
         <main className="space-y-6">
-            <ProfileContentFeed posts={posts} creator={creatorProfile} isSubscribed={isSubscribed}/>
+            <ProfileContentFeed posts={posts} creator={profile} isSubscribed={isSubscribed}/>
         </main>
       </div>
     </div>

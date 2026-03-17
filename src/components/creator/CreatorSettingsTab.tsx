@@ -7,7 +7,7 @@ import { db, storage } from '@/lib/firebase';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
-import { Creator } from '@/lib/types';
+import { UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,27 +35,35 @@ function CollectionWalletsLinkCard() {
     );
 }
 
-
 export function CreatorSettingsTab() {
     const { user } = useWallet();
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
-    const [creatorData, setCreatorData] = useState<Partial<Creator>>({});
+    
+    // Separate states for form fields based on UserProfile
+    const [username, setUsername] = useState('');
+    const [bio, setBio] = useState('');
+    const [avatar, setAvatar] = useState('');
+    const [coverImage, setCoverImage] = useState('');
+    const [subscriptionPrice, setSubscriptionPrice] = useState(0);
+    const [twitterLink, setTwitterLink] = useState('');
 
     useEffect(() => {
-        if (user?.isCreator && user.uid) {
-            const unsub = onSnapshot(doc(db, 'creators', user.uid), (doc) => {
+        if (user?.uid) {
+            const unsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
                 if (doc.exists()) {
-                    setCreatorData(doc.data() as Creator);
+                    const data = doc.data() as UserProfile;
+                    setUsername(data.username || '');
+                    setBio(data.bio || '');
+                    setAvatar(data.avatar || '');
+                    setCoverImage(data.creatorData?.coverImage || '');
+                    setSubscriptionPrice(data.creatorData?.subscriptionPriceMonthly || 0);
+                    setTwitterLink(data.socials?.twitter || '');
                 }
             });
             return () => unsub();
         }
     }, [user]);
-
-    const handleUpdate = (field: keyof Creator, value: any) => {
-        setCreatorData(prev => ({ ...prev, [field]: value }));
-    };
 
     const handleFormSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -63,10 +71,16 @@ export function CreatorSettingsTab() {
 
         setLoading(true);
         try {
-            const creatorRef = doc(db, 'creators', user.uid);
-            const { username, ...dataToUpdate } = creatorData;
-            dataToUpdate.subscriptionPrice = Number(dataToUpdate.subscriptionPrice) || 0;
-            await updateDoc(creatorRef, dataToUpdate);
+            const userRef = doc(db, 'users', user.uid);
+            
+            const updatePayload: any = {
+                username,
+                bio,
+                'creatorData.subscriptionPriceMonthly': Number(subscriptionPrice) || 0,
+                'socials.twitter': twitterLink,
+            };
+
+            await updateDoc(userRef, updatePayload);
             toast({ title: "Settings Updated", description: "Your public profile has been updated successfully." });
         } catch (error: any) {
             console.error(error);
@@ -79,9 +93,16 @@ export function CreatorSettingsTab() {
     const handleImageUploadComplete = async (downloadURL: string, type: 'avatar' | 'coverImage') => {
         if (!user?.uid) return;
         try {
-            const creatorRef = doc(db, 'creators', user.uid);
-            await updateDoc(creatorRef, { [type]: downloadURL });
-            handleUpdate(type, downloadURL);
+            const userRef = doc(db, 'users', user.uid);
+            const fieldToUpdate = type === 'avatar' ? 'avatar' : 'creatorData.coverImage';
+            await updateDoc(userRef, { [fieldToUpdate]: downloadURL });
+            
+            if (type === 'avatar') {
+                setAvatar(downloadURL);
+            } else {
+                setCoverImage(downloadURL);
+            }
+            
             toast({ title: 'Image Updated', description: `Your ${type === 'avatar' ? 'avatar' : 'cover image'} has been updated.` });
         } catch (error: any) {
              toast({ variant: 'destructive', title: "Update Failed", description: error.message });
@@ -100,22 +121,22 @@ export function CreatorSettingsTab() {
                     <form onSubmit={handleFormSubmit} className="space-y-6">
                         <div className="space-y-2">
                             <Label htmlFor="displayName">Display Name</Label>
-                            <Input id="displayName" value={creatorData.displayName || ''} onChange={(e) => handleUpdate('displayName', e.target.value)} />
+                            <Input id="displayName" value={username} onChange={(e) => setUsername(e.target.value)} />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="creatorBio">Bio</Label>
-                            <Textarea id="creatorBio" value={creatorData.creatorBio || ''} onChange={(e) => handleUpdate('creatorBio', e.target.value)} />
+                            <Textarea id="creatorBio" value={bio} onChange={(e) => setBio(e.target.value)} />
                         </div>
                         
                         <div className="space-y-4">
                             <Label>Avatar Image</Label>
                             <ImageUploader 
                                 onUploadComplete={(url) => handleImageUploadComplete(url, 'avatar')} 
-                                currentImageUrl={creatorData.avatar}
+                                currentImageUrl={avatar}
                                 label="Avatar"
                                 recommendedSize="400x400px, Max 2MB"
-                                storagePath={`creator-assets/${user?.uid}/avatar`}
+                                storagePath={`user-assets/${user?.uid}/avatar`}
                                 previewType='avatar'
                             />
                         </div>
@@ -124,17 +145,17 @@ export function CreatorSettingsTab() {
                              <Label>Cover Image</Label>
                              <ImageUploader 
                                 onUploadComplete={(url) => handleImageUploadComplete(url, 'coverImage')} 
-                                currentImageUrl={creatorData.coverImage}
+                                currentImageUrl={coverImage}
                                 label="Cover Image"
                                 recommendedSize="1600x400px, Max 4MB"
-                                storagePath={`creator-assets/${user?.uid}/coverImage`}
+                                storagePath={`user-assets/${user?.uid}/coverImage`}
                                 previewType='cover'
                             />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="subscriptionPrice">Subscription Price (ULC per month)</Label>
-                            <Input id="subscriptionPrice" type="number" value={creatorData.subscriptionPrice || 0} onChange={(e) => handleUpdate('subscriptionPrice', e.target.value)} />
+                            <Input id="subscriptionPrice" type="number" value={subscriptionPrice} onChange={(e) => setSubscriptionPrice(Number(e.target.value))} />
                         </div>
                         
                          <div className="space-y-2">
@@ -145,8 +166,8 @@ export function CreatorSettingsTab() {
                                 </span>
                                 <Input 
                                     id="twitterLink" 
-                                    value={creatorData.socialLinks?.x || ''} 
-                                    onChange={(e) => handleUpdate('socialLinks', { ...creatorData.socialLinks, x: e.target.value })} 
+                                    value={twitterLink}
+                                    onChange={(e) => setTwitterLink(e.target.value)}
                                     placeholder="https://x.com/yourhandle"
                                     className="pl-10"
                                 />

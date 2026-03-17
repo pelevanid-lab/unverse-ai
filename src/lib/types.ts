@@ -3,6 +3,8 @@ export interface UserProfile {
     uid: string;
     email?: string;
     username: string;
+    bio?: string;
+    avatar?: string;
     walletAddress: string;
     ulcBalance: {
         available: number;
@@ -17,18 +19,25 @@ export interface UserProfile {
     isCreator?: boolean;
     activeSubscriptionIds?: string[];
     createdAt: number;
-}
-
-export interface Creator {
-    uid: string;
-    username: string;
-    bio: string;
-    subscriptionPrice: number;
-    payoutWallets?: {
-        TRON?: NetworkWallet;
-        TON?: NetworkWallet;
+    creatorData?: {
+        category?: string;
+        coverImage?: string;
+        subscriptionPriceMonthly?: number;
+        defaultClaimNetwork?: "TRON" | "TON";
+        collectionWallets?: {
+            TRON?: {
+                address: string;
+                verified: boolean;
+            };
+            TON?: {
+                address: string;
+                verified: boolean;
+            };
+        };
+        creatorStatus?: string;
+        visibility?: string;
+        totalUnlocks?: number;
     };
-    preferredPayoutNetwork?: 'TRON' | 'TON';
 }
 
 export interface NetworkWallet {

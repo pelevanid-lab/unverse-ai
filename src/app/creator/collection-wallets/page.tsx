@@ -7,13 +7,13 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { Creator, UserProfile, NetworkWallet } from '@/lib/types';
+import { UserProfile, NetworkWallet } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Wallet, Star, ChevronLeft } from 'lucide-react';
+import { Loader2, Star, ChevronLeft } from 'lucide-react';
 
 function isValidTronAddress(address: string): boolean {
     return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
@@ -27,18 +27,17 @@ export default function CollectionWalletsPage() {
     const router = useRouter();
     const { user, isConnected } = useWallet();
     const { toast } = useToast();
-    const [creator, setCreator] = useState<Creator | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TRON');
     const [walletAddress, setWalletAddress] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (user?.uid) {
-            const unsub = onSnapshot(doc(db, 'creators', user.uid), (doc) => {
-                if (doc.exists()) {
-                    setCreator(doc.data() as Creator);
+            const unsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+                if (doc.exists() && doc.data().isCreator) {
+                    setUserProfile(doc.data() as UserProfile);
                 } else {
-                    // If for some reason a user lands here without a creator profile
                     router.push('/creator');
                 }
             });
@@ -57,13 +56,15 @@ export default function CollectionWalletsPage() {
 
         setIsSaving(true);
         try {
-            const creatorRef = doc(db, 'creators', user.uid);
+            const userRef = doc(db, 'users', user.uid);
             const newWallet: NetworkWallet = { address: walletAddress, verified: true }; // Assuming verification
 
-            await updateDoc(creatorRef, {
-                [`payoutWallets.${selectedNetwork}`]: newWallet,
-                // Set as default if it's the first wallet being added
-                ...(!creator?.payoutWallets || Object.keys(creator.payoutWallets).length === 0 ? { preferredPayoutNetwork: selectedNetwork } : {}),
+            const creatorData = userProfile?.creatorData;
+            const collectionWallets = creatorData?.collectionWallets || {};
+
+            await updateDoc(userRef, {
+                [`creatorData.collectionWallets.${selectedNetwork}`]: newWallet,
+                ...(Object.keys(collectionWallets).length === 0 ? { 'creatorData.defaultClaimNetwork': selectedNetwork } : {}),
             });
 
             toast({ title: "Collection Wallet Saved", description: `Your ${selectedNetwork} wallet has been added.` });
@@ -79,15 +80,15 @@ export default function CollectionWalletsPage() {
     const handleSetDefault = async (network: 'TRON' | 'TON') => {
         if (!user?.uid) return;
         try {
-            const creatorRef = doc(db, 'creators', user.uid);
-            await updateDoc(creatorRef, { preferredPayoutNetwork: network });
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, { 'creatorData.defaultClaimNetwork': network });
             toast({ title: "Default Updated", description: `${network} is now your default collection network.` });
         } catch (error) {
             toast({ variant: "destructive", title: "Update Failed", description: "Could not set the default network." });
         }
     };
 
-    if (!isConnected || !user || !creator) {
+    if (!isConnected || !user || !userProfile) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                 <Loader2 className="w-12 h-12 text-primary animate-spin" />
@@ -95,6 +96,9 @@ export default function CollectionWalletsPage() {
             </div>
         );
     }
+    
+    const collectionWallets = userProfile.creatorData?.collectionWallets;
+    const defaultNetwork = userProfile.creatorData?.defaultClaimNetwork;
 
     return (
         <div className="max-w-2xl mx-auto space-y-8 pb-12">
@@ -109,22 +113,22 @@ export default function CollectionWalletsPage() {
                     <CardDescription>These are the wallets where you will receive your earnings.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    {(!creator.payoutWallets || Object.keys(creator.pyoutWallets).length === 0) && (
+                    {(!collectionWallets || Object.keys(collectionWallets).length === 0) && (
                         <p className="text-sm text-center text-muted-foreground py-4">No collection wallets added yet.</p>
                     )}
                     <div className="grid grid-cols-1 gap-2">
-                        {creator.payoutWallets?.TRON && (
+                        {collectionWallets?.TRON && (
                             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                                <div className="font-mono text-sm truncate"><b>TRON:</b> {creator.payoutWallets.TRON.address}</div>
-                                {creator.preferredPayoutNetwork === 'TRON' ?
+                                <div className="font-mono text-sm truncate"><b>TRON:</b> {collectionWallets.TRON.address}</div>
+                                {defaultNetwork === 'TRON' ?
                                     <span className='flex items-center text-xs text-primary gap-1'><Star size={12} /> Default</span> :
                                     <Button size='sm' variant='ghost' onClick={() => handleSetDefault('TRON')}>Set Default</Button>}
                             </div>
                         )}
-                        {creator.payoutWallets?.TON && (
+                        {collectionWallets?.TON && (
                             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                                <div className='font-mono text-sm truncate'><b>TON:</b> {creator.payoutWallets.TON.address}</div>
-                                {creator.preferredPayoutNetwork === 'TON' ?
+                                <div className='font-mono text-sm truncate'><b>TON:</b> {collectionWallets.TON.address}</div>
+                                {defaultNetwork === 'TON' ?
                                     <span className='flex items-center text-xs text-primary gap-1'><Star size={12} /> Default</span> :
                                     <Button size='sm' variant='ghost' onClick={() => handleSetDefault('TON')}>Set Default</Button>}
                             </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -6,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { CreatorMedia, UserProfile, CreatorProfile } from '@/lib/types';
+import { CreatorMedia, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Video, Calendar } from 'lucide-react';
@@ -16,35 +17,35 @@ export function ContainerTab() {
   const { user } = useWallet();
   const { toast } = useToast();
   const [mediaItems, setMediaItems] = useState<CreatorMedia[]>([]);
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Effect to fetch the creator's profile
   useEffect(() => {
-    if (!user?.walletAddress) return;
+    if (!user?.uid) return;
 
-    const profileDocRef = doc(db, 'creators', user.walletAddress);
-    getDoc(profileDocRef).then(docSnap => {
+    const profileDocRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(profileDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        setCreatorProfile(docSnap.data() as CreatorProfile);
+        setUserProfile(docSnap.data() as UserProfile);
       } else {
-        console.error("Creator profile not found in 'creators' collection!");
-        toast({ variant: "destructive", title: "Error", description: "Could not load creator profile. Please try again later." });
+        console.error("User profile not found in 'users' collection!");
+        toast({ variant: "destructive", title: "Error", description: "Could not load your user profile." });
       }
     });
-  }, [user?.walletAddress, toast]);
 
-  // Effect to fetch media items
+    return () => unsubscribe();
+  }, [user?.uid, toast]);
+
   useEffect(() => {
-    if (!user?.walletAddress) return;
+    if (!user?.uid) return;
 
     setLoading(true);
     const q = query(
       collection(db, 'creator_media'),
-      where('creatorId', '==', user.walletAddress),
+      where('creatorId', '==', user.uid),
       where('status', 'in', ['draft', 'scheduled']),
       orderBy('createdAt', 'desc')
     );
@@ -56,7 +57,7 @@ export function ContainerTab() {
     });
 
     return () => unsubscribe();
-  }, [user?.walletAddress]);
+  }, [user?.uid]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -64,7 +65,7 @@ export function ContainerTab() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user?.walletAddress) return;
+    if (!file || !user?.uid) return;
 
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
     const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
@@ -77,7 +78,7 @@ export function ContainerTab() {
 
     setUploading(true);
     try {
-      const storageRef = ref(storage, `creator_media/${user.walletAddress}/${Date.now()}_${file.name}`);
+      const storageRef = ref(storage, `creator_media/${user.uid}/${Date.now()}_${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       uploadTask.on('state_changed',
@@ -90,7 +91,7 @@ export function ContainerTab() {
         () => {
           getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
             await addDoc(collection(db, 'creator_media'), {
-              creatorId: user.walletAddress,
+              creatorId: user.uid,
               mediaUrl: downloadURL,
               mediaType,
               caption: '',
@@ -118,7 +119,7 @@ export function ContainerTab() {
           <CardTitle>Container</CardTitle>
           <p className="text-muted-foreground text-sm">Prepare your media for publishing.</p>
         </div>
-        <Button onClick={handleUploadClick} disabled={uploading || !creatorProfile}>
+        <Button onClick={handleUploadClick} disabled={uploading || !userProfile?.isCreator}>
           {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
           Upload Media
         </Button>
@@ -155,10 +156,10 @@ export function ContainerTab() {
         )}
       </CardContent>
 
-      {selectedMedia && creatorProfile && (
+      {selectedMedia && userProfile && (
         <EditMediaModal
           media={selectedMedia}
-          creatorProfile={creatorProfile} // Pass the fetched creator profile
+          creatorProfile={userProfile}
           onClose={() => setSelectedMedia(null)}
           onPublished={() => setMediaItems(prev => prev.filter(item => item.id !== selectedMedia.id))}
         />

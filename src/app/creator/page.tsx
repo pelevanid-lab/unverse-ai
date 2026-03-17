@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, ExternalLink, ArrowLeft, Settings } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Creator, UserProfile } from '@/lib/types';
+import { UserProfile } from '@/lib/types';
 import Link from 'next/link';
 import { ContainerTab } from '@/components/creator/ContainerTab';
 import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
@@ -43,22 +43,17 @@ export default function CreatorPanel() {
       setActivationLoading(true);
       try {
           const userRef = doc(db, "users", user.uid);
-          await updateDoc(userRef, { isCreator: true });
-
-          const creatorRef = doc(db, "creators", user.uid);
-          await setDoc(creatorRef, {
-              uid: user.uid,
-              username: user.username || `user_${user.uid.substring(0, 5)}`,
-              displayName: user.username || 'New Creator',
-              bio: 'Welcome to my Unverse!',
-              avatar: user.avatar || '',
-              coverImage: '',
-              subscriptionPrice: 10, // Default price
-              totalSubscribers: 0,
-              postsCount: 0,
-              createdAt: serverTimestamp()
-          }, { merge: true });
-
+          await updateDoc(userRef, {
+              isCreator: true,
+              bio: 'Welcome to my Unverse!', // Set default bio
+              creatorData: {
+                  category: 'General',
+                  coverImage: '',
+                  subscriptionPriceMonthly: 10,
+                  creatorStatus: 'active',
+                  visibility: 'public',
+              }
+          });
       } catch (error: any) {
           console.error("Failed to activate creator profile:", error);
       } finally {

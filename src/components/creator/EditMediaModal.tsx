@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { CreatorMedia, ContentPost, CreatorProfile } from '@/lib/types';
+import { CreatorMedia, ContentPost, UserProfile } from '@/lib/types';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
@@ -24,12 +24,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface EditMediaModalProps {
   media: CreatorMedia;
-  creatorProfile: CreatorProfile;
+  creatorProfile: UserProfile;
   onClose: () => void;
   onPublished: () => void;
 }
 
-export function EditMediaModal({ media, creatorProfile, onClose, onPublished }: EditMediaModalProps) {
+export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: EditMediaModalProps) {
   const { user } = useWallet();
   const { toast } = useToast();
   const [caption, setCaption] = useState(media.caption || '');
@@ -50,7 +50,7 @@ export function EditMediaModal({ media, creatorProfile, onClose, onPublished }: 
     try {
       const postData: Omit<ContentPost, 'id'> = {
         creatorId: user.uid,
-        creatorName: creatorProfile.displayName, 
+        creatorName: creatorProfile.username,
         creatorAvatar: creatorProfile.avatar,
         mediaUrl: media.mediaUrl,
         mediaType: media.mediaType,
