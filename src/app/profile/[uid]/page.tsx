@@ -1,149 +1,265 @@
 
 "use client"
 
+import { useWallet } from '@/hooks/use-wallet';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useWallet } from '@/hooks/use-wallet';
-import { Creator, ContentPost, UserProfile, SystemConfig } from '@/lib/types';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { UserProfile, ContentPost, CreatorProfile } from '@/lib/types';
+import { handleSubscription, handleTipping } from '@/lib/ledger';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Crown, Lock, Loader2, Link as LinkIcon, Twitter, Star, AlertTriangle } from 'lucide-react';
-import { handleSubscription, getSystemConfig } from '@/lib/ledger';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { ProfileContentFeed } from '@/components/profile/ProfileContentFeed';
 
-const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
-const COVER_IMAGE = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Fcover_default.webp?alt=media&token=e024b433-2895-41a4-9548-6126685511dc';
-
-function SubscriptionDialog({ creator, user }: { creator: Creator; user: UserProfile; }) {
-  const [open, setOpen] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON' | null>(user.preferredPaymentNetwork || null);
-  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
-  const [isSubscribing, setIsSubscribing] = useState(false);
+export default function PublicProfilePage() {
+  const { uid } = useParams();
+  const { user: currentUser, isConnected } = useWallet();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+  const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [subscribing, setSubscribing] = useState(false);
+  const [tipping, setTipping] = useState(false);
+  const [tipAmount, setTipAmount] = useState('5');
+  const [isTipDialogOpen, setIsTipDialogOpen] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
-    getSystemConfig().then(setSystemConfig);
-  }, []);
+    if (!uid) return;
 
-  const handleConfirmSubscription = async () => {
-    if (!selectedNetwork || !systemConfig) return;
+    const fetchProfile = async () => {
+      const userDocRef = doc(db, 'users', uid as string);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data() as UserProfile;
+        setProfile(userData);
 
-    const userPaymentWallet = user.paymentWallets?.[selectedNetwork]?.address;
-    const creatorPayoutWallet = creator.payoutWallets?.[selectedNetwork]?.address;
+        if (userData.isCreator) {
+          const creatorDocRef = doc(db, 'creators', uid as string);
+          const creatorSnap = await getDoc(creatorDocRef);
+          if (creatorSnap.exists()) {
+            setCreatorProfile(creatorSnap.data() as CreatorProfile);
+          }
+        }
+      } else {
+        router.push('/');
+      }
+      setLoading(false);
+    };
 
-    if (!userPaymentWallet) {
-      toast({ variant: 'destructive', title: 'Your Wallet is Missing', description: `Please connect a ${selectedNetwork} wallet in settings first.` });
+    const unsubPosts = onSnapshot(
+      query(collection(db, 'posts'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
+      (snap) => {
+        setPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost)));
+      }
+    );
+
+    fetchProfile();
+    return () => unsubPosts();
+  }, [uid, router]);
+
+  useEffect(() => {
+    if (!currentUser || !uid) return;
+    const q = query(
+      collection(db, 'ledger'),
+      where('fromWallet', '==', currentUser.walletAddress),
+      where('referenceId', '==', uid),
+      where('type', '==', 'subscription_payment')
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) setIsSubscribed(true);
+    });
+    return () => unsub();
+  }, [currentUser, uid]);
+
+  const handleSubscribeClick = async () => {
+    if (!isConnected || !currentUser) {
+      toast({ title: "Connect Required", description: "Login to subscribe." });
       return;
     }
-    if (!creatorPayoutWallet) {
-      toast({ variant: 'destructive', title: 'Creator Wallet is Missing', description: `${creator.username} does not support payments on the ${selectedNetwork} network yet.` });
-      return;
-    }
-
-    setIsSubscribing(true);
+    
+    setSubscribing(true);
     try {
-      // This is now a real on-chain USDT payment split
-      await handleSubscription(user, creator, selectedNetwork, systemConfig);
-      toast({ title: "Subscribed!", description: `You now have access to ${creator.username}\'s exclusive content.` });
-      setOpen(false);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Subscription Failed", description: error.message });
-    } finally {
-      setIsSubscribing(false);
+      await handleSubscription(currentUser, profile?.walletAddress!, 10, uid as string);
+      setIsSubscribed(true);
+      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.username || profile?.username}.` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Subscription Failed", description: "Check your balance." });
+    }
+    setSubscribing(false);
+  };
+
+  const handleSendTip = async () => {
+    if (!isConnected || !currentUser || !profile) return;
+    setTipping(true);
+    try {
+      await handleTipping(currentUser, profile.walletAddress, parseFloat(tipAmount), uid as string);
+      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${creatorProfile?.username || profile.username}.` });
+      setIsTipDialogOpen(false);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
+    }
+    setTipping(false);
+  };
+
+  if (loading || !profile) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader2 className="w-10 h-10 animate-spin text-primary" />
+    </div>
+  );
+
+  const isSelf = currentUser?.uid === uid;
+  const displayName = creatorProfile?.displayName || creatorProfile?.username || profile.username;
+  const avatar = creatorProfile?.avatar || profile.avatar;
+  const bio = creatorProfile?.creatorBio || profile.bio;
+  const coverImage = creatorProfile?.coverImage;
+  const followers = creatorProfile?.totalSubscribers || 0;
+  const socialLinks = creatorProfile?.socialLinks;
+
+  const formatUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url);
+      let hostname = urlObj.hostname;
+      if (hostname.startsWith('www.')) {
+        hostname = hostname.slice(4);
+      }
+      return hostname;
+    } catch (error) {
+      return url;
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-primary/90 rounded-full px-8 shadow-lg">Subscribe - ${creator.subscriptionPrice} USDT</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Subscribe to {creator.username}</DialogTitle>
-          <DialogDescription>Your payment will be sent directly to the creator and the platform on the blockchain.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="text-center">
-            <span className="text-4xl font-bold">${creator.subscriptionPrice}</span>
-            <span className="text-muted-foreground"> / month</span>
+    <div className="relative pb-12">
+      <Button variant="ghost" onClick={() => router.back()} className="absolute top-6 left-6 z-20 bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm rounded-full p-2 h-auto">
+        <ArrowLeft className="w-5 h-5" />
+      </Button>
+      <header className="relative pt-24 pb-12 px-6 rounded-3xl overflow-hidden glass-card border-white/10 flex items-end">
+        {coverImage && 
+          <img src={coverImage} alt="Cover image" className="absolute inset-0 w-full h-full object-cover -z-10" />
+        }
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent -z-10" />
+        
+        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+          <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0">
+            <AvatarImage src={avatar} className="object-cover"/>
+            <AvatarFallback>{displayName[0]}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 text-center md:text-left space-y-2">
+            <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
+              {displayName}
+              {profile.isCreator && <CheckCircle className="w-6 h-6 text-primary fill-primary/10" />}
+            </h1>
+            <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
+              {creatorProfile?.category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {creatorProfile.category}</Badge>}
+              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {new Date(profile.createdAt).toLocaleDateString()}</Badge>
+            </div>
           </div>
-          <RadioGroup value={selectedNetwork || ''} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')}>
-            <Label>Select Payment Network</Label>
-            <div className="space-y-2 pt-2">
-               <div className={`flex items-center space-x-3 rounded-lg border p-3 ${!creator.payoutWallets?.TRON?.verified ? 'opacity-50' : ''}`}>
-                    <RadioGroupItem value="TRON" id="s-tron" disabled={!creator.payoutWallets?.TRON?.verified}/>
-                    <Label htmlFor="s-tron" className="flex-1 cursor-pointer">TRON</Label>
-                     {!creator.payoutWallets?.TRON?.verified && <span className="text-xs text-muted-foreground">Not Supported</span>}
+          <div className="flex flex-col gap-3 min-w-[200px] shrink-0">
+            {isSubscribed ? (
+              <Button disabled className="bg-green-500/20 text-green-400 border border-green-500/30 gap-2 h-14 rounded-2xl w-full">
+                <Crown className="w-5 h-5" /> Active Subscriber
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleSubscribeClick} 
+                disabled={subscribing || isSelf} 
+                className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20"
+              >
+                {subscribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
+                Subscribe (10 USDT)
+              </Button>
+            )}
+
+            <Dialog open={isTipDialogOpen} onOpenChange={setIsTipDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={isSelf} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
+                  <Gift className="w-4 h-4" /> Tip Creator
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="glass-card border-white/10">
+                <DialogHeader>
+                  <DialogTitle>Support {displayName}</DialogTitle>
+                  <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-muted-foreground uppercase">Tip Amount (ULC)</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['5', '20', '50'].map(amt => (
+                        <Button 
+                          key={amt} 
+                          variant={tipAmount === amt ? 'default' : 'outline'}
+                          onClick={() => setTipAmount(amt)}
+                          className="h-12 rounded-xl"
+                        >
+                          {amt}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <Input 
+                    type="number" 
+                    value={tipAmount} 
+                    onChange={(e) => setTipAmount(e.target.value)}
+                    placeholder="Custom amount..."
+                    className="bg-muted border-none h-12"
+                  />
                 </div>
-                <div className={`flex items-center space-x-3 rounded-lg border p-3 ${!creator.payoutWallets?.TON?.verified ? 'opacity-50' : ''}`}>
-                    <RadioGroupItem value="TON" id="s-ton" disabled={true} />
-                    <Label htmlFor="s-ton" className="flex-1 cursor-pointer">TON (Coming Soon)</Label>
-                    {!creator.payoutWallets?.TON?.verified && <span className="text-xs text-muted-foreground">Not Supported</span>}
-                </div>
-            </div>
-          </RadioGroup>
+                <DialogFooter>
+                  <Button onClick={handleSendTip} disabled={tipping} className="w-full h-14 rounded-2xl gap-2">
+                    {tipping ? <Loader2 className="animate-spin w-4 h-4" /> : <Heart className="w-4 h-4" />}
+                    Send {tipAmount} ULC Tip
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-        <DialogFooter>
-          <Button onClick={handleConfirmSubscription} disabled={!selectedNetwork || isSubscribing}>
-            {isSubscribing ? <Loader2 className="animate-spin"/> : 'Confirm Subscription'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+      </header>
 
-export default function ProfilePage() {
-  const params = useParams();
-  const router = useRouter();
-  const uid = params.uid as string;
-  const { user, isConnected } = useWallet();
-  const [creator, setCreator] = useState<Creator | null>(null);
-  const [posts, setPosts] = useState<ContentPost[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const isSubscribed = user?.activeSubscriptionIds?.includes(uid) ?? false;
-
-  useEffect(() => {
-    if (!uid) return;
-    const creatorRef = doc(db, 'creators', uid);
-    const unsubCreator = onSnapshot(creatorRef, (snap) => setCreator(snap.exists() ? (snap.data() as Creator) : null));
-    
-    const postsQuery = query(collection(db, 'posts'), where("creatorId", "==", uid), orderBy("createdAt", "desc"));
-    const unsubPosts = onSnapshot(postsQuery, (snap) => setPosts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost))));
-
-    setLoading(false);
-    return () => { unsubCreator(); unsubPosts(); };
-  }, [uid]);
-
-
-  if (loading) return <div className="flex justify-center items-center h-screen"><Loader2/></div>;
-  if (!creator) return <div className="text-center py-20">Creator profile not found.</div>;
-  
-  return (
-    <div className="pb-12">
-      {/* Profile Header and Bio... */}
-      <div className="pt-20 px-6 space-y-4">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline">{creator.username}</h1>
-                    {/* Other details... */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
+        <aside className="lg:col-span-1 space-y-6">
+          <Card className="glass-card border-white/10">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+               <div className="flex justify-between items-center text-sm">
+                 <span className="text-muted-foreground">Followers</span>
+                 <span className="font-bold">{followers}</span>
+               </div>
+               <div className="flex justify-between items-center text-sm">
+                 <span className="text-muted-foreground">Posts</span>
+                 <span className="font-bold">{posts.length}</span>
+               </div>
+               {socialLinks?.x && (
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-[10px] text-muted-foreground mb-2">External URL</p>
+                  <Link href={socialLinks.x} target="_blank" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    <ExternalLink className="w-4 h-4" />
+                    {formatUrl(socialLinks.x)}
+                  </Link>
                 </div>
-                {isConnected && user?.uid !== uid && (
-                    isSubscribed ? 
-                    <Button disabled variant="secondary">Subscribed</Button> : 
-                    <SubscriptionDialog creator={creator} user={user} />
-                )}
-            </div>
-           {/* Post Tabs and Content... */}
+               )}
+            </CardContent>
+          </Card>
+        </aside>
+
+        <main className="lg:col-span-3 space-y-6">
+            <ProfileContentFeed posts={posts} creator={profile} isSubscribed={isSubscribed}/>
+        </main>
       </div>
     </div>
   );
