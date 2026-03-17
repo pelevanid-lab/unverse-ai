@@ -8,7 +8,8 @@ export interface UserProfile {
     walletAddress: string;
     ulcBalance: {
         available: number;
-        vesting: number;
+        locked: number;
+        claimable: number;
     };
     paymentWallets?: {
         TRON?: NetworkWallet;
@@ -69,7 +70,8 @@ export type LedgerEntryType =
     'platform_commission' |
     'vesting_release' |
     'promo_airdrop' |
-    'creator_claim_executed';
+    'creator_claim_executed' |
+    'internal_ulc_transfer';
 
 export interface LedgerEntry {
     id: string;
@@ -83,6 +85,9 @@ export interface LedgerEntry {
     network?: 'TRON' | 'TON';
     txHash?: string;
     creatorId?: string; // Added for easier querying of claim history
+    fromUserId?: string;
+    toUserId?: string;
+    memo?: string;
     metadata?: Record<string, any>;
 }
 
