@@ -1,207 +1,195 @@
 {
-  "ai_muses": {
-    "id": "string",
-    "name": "string",
-    "category": "string",
-    "personality": "string",
-    "tone": "string",
-    "flirtingLevel": "string",
-    "avatar": "string",
-    "isOfficial": "boolean"
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
-  "config": {
-    "team_vesting_months": "number",
-    "internal_ulc_purchase_price": "number",
-    "amm_launch_price": "number",
-    "presale_vesting_months": "number",
-    "premium_commission_treasury_ratio": "number",
-    "premium_commission_staking_ratio": "number",
-    "ulc_presale_price": "number",
-    "ai_chat_cost": "number",
-    "subscription_buyback_ratio": "number",
-    "supported_usdt_networks": "array",
-    "amm_mode": "string",
-    "creator_incentive_vesting_months": "number",
-    "emission_rate": "number",
-    "wallet_integration_enabled": "boolean",
-    "amm_enabled": "boolean",
-    "amm_activation_threshold": "number",
-    "emission_max_reward": "number",
-    "subscription_treasury_ratio": "number",
-    "team_vesting_cliff_months": "number",
-    "treasury_network": "string",
-    "ulc_token_network": "string",
-    "subscription_split_enabled": "boolean",
-    "genesis_initialized": "boolean",
-    "creator_payout_mode": "string",
-    "admin_wallet_address": "string",
-    "treasury_wallet_address": "string",
-    "wallets": {
-      "team_vesting_pool": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "presale_vesting_pool": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "burn_pool": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "creator_vesting_pool": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "staking_pool": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "amm_reserve_pool_usdt": {
-        "address": "string",
-        "balance": "number",
-        "currency": "string"
-      },
-      "reserve_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "presale_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "treasury_wallet": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "creator_incentive_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "liquidity_launch_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "genesis_wallet": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "exchange_listing_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "team_vesting_wallet": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "promo_pool": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      },
-      "treasury_usdt_ledger": {
-        "address": "string",
-        "currency": "string",
-        "balance": "number"
-      }
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true
+    },
+    "pubsub": {
+      "port": 8085
     }
   },
-  "creator_media": {
-    "creatorId": "string",
-    "mediaUrl": "string",
-    "mediaType": "string",
-    "caption": "string",
-    "isPremium": "boolean",
-    "priceULC": "number",
-    "status": "string",
-    "createdAt": "timestamp"
-  },
-  "creators": {
-    "uid": "string",
-    "walletAddress": "string",
-    "username": "string",
-    "displayName": "string",
-    "avatar": "string",
-    "coverImage": "string",
-    "category": "string",
-    "socialLinks": {
-      "x": "string"
-    },
-    "subscriptionPrice": "number",
-    "premiumDefaultPrice": "number",
-    "totalSubscribers": "number",
-    "totalUnlocks": "number",
-    "totalTips": "number",
-    "totalRevenue": "number",
-    "isActive": "boolean",
-    "createdAt": "number",
-    "creatorBio": "string",
-    "updatedAt": "number"
-  },
-  "ledger": {
-    "fromWallet": "string",
-    "toWallet": "string",
-    "amount": "number",
-    "currency": "string",
-    "type": "string",
-    "timestamp": "number"
-  },
-  "posts": {
-    "creatorId": "string",
-    "creatorName": "string",
-    "creatorAvatar": "string",
-    "mediaUrl": "string",
-    "caption": "string",
-    "isPremium": "boolean",
-    "priceULC": "number",
-    "createdAt": "number",
-    "likes": "number",
-    "unlockCount": "number",
-    "earningsULC": "number"
-  },
-  "subscriptions": {
-    "userId": "string",
-    "creatorId": "string",
-    "amount": "number",
-    "status": "string",
-    "createdAt": "number"
-  },
-  "users": {
-    "uid": "string",
-    "walletAddress": "string",
-    "username": "string",
-    "bio": "string",
-    "avatar": "string",
-    "totalSpent": "number",
-    "createdAt": "number",
-    "welcomeBonusClaimed": "boolean",
-    "ulcBalance": {
-      "locked": "number",
-      "claimable": "number",
-      "available": "number"
-    },
-    "totalEarnings": "number",
-    "isCreator": "boolean"
-  },
-  "vesting": {
-    "uid": "string",
-    "totalAmount": "number",
-    "claimedAmount": "number",
-    "startTime": "number",
-    "durationMonths": "number",
-    "type": "string"
+  "firestore": {
+    "collection": {
+      "config": {
+        "documents": {
+          "system": {
+            "subscription_split_enabled": "boolean",
+            "genesis_initialized": "boolean",
+            "creator_payout_mode": "string",
+            "admin_wallet_address": "string",
+            "treasury_wallet_address": "string",
+            "subscription_platform_fee_rate": "number",
+            "premium_platform_fee_rate": "number",
+            "subscription_treasury_ratio": "number",
+            "subscription_buyback_ratio": "number",
+            "premium_commission_treasury_ratio": "number",
+            "premium_commission_staking_ratio": "number",
+            "wallets": {
+              "team_vesting_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "presale_vesting_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "burn_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "creator_vesting_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "staking_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "amm_reserve_pool_usdt": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "genesis_wallet": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "treasury_usdt_ledger": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "promo_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "liquidity_launch_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "exchange_listing_pool": {
+                "address": 'string',
+                "balance": "number",
+                "currency": "string"
+              },
+              "team_vesting_wallet": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "presale_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "creator_incentive_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "reserve_pool": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              },
+              "treasury_wallet": {
+                "address": "string",
+                "balance": "number",
+                "currency": "string"
+              }
+            }
+          }
+        }
+      },
+      "aiMuses": {
+        "totalSubscribers": "number",
+        "totalEarnings": "number",
+        "ownerId": "string",
+        "totalUnlocks": "number",
+        "totalTips": "number",
+        "totalRevenue": "number",
+        "isActive": "boolean",
+        "createdAt": "number",
+        "creatorBio": "string",
+        "updatedAt": "number"
+      },
+      "creators": {
+        "payoutWalletAddress": "string",
+        "payoutNetwork": "string",
+        "payoutWalletVerified": "boolean"
+      },
+      "ledger": {
+        "fromWallet": "string",
+        "toWallet": "string",
+        "amount": "number",
+        "currency": "string",
+        "type": "string",
+        "timestamp": "number"
+      },
+      "posts": {
+        "creatorId": "string",
+        "creatorName": "string",
+        "creatorAvatar": "string",
+        "mediaUrl": "string",
+        "caption": "string",
+        "isPremium": "boolean",
+        "priceULC": "number",
+        "createdAt": "number",
+        "likes": "number",
+        "unlockCount": "number",
+        "earningsULC": "number"
+      },
+      "subscriptions": {
+        "userId": "string",
+        "creatorId": "string",
+        "amount": "number",
+        "status": "string",
+        "createdAt": "number"
+      },
+      "users": {
+        "uid": "string",
+        "walletAddress": "string",
+        "username": "string",
+        "bio": "string",
+        "avatar": "string",
+        "followerCount": "number",
+        "followingCount": "number"
+      },
+      "vestingSchedules": {
+        "userId": "string",
+        "amount": "number",
+        "startTime": "number",
+        "duration": "number",
+        "isRevocable": "boolean"
+      }
+    }
   }
 }

@@ -2,11 +2,12 @@ import { db } from './firebase';
 import { 
   doc, setDoc, collection, addDoc, updateDoc, 
   increment, getDoc, query, where, getDocs, 
-  limit, writeBatch 
+  limit, writeBatch, WriteBatch,
 } from 'firebase/firestore';
-import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule, SystemWalletType, ContentPost } from './types';
+import { LedgerEntry, SystemConfig, UserProfile, AIMuse, VestingSchedule, SystemWalletType, ContentPost, Creator } from './types';
 
 const CONFIG_DOC_PATH = 'config/system';
+const SYSTEM_SUBSCRIPTION_ROUTER = 'SYSTEM_SUBSCRIPTION_ROUTER';
 
 export const SYSTEM_WALLETS: SystemWalletType[] = [
   'genesis_wallet',
@@ -26,6 +27,11 @@ export const SYSTEM_WALLETS: SystemWalletType[] = [
   'burn_pool',
   'staking_pool'
 ];
+
+// Basic TRON address validation
+function isValidTronAddress(address: string): boolean {
+    return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
+}
 
 export async function getSystemConfig(): Promise<SystemConfig | null> {
   const docRef = doc(db, CONFIG_DOC_PATH);
@@ -71,10 +77,12 @@ export async function initializeSystemConfig() {
     creator_incentive_vesting_months: 24,
     team_vesting_months: 36,
     team_vesting_cliff_months: 0,
-    subscription_buyback_ratio: 0.5,
-    subscription_treasury_ratio: 0.5,
-    premium_commission_staking_ratio: 0.5,
-    premium_commission_treasury_ratio: 0.5,
+    subscription_buyback_ratio: 0.33,
+    subscription_treasury_ratio: 0.67,
+    subscription_platform_fee_rate: 0.15,
+    premium_platform_fee_rate: 0.15,
+    premium_commission_staking_ratio: 0.33,
+    premium_commission_treasury_ratio: 0.67,
     emission_rate: 0.000002,
     emission_max_reward: 20,
     genesis_initialized: true,
@@ -125,7 +133,6 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
 
   const configSnap = await getDoc(configRef);
   const config = configSnap.data() as SystemConfig;
-  const walletAddresses = config ? Object.values(config.wallets).map(w => w.address) : [];
   
   const fromSysWalletName = Object.keys(config.wallets).find(key => config.wallets[key].address === entry.fromWallet);
   const toSysWalletName = Object.keys(config.wallets).find(key => config.wallets[key].address === entry.toWallet);
@@ -145,7 +152,7 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
       await updateWalletBalance(entry.toWallet, entry.amount, 'available', batch);
     }
   } else if (entry.currency === 'USDT') {
-    if (toSysWalletName && config.wallets[toSysWalletName].currency === 'USDT') {
+    if (toSysWalletName && config.wallets[toSysWalletName as SystemWalletType]?.currency === 'USDT') {
       const fieldPath = `wallets.${toSysWalletName}.balance`;
       batch.update(configRef, { [fieldPath]: increment(entry.amount) });
     }
@@ -155,7 +162,7 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'timestamp' | '
   return docRef.id;
 }
 
-async function updateWalletBalance(walletAddress: string, delta: number, field: string, batch: any) {
+async function updateWalletBalance(walletAddress: string, delta: number, field: string, batch: WriteBatch) {
   const q = query(collection(db, 'users'), where('walletAddress', '==', walletAddress), limit(1));
   const snap = await getDocs(q);
   if (!snap.empty) {
@@ -165,6 +172,70 @@ async function updateWalletBalance(walletAddress: string, delta: number, field: 
     else batch.update(userRef, { totalEarnings: increment(delta) });
   }
 }
+
+
+export async function handleSubscription(user: UserProfile, creator: Creator, amount: number, subscriptionId: string) {
+    const config = await getSystemConfig();
+    if (!config) throw new Error('System not initialized');
+
+    if (!creator.payoutWalletAddress || !isValidTronAddress(creator.payoutWalletAddress)) {
+        throw new Error("Creator does not have a valid TRON payout wallet address.");
+    }
+
+    const platformFeeRate = config.subscription_platform_fee_rate ?? 0.15;
+    const creatorShare = amount * (1 - platformFeeRate);
+    const platformFee = amount * platformFeeRate;
+
+    // 1. Record the full payment from the user to the system router
+    await recordTransaction({
+        fromWallet: user.walletAddress,
+        toWallet: SYSTEM_SUBSCRIPTION_ROUTER,
+        amount: amount,
+        currency: 'USDT',
+        type: 'subscription_payment',
+        referenceId: subscriptionId,
+        metadata: { creatorId: creator.uid }
+    });
+
+    // 2. Record the creator's payout
+    await recordTransaction({
+        fromWallet: SYSTEM_SUBSCRIPTION_ROUTER,
+        toWallet: creator.payoutWalletAddress,
+        amount: creatorShare,
+        currency: 'USDT',
+        type: 'creator_payout',
+        referenceId: subscriptionId,
+        metadata: { creatorId: creator.uid }
+    });
+
+    // 3. Record the platform commission
+    await recordTransaction({
+        fromWallet: SYSTEM_SUBSCRIPTION_ROUTER,
+        toWallet: config.treasury_wallet_address,
+        amount: platformFee,
+        currency: 'USDT',
+        type: 'platform_commission',
+        referenceId: subscriptionId
+    });
+
+    // 4. Mirror the treasury inflow for internal accounting
+    await recordTransaction({
+        fromWallet: SYSTEM_SUBSCRIPTION_ROUTER,
+        toWallet: config.wallets.treasury_usdt_ledger.address,
+        amount: platformFee,
+        currency: 'USDT',
+        type: 'treasury_usdt_inflow',
+        referenceId: subscriptionId
+    });
+
+    // Update total earnings for the creator
+    const creatorRef = doc(db, 'creators', creator.uid);
+    await updateDoc(creatorRef, { totalEarnings: increment(creatorShare) });
+
+    // Add subscription to the subscriptions collection
+    await addDoc(collection(db, 'subscriptions'), { userId: user.uid, creatorId: creator.uid, amount, status: 'active', createdAt: Date.now() });
+}
+
 
 export async function triggerGenesisAllocation(user: UserProfile) {
   const config = await getSystemConfig();
@@ -227,13 +298,18 @@ export async function handlePremiumUnlock(user: UserProfile, creatorWallet: stri
     const config = await getSystemConfig();
     if (!config) throw new Error('System not initialized');
 
-  const creatorShare = amount * 0.95;
-  const stakingShare = amount * 0.025;
-  const treasuryShare = amount * 0.025;
+    const platformFeeRate = config.premium_platform_fee_rate ?? 0.15;
+    const treasuryRatio = config.premium_commission_treasury_ratio ?? 0.67;
+    const stakingRatio = config.premium_commission_staking_ratio ?? 0.33;
 
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: creatorShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.staking_pool.address, amount: stakingShare, currency: 'ULC', type: 'staking_reward', referenceId: contentId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount: treasuryShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
+    const platformFee = amount * platformFeeRate;
+    const creatorShare = amount - platformFee;
+    const treasuryShare = platformFee * treasuryRatio;
+    const stakingShare = platformFee * stakingRatio;
+
+    await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: creatorShare, currency: 'ULC', type: 'premium_unlock', referenceId: contentId });
+    await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.staking_pool.address, amount: stakingShare, currency: 'ULC', type: 'staking_reward', referenceId: contentId });
+    await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount: treasuryShare, currency: 'ULC', type: 'premium_unlock_fee', referenceId: contentId });
 }
 
 export async function handleUnlocking(user: UserProfile, post: ContentPost, creatorWalletAddress: string) {
@@ -247,7 +323,7 @@ export async function processChatFee(user: UserProfile) {
   const config = await getSystemConfig();
   if (!config) throw new Error('System not initialized');
   const fee = config.ai_chat_cost || 0.5;
-  if (user.ulcBalance.available < fee) throw new Error("Insufficient ULC.");
+  if (user.ulcBalance && user.ulcBalance.available < fee) throw new Error("Insufficient ULC.");
   await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.burn_pool.address, amount: fee, currency: 'ULC', type: 'ai_chat_fee' });
 }
 
@@ -275,7 +351,7 @@ export async function claimVestedTokens(user: UserProfile, schedule: VestingSche
 export async function handleStaking(user: UserProfile, amount: number) {
     const config = await getSystemConfig();
     if (!config) throw new Error('System not initialized');
-  if (user.ulcBalance.available < amount) throw new Error("Insufficient balance.");
+  if (user.ulcBalance && user.ulcBalance.available < amount) throw new Error("Insufficient balance.");
   const batch = writeBatch(db);
   batch.update(doc(db, 'users', user.uid), { 'ulcBalance.available': increment(-amount), 'ulcBalance.locked': increment(amount) });
   await batch.commit();
@@ -285,7 +361,7 @@ export async function handleStaking(user: UserProfile, amount: number) {
 export async function handleUnstaking(user: UserProfile, amount: number) {
     const config = await getSystemConfig();
     if (!config) throw new Error('System not initialized');
-  if (user.ulcBalance.locked < amount) throw new Error("Insufficient balance.");
+  if (user.ulcBalance && user.ulcBalance.locked < amount) throw new Error("Insufficient balance.");
   const batch = writeBatch(db);
   batch.update(doc(db, 'users', user.uid), { 'ulcBalance.available': increment(amount), 'ulcBalance.locked': increment(-amount) });
   await batch.commit();
@@ -296,24 +372,12 @@ export async function toggleUserFreeze(uid: string, status: boolean) {
   await updateDoc(doc(db, 'users', uid), { isFrozen: status });
 }
 
-export async function handleSubscription(user: UserProfile, creatorWallet: string, amount: number, creatorId: string) {
-  const config = await getSystemConfig();
-  if (!config) throw new Error('System not initialized');
-  const buybackRatio = config.subscription_buyback_ratio || 0.5;
-  const treasuryRatio = config.subscription_treasury_ratio || 0.5;
-
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: creatorWallet, amount: amount * 0.9, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_usdt_ledger.address, amount: amount * 0.1 * treasuryRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.burn_pool.address, amount: amount * 0.1 * buybackRatio, currency: 'USDT', type: 'subscription_payment', referenceId: creatorId });
-  await addDoc(collection(db, 'subscriptions'), { userId: user.uid, creatorId, amount, status: 'active', createdAt: Date.now() });
-}
-
 export async function handleTipping(user: UserProfile, toWallet: string, amount: number, referenceId: string) {
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: toWallet, amount, currency: 'ULC', type: 'tip', referenceId });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: toWallet, amount: amount, currency: 'ULC', type: 'tip', referenceId: referenceId });
 }
 
 export async function handleCreatorWithdrawal(user: UserProfile, amount: number) {
     const config = await getSystemConfig();
     if (!config) throw new Error('System not initialized');
-  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount, currency: 'ULC', type: 'creator_payout' });
+  await recordTransaction({ fromWallet: user.walletAddress, toWallet: config.wallets.treasury_wallet.address, amount: amount, currency: 'ULC', type: 'creator_payout' });
 }

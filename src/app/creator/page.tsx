@@ -8,18 +8,89 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles, Image, Video } from 'lucide-react';
+import { Plus, BarChart3, Settings, Upload, DollarSign, Coins, ArrowUpRight, Loader2, ExternalLink, ArrowLeft, Sparkles, Image, Video, Wallet } from 'lucide-react';
 import { useState, useEffect, FormEvent } from 'react';
 import { db, storage } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc, getDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
-import { CreatorProfile, UserProfile, CreatorMedia, ContentPost } from '@/lib/types';
+import { Creator, UserProfile, CreatorMedia, ContentPost } from '@/lib/types';
 import Link from 'next/link';
 import { ImageUploader } from '@/components/creator/ImageUploader';
 import { ContainerTab } from '@/components/creator/ContainerTab';
 import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
 import { StatsTab } from '@/components/creator/StatsTab';
+
+
+function isValidTronAddress(address: string): boolean {
+    return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
+}
+
+function PayoutSettingsCard({ user, initialPayoutAddress }: { user: UserProfile, initialPayoutAddress: string }) {
+    const [payoutAddress, setPayoutAddress] = useState(initialPayoutAddress);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    const handleSave = async () => {
+        if (!user.uid) return;
+        if (!isValidTronAddress(payoutAddress)) {
+            toast({
+                variant: "destructive",
+                title: "Invalid TRON Address",
+                description: "Please enter a valid TRON wallet address (starting with 'T').",
+            });
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const creatorRef = doc(db, 'creators', user.uid);
+            await updateDoc(creatorRef, { 
+                payoutWalletAddress: payoutAddress,
+                payoutNetwork: 'TRON',
+                payoutWalletVerified: true
+            });
+            toast({
+                title: "Payout Wallet Saved",
+                description: "Your TRON payout address has been updated successfully.",
+            });
+        } catch (error) {
+            console.error("Failed to save payout address:", error);
+            toast({
+                variant: "destructive",
+                title: "Save Failed",
+                description: "Could not update your payout address. Please try again.",
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Card className="glass-card max-w-2xl mx-auto border-white/10 mt-6">
+            <CardHeader>
+                <CardTitle className='flex items-center gap-2'><Wallet className="w-5 h-5 text-primary"/> Payout Settings</CardTitle>
+                <CardDescription>This is the TRON wallet where you will receive your subscription earnings in USDT.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="payout-wallet">Your TRON Wallet Address</Label>
+                    <Input 
+                        id="payout-wallet" 
+                        value={payoutAddress} 
+                        onChange={(e) => setPayoutAddress(e.target.value)} 
+                        placeholder="Enter your TRON USDT address (e.g., T...)" 
+                        className="font-mono"
+                    />
+                </div>
+                <Button onClick={handleSave} disabled={isSaving || payoutAddress === initialPayoutAddress}>
+                    {isSaving ? <Loader2 className="animate-spin" /> : 'Save Payout Address'}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   return (
@@ -67,68 +138,44 @@ export default function CreatorPanel() {
   const [externalUrl, setExternalUrl] = useState('');
   const [subscriptionPrice, setSubscriptionPrice] = useState(0);
   const [premiumDefaultPrice, setPremiumDefaultPrice] = useState(0);
+  const [payoutWalletAddress, setPayoutWalletAddress] = useState('');
 
   useEffect(() => {
-    if (!user) return;
-
-    if (user.isCreator && user.walletAddress) {
-      const fetchCreatorProfile = async () => {
-        const creatorDocRef = doc(db, 'creators', user.walletAddress!);
-        const creatorDoc = await getDoc(creatorDocRef);
-        if (creatorDoc.exists()) {
-          const creatorData = creatorDoc.data() as CreatorProfile;
-          setDisplayName(creatorData.displayName || '');
-          setCreatorBio(creatorData.creatorBio || '');
-          setCategory(creatorData.category || '');
-          setCoverImage(creatorData.coverImage || '');
+    if (user?.isCreator && user.uid) {
+      const unsub = onSnapshot(doc(db, 'creators', user.uid), (doc) => {
+        if (doc.exists()) {
+          const creatorData = doc.data() as Creator;
+          setDisplayName(creatorData.username || '');
+          setCreatorBio(creatorData.bio || '');
           setAvatar(creatorData.avatar || '');
-          setExternalUrl(creatorData.socialLinks?.x || '');
           setSubscriptionPrice(creatorData.subscriptionPrice || 0);
-          setPremiumDefaultPrice(creatorData.premiumDefaultPrice || 0);
+          setPayoutWalletAddress(creatorData.payoutWalletAddress || '');
         }
-      };
-      fetchCreatorProfile();
+      });
+      return () => unsub();
     }
   }, [user]);
 
   const handleBecomeCreator = async () => {
-    if (!user || !user.walletAddress) return;
+    if (!user || !user.uid) return;
     setActivationLoading(true);
     try {
-      const userDocRef = doc(db, 'users', user.walletAddress);
-      const creatorDocRef = doc(db, 'creators', user.walletAddress);
+      const userDocRef = doc(db, 'users', user.uid);
+      const creatorDocRef = doc(db, 'creators', user.uid);
 
-      await setDoc(userDocRef, { isCreator: true }, { merge: true });
+      await updateDoc(userDocRef, { isCreator: true });
 
       const creatorDoc = await getDoc(creatorDocRef);
       if (!creatorDoc.exists()) {
-        const freshUserDoc = await getDoc(userDocRef);
-        if (!freshUserDoc.exists()) {
-            throw new Error("User document could not be found or created.");
-        }
-        const freshUserData = freshUserDoc.data() as UserProfile;
-
-        const newCreatorProfile: CreatorProfile = {
-          uid: user.walletAddress,
+        const newCreatorProfile: Partial<Creator> = {
+          uid: user.uid,
           walletAddress: user.walletAddress,
-          username: freshUserData.username || `creator_${user.walletAddress.substring(0, 8)}`,
-          displayName: ''  ,
-          avatar: freshUserData.avatar || '',
-          coverImage: '',
-          creatorBio: '',
-          category: '',
-          socialLinks: { x: '' },
+          username: user.username || `creator_${user.uid.substring(0, 8)}`,
+          avatar: user.avatar || '',
           subscriptionPrice: 10,
-          premiumDefaultPrice: 5,
-          totalSubscribers: 0,
-          totalUnlocks: 0,
-          totalTips: 0,
-          totalRevenue: 0,
-          isActive: true,
-          updatedAt: Date.now(),
-          createdAt: Date.now(),
+          totalEarnings: 0,
         };
-        await setDoc(creatorDocRef, newCreatorProfile);
+        await setDoc(creatorDocRef, newCreatorProfile, { merge: true });
       }
       
       toast({ title: "Welcome, Creator!", description: "Your creator profile is now active." });
@@ -144,20 +191,19 @@ export default function CreatorPanel() {
 
   const handleSettingsUpdate = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !user.walletAddress) return;
+    if (!user || !user.uid) return;
     setSettingsLoading(true);
     try {
-      const creatorDocRef = doc(db, 'creators', user.walletAddress);
+      const creatorDocRef = doc(db, 'creators', user.uid);
       await updateDoc(creatorDocRef, {
-        displayName,
-        creatorBio,
+        username: displayName,
+        bio: creatorBio,
         category,
         coverImage,
         avatar,
-        socialLinks: { x: externalUrl },
+        // socialLinks: { x: externalUrl },
         subscriptionPrice,
-        premiumDefaultPrice,
-        updatedAt: Date.now(),
+        // premiumDefaultPrice,
       });
       toast({ title: "Profile Updated", description: "Your public profile has been saved." });
     } catch (error) {
@@ -203,7 +249,7 @@ export default function CreatorPanel() {
           <Card className="glass-card border-primary/20 bg-primary/5 flex items-center justify-center text-center px-6 py-3 rounded-2xl">
             <div>
               <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Available Earnings</p>
-              <p className="text-2xl font-bold font-headline">{user?.ulcBalance.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
+              <p className="text-2xl font-bold font-headline">{user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
             </div>
           </Card>
           <Link href={`/profile/${user?.walletAddress}`} className="w-full">
@@ -259,26 +305,14 @@ export default function CreatorPanel() {
                   <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your public creator name" />
                 </div>
                 <div className="space-y-2">
-                  <Label>External URL</Label>
-                  <Input value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://your-website.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g., Digital Artist" />
-                </div>
-                <div className="space-y-2">
                   <Label>Creator Bio</Label>
                   <Textarea value={creatorBio} onChange={(e) => setCreatorBio(e.target.value)} placeholder="Tell the world your story..." />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label>Subscription Price (USDT)</Label>
                     <Input type="number" value={subscriptionPrice} onChange={(e) => setSubscriptionPrice(parseFloat(e.target.value))} placeholder="10" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Premium Default Price (ULC)</Label>
-                    <Input type="number" value={premiumDefaultPrice} onChange={(e) => setPremiumDefaultPrice(parseFloat(e.target.value))} placeholder="5" />
                   </div>
                 </div>
 
@@ -288,6 +322,9 @@ export default function CreatorPanel() {
               </form>
             </CardContent>
           </Card>
+
+          <PayoutSettingsCard user={user} initialPayoutAddress={payoutWalletAddress} />
+
         </TabsContent>
       </Tabs>
     </div>

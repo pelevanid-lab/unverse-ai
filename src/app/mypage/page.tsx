@@ -10,13 +10,13 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { CreatorProfile, LedgerEntry } from '@/lib/types';
+import { Creator, LedgerEntry } from '@/lib/types';
 
 const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
 
 export default function MyPage() {
   const { user, isConnected, disconnectWallet, rawAddress } = useWallet();
-  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+  const [creatorProfile, setCreatorProfile] = useState<Creator | null>(null);
   const [calculatedBalance, setCalculatedBalance] = useState<number | null>(null);
   const [calculatedEarnings, setCalculatedEarnings] = useState<number | null>(null);
   const [calculatedSpent, setCalculatedSpent] = useState<number | null>(null);
@@ -33,7 +33,7 @@ export default function MyPage() {
       const allEntries = Array.from(entries.values());
       const totalIn = allEntries.filter(e => addressFormats.includes(e.toWallet.toLowerCase())).reduce((sum, e) => sum + e.amount, 0);
       const totalOut = allEntries.filter(e => addressFormats.includes(e.fromWallet.toLowerCase())).reduce((sum, e) => sum + e.amount, 0);
-      const earnings = allEntries.filter(e => addressFormats.includes(e.toWallet.toLowerCase()) && ['subscription_payment', 'tip', 'premium_unlock'].includes(e.type)).reduce((sum, e) => sum + e.amount, 0);
+      const earnings = allEntries.filter(e => addressFormats.includes(e.toWallet.toLowerCase()) && ['creator_payout', 'tip', 'premium_unlock'].includes(e.type)).reduce((sum, e) => sum + e.amount, 0);
       
       setCalculatedBalance(totalIn - totalOut);
       setCalculatedEarnings(earnings);
@@ -54,7 +54,7 @@ export default function MyPage() {
     let unsubCreator: () => void = () => {};
     if (user.isCreator) {
       unsubCreator = onSnapshot(doc(db, 'creators', user.uid), (doc) => {
-        if (doc.exists()) setCreatorProfile(doc.data() as CreatorProfile);
+        if (doc.exists()) setCreatorProfile(doc.data() as Creator);
       });
     }
 
@@ -73,9 +73,9 @@ export default function MyPage() {
     );
   }
 
-  const displayName = creatorProfile?.displayName || user?.username;
+  const displayName = creatorProfile?.username || user?.username;
   const avatar = creatorProfile?.avatar || user?.avatar || NON_GENDER_AVATAR;
-  const bio = creatorProfile?.creatorBio || user?.bio;
+  const bio = creatorProfile?.bio || user?.bio;
 
   return (
     <div className="space-y-8 pb-12">
@@ -109,15 +109,15 @@ export default function MyPage() {
           <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Coins className="w-4 h-4 text-primary" /> Available ULC</CardTitle></CardHeader>
           <CardContent>
             <div className="text-4xl font-headline font-bold">{calculatedBalance !== null ? calculatedBalance.toFixed(2) : '0.00'}</div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-mono uppercase">Liquidity: High</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-mono uppercase">Internal Balance</p>
           </CardContent>
         </Card>
 
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ArrowUpRight className="w-4 h-4 text-green-400" /> Total Earnings</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-4xl font-headline font-bold">{calculatedEarnings !== null ? calculatedEarnings.toFixed(2) : '0.00'} ULC</div>
-            <p className="text-[10px] text-muted-foreground mt-1">From tokenized interactions</p>
+            <div className="text-4xl font-headline font-bold">{calculatedEarnings !== null ? calculatedEarnings.toFixed(2) : '0.00'}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">From subscriptions, tips, and unlocks</p>
           </CardContent>
         </Card>
 
