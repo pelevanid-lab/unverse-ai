@@ -6,8 +6,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost, CreatorProfile } from '@/lib/types';
-import { handleSubscription, handleTipping } from '@/lib/ledger';
+import { UserProfile, ContentPost, CreatorProfile, SystemConfig } from '@/lib/types';
+import { recordTransaction, getSystemConfig } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -21,14 +21,14 @@ import { ProfileContentFeed } from '@/components/profile/ProfileContentFeed';
 
 export default function PublicProfilePage() {
   const { uid } = useParams();
-  const { user: currentUser, isConnected } = useWallet();
+  const { user: currentUser, isConnected, ulcBalance } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [subscribing, setSubscribing] = useState(false);
-  const [tipping, setTipping] = useState(false);
+  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [tipAmount, setTipAmount] = useState('5');
   const [isTipDialogOpen, setIsTipDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -37,25 +37,34 @@ export default function PublicProfilePage() {
   useEffect(() => {
     if (!uid) return;
 
-    const fetchProfile = async () => {
-      const userDocRef = doc(db, 'users', uid as string);
-      const userSnap = await getDoc(userDocRef);
+    setLoading(true);
+    getSystemConfig().then(setSystemConfig);
+
+    let unsubCreator: () => void = () => {};
+
+    const userDocRef = doc(db, 'users', uid as string);
+    const unsubUser = onSnapshot(userDocRef, (userSnap) => {
       if (userSnap.exists()) {
         const userData = userSnap.data() as UserProfile;
         setProfile(userData);
 
         if (userData.isCreator) {
           const creatorDocRef = doc(db, 'creators', uid as string);
-          const creatorSnap = await getDoc(creatorDocRef);
-          if (creatorSnap.exists()) {
-            setCreatorProfile(creatorSnap.data() as CreatorProfile);
-          }
+          unsubCreator = onSnapshot(creatorDocRef, (creatorSnap) => {
+            if (creatorSnap.exists()) {
+              setCreatorProfile(creatorSnap.data() as CreatorProfile);
+            }
+            setLoading(false);
+          });
+        } else {
+          setCreatorProfile(null);
+          setLoading(false);
         }
       } else {
+        setLoading(false);
         router.push('/');
       }
-      setLoading(false);
-    };
+    });
 
     const unsubPosts = onSnapshot(
       query(collection(db, 'posts'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
@@ -64,80 +73,92 @@ export default function PublicProfilePage() {
       }
     );
 
-    fetchProfile();
-    return () => unsubPosts();
+    return () => {
+      unsubUser();
+      unsubCreator();
+      unsubPosts();
+    };
   }, [uid, router]);
 
   useEffect(() => {
-    if (!currentUser || !uid) return;
-    const q = query(
-      collection(db, 'ledger'),
-      where('fromWallet', '==', currentUser.walletAddress),
-      where('referenceId', '==', uid),
-      where('type', '==', 'subscription_payment')
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      if (!snap.empty) setIsSubscribed(true);
-    });
-    return () => unsub();
+    if (currentUser?.activeSubscriptionIds?.includes(uid as string)) {
+      setIsSubscribed(true);
+    } else {
+      setIsSubscribed(false);
+    }
   }, [currentUser, uid]);
 
   const handleSubscribeClick = async () => {
-    if (!isConnected || !currentUser) {
+    if (!isConnected || !currentUser || !creatorProfile || !systemConfig) {
       toast({ title: "Connect Required", description: "Login to subscribe." });
       return;
     }
-    
-    setSubscribing(true);
-    try {
-      await handleSubscription(currentUser, profile?.walletAddress!, 10, uid as string);
-      setIsSubscribed(true);
-      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.username || profile?.username}.` });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Subscription Failed", description: "Check your balance." });
+    if (ulcBalance < creatorProfile.subscriptionPrice) {
+      toast({ variant: 'destructive', title: "Insufficient ULC", description: "You need more ULC to subscribe." });
+      return;
     }
-    setSubscribing(false);
+    setIsProcessing('subscribe');
+    try {
+      await recordTransaction({
+        type: 'subscription_payment_ulc',
+        userId: currentUser.uid,
+        creatorId: creatorProfile.uid,
+        amount: creatorProfile.subscriptionPrice,
+        currency: 'ULC',
+        platformFee: creatorProfile.subscriptionPrice * systemConfig.platform_subscription_fee_split
+      });
+      toast({ title: "Subscribed!", description: `You now have premium access to ${creatorProfile?.username || profile?.username}.` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Subscription Failed", description: e.message || "An unknown error occurred." });
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleSendTip = async () => {
-    if (!isConnected || !currentUser || !profile) return;
-    setTipping(true);
+    if (!isConnected || !currentUser || !profile || !creatorProfile || !systemConfig) return;
+    const numericTipAmount = parseFloat(tipAmount);
+    if (isNaN(numericTipAmount) || numericTipAmount <= 0) {
+        toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid tip amount." });
+        return;
+    }
+    if (ulcBalance < numericTipAmount) {
+        toast({ variant: 'destructive', title: "Insufficient ULC", description: "You don't have enough ULC to send this tip." });
+        return;
+    }
+    setIsProcessing('tip');
     try {
-      await handleTipping(currentUser, profile.walletAddress, parseFloat(tipAmount), uid as string);
-      toast({ title: "Tip Sent!", description: `You sent ${tipAmount} ULC to ${creatorProfile?.username || profile.username}.` });
+      await recordTransaction({
+        type: 'tip_payment_ulc',
+        userId: currentUser.uid,
+        creatorId: creatorProfile.uid,
+        amount: numericTipAmount,
+        currency: 'ULC',
+        platformFee: numericTipAmount * systemConfig.platform_tip_fee_split
+      });
+      toast({ title: "Tip Sent!", description: `You sent ${numericTipAmount} ULC to ${creatorProfile?.username || profile.username}.` });
       setIsTipDialogOpen(false);
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
+    } finally {
+      setIsProcessing(null);
     }
-    setTipping(false);
   };
 
-  if (loading || !profile) return (
+  if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Loader2 className="w-10 h-10 animate-spin text-primary" />
     </div>
   );
+
+  if (!profile) return null;
 
   const isSelf = currentUser?.uid === uid;
   const displayName = creatorProfile?.displayName || creatorProfile?.username || profile.username;
   const avatar = creatorProfile?.avatar || profile.avatar;
   const bio = creatorProfile?.creatorBio || profile.bio;
   const coverImage = creatorProfile?.coverImage;
-  const followers = creatorProfile?.totalSubscribers || 0;
-  const socialLinks = creatorProfile?.socialLinks;
-
-  const formatUrl = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      let hostname = urlObj.hostname;
-      if (hostname.startsWith('www.')) {
-        hostname = hostname.slice(4);
-      }
-      return hostname;
-    } catch (error) {
-      return url;
-    }
-  };
+  const subscriptionPrice = creatorProfile?.subscriptionPrice ?? 0;
 
   return (
     <div className="relative pb-12">
@@ -153,7 +174,7 @@ export default function PublicProfilePage() {
         <div className="flex flex-col md:flex-row items-center gap-8 w-full">
           <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-2xl shrink-0">
             <AvatarImage src={avatar} className="object-cover"/>
-            <AvatarFallback>{displayName[0]}</AvatarFallback>
+            <AvatarFallback>{displayName?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 text-center md:text-left space-y-2">
             <h1 className="text-4xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
@@ -163,7 +184,7 @@ export default function PublicProfilePage() {
             <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
               {creatorProfile?.category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {creatorProfile.category}</Badge>}
-              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {new Date(profile.createdAt).toLocaleDateString()}</Badge>
+              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</Badge>
             </div>
           </div>
           <div className="flex flex-col gap-3 min-w-[200px] shrink-0">
@@ -174,17 +195,17 @@ export default function PublicProfilePage() {
             ) : (
               <Button 
                 onClick={handleSubscribeClick} 
-                disabled={subscribing || isSelf} 
+                disabled={isProcessing === 'subscribe' || isSelf || !creatorProfile}
                 className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20"
               >
-                {subscribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
-                Subscribe (10 USDT)
+                {isProcessing === 'subscribe' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
+                Subscribe ({subscriptionPrice} ULC)
               </Button>
             )}
 
             <Dialog open={isTipDialogOpen} onOpenChange={setIsTipDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" disabled={isSelf} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
+                <Button variant="outline" disabled={isSelf || !creatorProfile} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
                   <Gift className="w-4 h-4" /> Tip Creator
                 </Button>
               </DialogTrigger>
@@ -218,8 +239,8 @@ export default function PublicProfilePage() {
                   />
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleSendTip} disabled={tipping} className="w-full h-14 rounded-2xl gap-2">
-                    {tipping ? <Loader2 className="animate-spin w-4 h-4" /> : <Heart className="w-4 h-4" />}
+                  <Button onClick={handleSendTip} disabled={isProcessing === 'tip'} className="w-full h-14 rounded-2xl gap-2">
+                    {isProcessing === 'tip' ? <Loader2 className="animate-spin w-4 h-4" /> : <Heart className="w-4 h-4" />}
                     Send {tipAmount} ULC Tip
                   </Button>
                 </DialogFooter>
@@ -229,36 +250,9 @@ export default function PublicProfilePage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
-        <aside className="lg:col-span-1 space-y-6">
-          <Card className="glass-card border-white/10">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <div className="flex justify-between items-center text-sm">
-                 <span className="text-muted-foreground">Followers</span>
-                 <span className="font-bold">{followers}</span>
-               </div>
-               <div className="flex justify-between items-center text-sm">
-                 <span className="text-muted-foreground">Posts</span>
-                 <span className="font-bold">{posts.length}</span>
-               </div>
-               {socialLinks?.x && (
-                <div className="pt-4 border-t border-white/5">
-                  <p className="text-[10px] text-muted-foreground mb-2">External URL</p>
-                  <Link href={socialLinks.x} target="_blank" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="w-4 h-4" />
-                    {formatUrl(socialLinks.x)}
-                  </Link>
-                </div>
-               )}
-            </CardContent>
-          </Card>
-        </aside>
-
-        <main className="lg:col-span-3 space-y-6">
-            <ProfileContentFeed posts={posts} creator={profile} isSubscribed={isSubscribed}/>
+      <div className="mt-4">
+        <main className="space-y-6">
+            <ProfileContentFeed posts={posts} creator={creatorProfile} isSubscribed={isSubscribed}/>
         </main>
       </div>
     </div>
