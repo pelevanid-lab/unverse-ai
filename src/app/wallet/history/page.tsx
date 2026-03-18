@@ -15,14 +15,18 @@ import { LedgerEntryCard } from '@/components/ledger-entry-card';
 
 const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAddress: string): GroupedLedgerEntry[] => {
     const grouped = new Map<string, GroupedLedgerEntry>();
+    const normalizedWallet = walletAddress?.toLowerCase();
 
-    // Phase 1: Group entries by the most reliable key
+    // Phase 1: Group entries
     entries.forEach(entry => {
         let key: string;
-        if (entry.type === 'ulc_purchase' && entry.txHash) {
+        // Group by txHash for purchases, or referenceId for everything else
+        if (entry.txHash) {
             key = entry.txHash;
+        } else if (entry.referenceId) {
+            key = entry.referenceId;
         } else {
-            key = entry.referenceId || entry.id;
+            key = entry.id;
         }
 
         if (!grouped.has(key)) {
@@ -30,7 +34,7 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
                 id: key, 
                 timestamp: entry.timestamp, 
                 relatedEntries: [],
-                mainEntry: entry // Placeholder
+                mainEntry: entry
             });
         }
         const group = grouped.get(key)!;
@@ -41,13 +45,15 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
     // Phase 2: Process each group to create a correct user-facing mainEntry
     for (const [key, group] of grouped.entries()) {
         const hasPremiumUnlock = group.relatedEntries.some(e => e.type === 'premium_unlock');
-        const hasSubscription = group.relatedEntries.some(e => e.type === 'subscription_payment');
-        const hasUlcPurchase = group.relatedEntries.some(e => e.type === 'ulc_purchase');
+        const hasSubscription = group.relatedEntries.some(e => ['subscription_payment', 'subscription_payment_usdt'].includes(e.type));
+        const hasUlcPurchase = group.relatedEntries.some(e => ['ulc_purchase', 'ulc_purchase_grouped'].includes(e.type));
+        const hasCreatorEarning = group.relatedEntries.some(e => e.type === 'creator_earning');
 
         if (hasPremiumUnlock || hasSubscription) {
-            const transactionType = hasPremiumUnlock ? 'premium_unlock' : 'subscription_payment';
+            const transactionType = hasPremiumUnlock ? 'premium_unlock' : 'subscription_payment_usdt';
+            // Find entries where the current user is the sender
             const userDebits = group.relatedEntries.filter(
-                e => (e.fromUserId === userId || e.fromWallet === walletAddress) && e.currency === 'ULC'
+                e => (e.fromUserId === userId || e.fromWallet?.toLowerCase() === normalizedWallet) && e.amount > 0
             );
             
             if (userDebits.length > 0) {
@@ -55,22 +61,26 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
                 const representativeEntry = userDebits.find(e => e.type === transactionType) || userDebits[0];
                 group.mainEntry = { ...representativeEntry, amount: totalSpent };
             } else {
-                group.mainEntry = group.relatedEntries.find(e => e.type === transactionType) || group.relatedEntries[0];
+                // If user is not the sender, they might be the receiver (creator)
+                group.mainEntry = group.relatedEntries.find(e => e.type === 'creator_earning') || group.relatedEntries[0];
             }
         } else if (hasUlcPurchase) {
-            const usdtPayment = group.relatedEntries.find(e => e.currency === 'USDT');
-            const ulcFulfillment = group.relatedEntries.find(e => e.currency === 'ULC' && e.type === 'ulc_purchase');
+            const usdtEntry = group.relatedEntries.find(e => e.currency === 'USDT');
+            const ulcEntry = group.relatedEntries.find(e => e.currency === 'ULC');
             
-            if (usdtPayment && ulcFulfillment) {
+            if (usdtEntry && ulcEntry) {
                 group.mainEntry = {
-                    ...ulcFulfillment,
-                    type: 'ulc_purchase_grouped',
-                    amount: ulcFulfillment.amount,
-                    metadata: { ...ulcFulfillment.metadata, usdtAmount: usdtPayment.amount }
+                    ...ulcEntry,
+                    type: 'ulc_purchase',
+                    amount: ulcEntry.amount,
+                    metadata: { ...ulcEntry.metadata, usdtAmount: usdtEntry.amount }
                 };
             } else {
                  group.mainEntry = group.relatedEntries[0];
             }
+        } else if (hasCreatorEarning && group.relatedEntries.length === 1) {
+            // Standalone earning
+            group.mainEntry = group.relatedEntries[0];
         } else {
             group.mainEntry = group.relatedEntries.sort((a,b) => b.timestamp - a.timestamp)[0];
         }
@@ -86,14 +96,17 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
 function HistoryList({ history, user }: { history: GroupedLedgerEntry[], user: any }) {
     if (!user) return null;
     return (
-        <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2">
+        <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-2 custom-scrollbar">
              {history.length === 0 ? (
-                <div className='text-center py-20'>
-                    <History size={48} className="mx-auto text-muted-foreground" />
-                    <p className='text-muted-foreground mt-4'>No transactions recorded yet.</p>
+                <div className='text-center py-24'>
+                    <div className="w-20 h-20 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <History size={40} className="text-muted-foreground opacity-30" />
+                    </div>
+                    <p className='text-muted-foreground font-headline text-xl'>No transactions yet</p>
+                    <p className='text-muted-foreground/60 text-sm mt-1'>Your financial journey starts here.</p>
                 </div>
              ) : (
-                <div className="space-y-2">
+                <div className="space-y-3 pb-8">
                     {history.map(groupedEntry => (
                         <LedgerEntryCard key={groupedEntry.id} groupedEntry={groupedEntry} currentUser={user} />
                     ))}
@@ -105,16 +118,18 @@ function HistoryList({ history, user }: { history: GroupedLedgerEntry[], user: a
 
 export default function TransactionHistoryPage() {
     const router = useRouter();
-    const { user } = useWallet();
+    const { user, isConnected } = useWallet();
     const { toast } = useToast();
     const [history, setHistory] = useState<GroupedLedgerEntry[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user?.uid || !user?.walletAddress) {
-            setHistory([]);
+        if (!user?.uid) {
+            if (!isConnected) setLoading(false);
             return;
         }
 
+        setLoading(true);
         const ledgerCollection = collection(db, 'ledger');
         const ledgerMap = new Map<string, LedgerEntry>();
 
@@ -122,11 +137,12 @@ export default function TransactionHistoryPage() {
             const rawEntries = Array.from(ledgerMap.values());
             const groupedHistory = groupAndEnhanceHistory(rawEntries, user.uid, user.walletAddress);
             setHistory(groupedHistory);
+            setLoading(false);
         };
         
         const handleError = (error: Error) => {
             console.error("History snapshot error:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch transaction history. Check console for details.' });
+            setLoading(false);
         };
 
         const processSnapshot = (snapshot: QuerySnapshot) => {
@@ -136,34 +152,60 @@ export default function TransactionHistoryPage() {
             processAndSetHistory();
         };
 
-        const queryByUserId = query(ledgerCollection, or(where('toUserId', '==', user.uid), where('fromUserId', '==', user.uid), where('creatorId', '==', user.uid)));
-        const queryByToWallet = query(ledgerCollection, where('toWallet', '==', user.walletAddress));
-        const queryByFromWallet = query(ledgerCollection, where('fromWallet', '==', user.walletAddress));
+        // Comprehensive query to catch all relevant transactions
+        const q = query(
+            ledgerCollection, 
+            or(
+                where('toUserId', '==', user.uid), 
+                where('fromUserId', '==', user.uid), 
+                where('creatorId', '==', user.uid),
+                where('fromWallet', '==', user.walletAddress),
+                where('toWallet', '==', user.walletAddress)
+            )
+        );
 
-        const unsubscribes = [
-            onSnapshot(queryByUserId, processSnapshot, handleError),
-            onSnapshot(queryByToWallet, processSnapshot, handleError),
-            onSnapshot(queryByFromWallet, processSnapshot, handleError),
-        ];
+        const unsub = onSnapshot(q, processSnapshot, handleError);
+        return () => unsub();
 
-        return () => unsubscribes.forEach(unsub => unsub());
+    }, [user?.uid, user?.walletAddress, isConnected]);
 
-    }, [user?.uid, user?.walletAddress, toast]);
+    if (!isConnected) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+                 <History size={64} className="text-muted-foreground opacity-20" />
+                 <h1 className="text-3xl font-headline font-bold">Connect Wallet</h1>
+                 <p className="text-muted-foreground max-w-xs mx-auto">Please connect your wallet to view your transaction history.</p>
+                 <Button onClick={() => router.push('/')}>Back to Home</Button>
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 pb-12 px-4">
-            <header className="flex items-center justify-between pt-8">
-                <div>
-                    <h1 className="text-5xl font-headline font-bold gradient-text flex items-center gap-3"><History/> Transaction History</h1>
-                    <p className="text-muted-foreground">A complete record of all your transactions.</p>
+        <div className="max-w-5xl mx-auto space-y-10 pb-20 px-4">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pt-10">
+                <div className="space-y-1">
+                    <h1 className="text-5xl font-headline font-bold gradient-text flex items-center gap-4">
+                        <History className="w-10 h-10 text-primary" /> History
+                    </h1>
+                    <p className="text-muted-foreground font-medium">Your sovereign financial ledger on Unverse.</p>
                 </div>
-                <Button onClick={() => router.push('/wallet')} variant="ghost"><ChevronLeft className="w-4 h-4 mr-2" /> Back to Wallet</Button>
+                <Button onClick={() => router.push('/wallet')} variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 h-12 px-6">
+                    <ChevronLeft className="w-4 h-4 mr-2" /> Back to Wallet
+                </Button>
             </header>
-            <Card className="glass-card border-white/10">
-                <CardContent className="pt-6">
-                    <HistoryList history={history} user={user} />
-                </CardContent>
-            </Card>
+
+            {loading && history.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-32 gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                    <p className="text-muted-foreground font-headline animate-pulse">Syncing Ledger...</p>
+                </div>
+            ) : (
+                <Card className="glass-card border-white/10 shadow-2xl overflow-hidden">
+                    <CardContent className="p-6">
+                        <HistoryList history={history} user={user} />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
