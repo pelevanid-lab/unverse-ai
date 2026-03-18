@@ -11,15 +11,15 @@ import React from 'react';
 // 0. Setup queryClient
 const queryClient = new QueryClient()
 
-// 1. Get a project ID from https://cloud.walletconnect.com
-const projectId = 'a733f5f390c757fdad16512459e2286c'
+// 1. Get a project ID from https://cloud.reown.com (formerly walletconnect)
+const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || 'a733f5f390c757fdad16512459e2286c'
 
 // 2. Create wagmiConfig
 const metadata = {
   name: 'Unverse',
   description: 'Unverse - AI-Powered Content Universe',
-  url: 'https://web3modal.com',
-  icons: ['https://avatars.githubusercontent.com/u/37784886']
+  url: 'https://unverse-ai.vercel.app',
+  icons: ['https://unverse-ai.vercel.app/icon.png']
 }
 
 const chains = [mainnet, sepolia] as const
