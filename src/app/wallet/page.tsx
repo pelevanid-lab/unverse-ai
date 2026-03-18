@@ -15,8 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Plus } from 'lucide-react';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
+
+// --- CONSTANTS ---
+const ULC_PRICE_USDT = 0.015; // 1 ULC = 0.015 USDT
 
 // --- SUB-COMPONENTS ---
 
@@ -36,7 +39,7 @@ function BalanceCard({ user }: { user: UserProfile | null }) {
     const displayBalance = isNaN(numericBalance) ? '0.00' : numericBalance.toFixed(2);
 
     return (
-        <Card className="glass-card lg:col-span-2">
+        <Card className="glass-card lg:col-span-5">
             <CardHeader>
                 <CardTitle>Your Balance</CardTitle>
             </CardHeader>
@@ -45,7 +48,7 @@ function BalanceCard({ user }: { user: UserProfile | null }) {
                     <span className="text-4xl font-bold font-headline">{displayBalance}</span>
                     <span className="text-lg text-muted-foreground">ULC</span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">Universal Loyalty Credits</p>
+                <p className="text-sm text-muted-foreground mt-1 text-primary/80 font-medium">Unlock Currency</p>
             </CardContent>
         </Card>
     );
@@ -54,7 +57,7 @@ function BalanceCard({ user }: { user: UserProfile | null }) {
 function HistoryCardLink() {
     return (
         <Link href="/wallet/history">
-            <Card className="glass-card lg:col-span-2 border-white/10 hover:border-primary/50 transition-colors cursor-pointer">
+            <Card className="glass-card lg:col-span-5 border-white/10 hover:border-primary/50 transition-colors cursor-pointer mt-4">
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                         <span className="flex items-center gap-2"><History/> Transaction History</span>
@@ -69,64 +72,100 @@ function HistoryCardLink() {
     )
 }
 
-function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (amount: number, network: 'TRON' | 'TON') => Promise<void> }) {
-    const [ulcAmount, setUlcAmount] = useState(100);
+function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (ulcAmount: number, network: 'TRON' | 'TON', usdtCost: number) => Promise<void> }) {
+    const [ulcAmount, setUlcAmount] = useState<number>(1000);
+    const [usdtAmount, setUsdtAmount] = useState<number>(15);
     const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Sync amounts (1 ULC = 0.015 USDT)
+    const handleUlcChange = (val: string) => {
+        const num = Number(val);
+        setUlcAmount(num);
+        setUsdtAmount(Number((num * ULC_PRICE_USDT).toFixed(4)));
+    };
+
+    const handleUsdtChange = (val: string) => {
+        const num = Number(val);
+        setUsdtAmount(num);
+        setUlcAmount(Number((num / ULC_PRICE_USDT).toFixed(0)));
+    };
 
     const handlePurchase = async () => {
         setIsProcessing(true);
         try {
-            await onPurchase(ulcAmount, selectedNetwork);
+            await onPurchase(ulcAmount, selectedNetwork, usdtAmount);
         } finally {
             setIsProcessing(false);
         }
     };
 
     return (
-        <Card className="glass-card lg:col-span-3">
+        <Card className="glass-card lg:col-span-5 relative">
+            <Link href="/payment-wallets" className="absolute top-4 right-4 z-10">
+                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-2 sm:px-4 h-9" title="Payment Wallets">
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline text-xs font-medium">Payment Wallets</span>
+                </Button>
+            </Link>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Plus/> Buy ULC</CardTitle>
+                <CardTitle className="flex items-center gap-2">Buy ULC</CardTitle>
                 <CardDescription>
-                    Purchase Universal Loyalty Credits (ULC) with USDT.
+                    Purchase Unlock Currency (ULC) with USDT.
                     <br/>
-                    1 ULC = 1 USDT.
+                    <span className="text-primary font-bold">1 ULC = {ULC_PRICE_USDT} USDT</span>
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label>Amount of ULC to Buy</Label>
-                    <div className="flex items-center gap-2">
-                         <Button variant="outline" size="sm" onClick={() => setUlcAmount(p => Math.max(10, p - 10))}>-</Button>
-                         <Input
-                            type="number"
-                            value={ulcAmount}
-                            onChange={(e) => setUlcAmount(Number(e.target.value))}
-                            className="w-24 text-center font-bold"
-                            min="10"
-                            step="10"
-                        />
-                        <Button variant="outline" size="sm" onClick={() => setUlcAmount(p => p + 10)}>+</Button>
+            <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <div className="space-y-2">
+                        <Label>ULC Amount</Label>
+                        <div className="relative">
+                            <Input
+                                type="number"
+                                value={ulcAmount}
+                                onChange={(e) => handleUlcChange(e.target.value)}
+                                className="font-bold pl-12"
+                                min="1"
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">ULC</div>
+                        </div>
+                    </div>
+                    <div className="hidden md:flex items-center justify-center pb-2">
+                        <ArrowRightLeft className="text-muted-foreground w-5 h-5 rotate-90 md:rotate-0" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>USDT Cost</Label>
+                        <div className="relative">
+                            <Input
+                                type="number"
+                                value={usdtAmount}
+                                onChange={(e) => handleUsdtChange(e.target.value)}
+                                className="font-bold pl-14"
+                                min="0.01"
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 text-xs font-bold">USDT</div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <Label>Pay with USDT on</Label>
-                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4 pt-2">
-                        <div className="flex items-center space-x-2">
+                <div className="space-y-3">
+                    <Label className="text-sm font-medium">Select Payment Network</Label>
+                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-6">
+                        <div className="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                             <RadioGroupItem value="TON" id="ton" />
-                            <Label htmlFor="ton">TON Network</Label>
+                            <Label htmlFor="ton" className="cursor-pointer font-bold">TON</Label>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                             <RadioGroupItem value="TRON" id="tron" />
-                            <Label htmlFor="tron">TRON Network</Label>
+                            <Label htmlFor="tron" className="cursor-pointer font-bold">TRON</Label>
                         </div>
                     </RadioGroup>
                 </div>
 
-                <Button onClick={handlePurchase} disabled={isProcessing || !user || !systemConfig} className="w-full">
-                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <DollarSign className="w-4 h-4 mr-2" />}
-                    Pay {ulcAmount} USDT via {selectedNetwork}
+                <Button onClick={handlePurchase} disabled={isProcessing || !user || !systemConfig || usdtAmount <= 0} className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20">
+                    {isProcessing ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> : <DollarSign className="w-5 h-5 mr-2" />}
+                    Pay {usdtAmount} USDT for {ulcAmount} ULC
                 </Button>
             </CardContent>
         </Card>
@@ -135,7 +174,13 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
 
 function UsdtEarningsCard({ creator, onClaim, loading, availableBalance, pendingBalance }: { creator: Creator, onClaim: () => void, loading: boolean, availableBalance: number, pendingBalance: number }) {
     return (
-        <Card className="glass-card lg:col-span-5">
+        <Card className="glass-card lg:col-span-5 relative border-white/10">
+            <Link href="/creator/collection-wallets" className="absolute top-4 right-4 z-10">
+                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-2 sm:px-4 h-9" title="Collection Addresses">
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline text-xs font-medium">Collection Addresses</span>
+                </Button>
+            </Link>
             <CardHeader>
                 <CardTitle>USDT Earnings</CardTitle>
                 <CardDescription>Your earnings from subscriptions. You can claim your available balance.</CardDescription>
@@ -189,7 +234,7 @@ export default function WalletPage() {
       }
   }, [userProfile]);
 
-  const handlePurchase = async (amount: number, network: 'TRON' | 'TON') => {
+  const handlePurchase = async (ulcAmount: number, network: 'TRON' | 'TON', usdtCost: number) => {
     if (!user || !userProfile || !systemConfig) {
       toast({ variant: "destructive", title: "Error", description: "User profile or system config not loaded." });
       return;
@@ -207,24 +252,33 @@ export default function WalletPage() {
              if (!tonConnectUI.connected) {
                 await tonConnectUI.openModal();
              }
+            
             const result = await tonConnectUI.sendTransaction({
                 validUntil: Math.floor(Date.now() / 1000) + 360,
-                messages: [{ address: treasuryWallet, amount: (amount * 1_000_000).toString() }] // amount in nano-units
+                messages: [{ 
+                    address: treasuryWallet, 
+                    amount: (usdtCost * 1_000_000_000).toString() 
+                }]
             });
-            txHash = result.boc; // Use the BOC as a pseudo-tx hash for now
+            txHash = result.boc;
         } else {
-             // Placeholder for TronWeb integration.
-             // This would involve calling a function to interact with TronLink or another wallet.
-             console.log(`Simulating TRON purchase of ${amount} USDT to ${treasuryWallet}`);
-             txHash = `fake_tron_tx_${Date.now()}`;
+             const provider = (window as any).tronWeb;
+             if (!provider) throw new Error("TronLink not found. Please install TronLink.");
+             
+             const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; 
+             const contract = await provider.contract().at(usdtContractAddress);
+             const decimals = 6;
+             const amountInSun = (usdtCost * Math.pow(10, decimals)).toString();
+             
+             const result = await contract.transfer(treasuryWallet, amountInSun).send();
+             txHash = result;
         }
         
-        // Confirm purchase with backend
-        await confirmUlcPurchase(userProfile, amount, network, txHash);
+        await confirmUlcPurchase(userProfile, ulcAmount, network, txHash);
 
         toast({
             title: "Purchase Successful",
-            description: `Your purchase of ${amount} ULC has been processed.`,
+            description: `Your purchase of ${ulcAmount} ULC has been processed.`,
         });
 
     } catch (e: any) {
@@ -269,28 +323,35 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
-        <header>
-            <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
+    <div className="max-w-4xl mx-auto space-y-8 pb-20">
+        <header className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/mypage')} className="h-10 w-10 rounded-full bg-white/5">
+                <ChevronLeft className="w-6 h-6" />
+            </Button>
+            <div>
+                <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
+                <p className="text-muted-foreground">Manage your credits and earnings.</p>
+            </div>
         </header>
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="flex flex-col gap-6">
             <BalanceCard user={userProfile} />
-            <HistoryCardLink />
 
-            <div className="lg:col-span-5 border-b border-white/10"></div>
-
-            <BuyUlcCard user={userProfile} systemConfig={systemConfig} onPurchase={handlePurchase} />
-
-            {userProfile.isCreator && userProfile.creatorData && (
+            {userProfile.isCreator && (
                 <UsdtEarningsCard 
-                    creator={userProfile.creatorData} 
+                    creator={userProfile.creatorData || { uid: userProfile.uid, username: userProfile.username, subscriptionPriceMonthly: 0 }} 
                     onClaim={handleClaim} 
                     loading={claimLoading}
                     availableBalance={earnings.available}
                     pendingBalance={earnings.pending}
                 />
             )}
+
+            <BuyUlcCard user={userProfile} systemConfig={systemConfig} onPurchase={handlePurchase} />
+
+            <div className="border-t border-white/5 pt-4">
+                <HistoryCardLink />
+            </div>
         </div>
     </div>
   );

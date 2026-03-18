@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, ExternalLink, ArrowLeft, Settings } from 'lucide-react';
+import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,18 +13,27 @@ import { UserProfile } from '@/lib/types';
 import Link from 'next/link';
 import { ContainerTab } from '@/components/creator/ContainerTab';
 import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
-import { CreatorSettingsTab } from '@/components/creator/CreatorSettingsTab';
+import { useRouter } from 'next/navigation';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
+  const router = useRouter();
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-       <Card className="glass-card max-w-2xl p-8 border-primary/20 shadow-2xl shadow-primary/10">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center relative max-w-2xl mx-auto px-4">
+       <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => router.push('/mypage')} 
+            className="absolute top-0 left-4 h-10 w-10 rounded-full bg-white/5"
+        >
+            <ChevronLeft className="w-6 h-6" />
+        </Button>
+       <Card className="glass-card w-full p-8 border-primary/20 shadow-2xl shadow-primary/10 mt-12">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 mx-auto">
             <DollarSign className="w-8 h-8 text-primary" />
         </div>
-        <CardTitle className="text-3xl font-headline">Become a Creator</CardTitle>
-        <CardDescription className="mt-2 mb-6">Start your journey on Unverse, share your content, and earn directly from your supporters.</CardDescription>
-        <Button onClick={onBecomeCreator} disabled={loading} size="lg" className='w-full'>
+        <CardTitle className="text-3xl font-headline font-bold">Become a Creator</CardTitle>
+        <CardDescription className="mt-2 mb-8 text-base">Start your journey on Unverse, share your content, and earn directly from your supporters through subscriptions and unlocks.</CardDescription>
+        <Button onClick={onBecomeCreator} disabled={loading} size="lg" className='w-full h-14 text-lg font-bold rounded-2xl'>
             {loading ? 'Activating...' : 'Activate Creator Profile'}
         </Button>
        </Card>
@@ -34,9 +43,9 @@ function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => vo
 
 export default function CreatorPanel() {
   const { user, isConnected } = useWallet();
+  const router = useRouter();
   const [activationLoading, setActivationLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('container');
-  const [showSettings, setShowSettings] = useState(false);
 
   const handleBecomeCreator = async () => {
       if (!user?.uid) return;
@@ -45,7 +54,7 @@ export default function CreatorPanel() {
           const userRef = doc(db, "users", user.uid);
           await updateDoc(userRef, {
               isCreator: true,
-              bio: 'Welcome to my Unverse!', // Set default bio
+              bio: 'Welcome to my Unverse!',
               creatorData: {
                   category: 'General',
                   coverImage: '',
@@ -63,10 +72,11 @@ export default function CreatorPanel() {
 
   if (!isConnected || !user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <DollarSign className="w-16 h-16 text-primary" />
         <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
-        <p className="text-muted-foreground">Connect your wallet to manage your content.</p>
+        <p className="text-muted-foreground">Please connect your wallet to manage your content.</p>
+        <Link href="/"><Button>Back to Home</Button></Link>
       </div>
     );
   }
@@ -76,59 +86,67 @@ export default function CreatorPanel() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
-      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-8 border-white/10">
-        <div>
-            {showSettings && 
-                 <Button variant="ghost" onClick={() => setShowSettings(false)} className="mb-4 text-muted-foreground gap-2 px-0 hover:bg-transparent hover:text-white">
-                    <ArrowLeft className="w-4 h-4" /> Back to Panel
-                 </Button>
-            }
-          <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
-           <div className='flex items-center gap-4 mt-2'>
-             {!showSettings && (
-                <Button variant="link" onClick={() => setShowSettings(true)} className="text-muted-foreground p-0 h-auto hover:text-primary">
-                    Manage your digital empire.
-                </Button>
-             )}
-           </div>
-        </div>
-        {!showSettings && (
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-            <Link href="/wallet" className='w-full'>
-                <Card className="glass-card border-primary/20 bg-primary/5 flex items-center justify-center text-center px-6 py-3 rounded-2xl h-full hover:bg-primary/10 transition-colors cursor-pointer">
-                <div>
-                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Available Earnings</p>
-                    <p className="text-2xl font-bold font-headline">{user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span></p>
+    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-10 border-white/10">
+        <div className="flex items-start gap-4">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => router.push('/mypage')} 
+                className="h-10 w-10 rounded-full bg-white/5 shrink-0"
+            >
+                <ChevronLeft className="w-6 h-6" />
+            </Button>
+            <div>
+                <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
+                <div className='mt-2'>
+                    <Link href="/creator/settings" className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                        <span className="text-sm">Manage your digital empire</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                 </div>
+            </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <Link href="/wallet" className='w-full'>
+                <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-white/10 transition-colors cursor-pointer group">
+                    <div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Available Balance</p>
+                        <p className="text-3xl font-bold font-headline group-hover:text-primary transition-colors">
+                            {user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span>
+                        </p>
+                    </div>
                 </Card>
             </Link>
-            <Link href={`/profile/${user?.walletAddress}`} className="w-full">
-                <Button variant="outline" className="h-full w-full rounded-2xl gap-2">
-                <ExternalLink className="w-4 h-4" /> View Public Profile
-                </Button>
-            </Link>
+            <div className="flex flex-col gap-2">
+                <Link href={`/profile/${user?.walletAddress}`} className="w-full">
+                    <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5">
+                        <Globe className="w-4 h-4" /> View Public Profile
+                    </Button>
+                </Link>
+                <Link href="/creator/settings" className="w-full">
+                    <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6">
+                        <Settings className="w-4 h-4" /> Empire Settings
+                    </Button>
+                </Link>
             </div>
-        )}
+        </div>
       </header>
 
-    {showSettings ? (
-        <CreatorSettingsTab />
-    ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-14 bg-muted/20 p-1 rounded-2xl border border-white/5 mb-8">
-            <TabsTrigger value="container">Container</TabsTrigger>
-            <TabsTrigger value="published">Publish Contents</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 h-16 bg-muted/20 p-1.5 rounded-[2rem] border border-white/5 mb-10">
+                <TabsTrigger value="container" className="rounded-2xl text-base font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Container</TabsTrigger>
+                <TabsTrigger value="published" className="rounded-2xl text-base font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Published Contents</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="container">
-            <ContainerTab />
+            <TabsContent value="container" className="mt-0 focus-visible:outline-none">
+                <ContainerTab />
             </TabsContent>
-            <TabsContent value="published">
-            <PublishContentsTab />
+            <TabsContent value="published" className="mt-0 focus-visible:outline-none">
+                <PublishContentsTab />
             </TabsContent>
         </Tabs>
-    )}
     </div>
   );
 }

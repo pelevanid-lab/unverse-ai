@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Wallet, Loader2, CheckCircle, ChevronLeft, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile, NetworkWallet } from '@/lib/types';
@@ -120,9 +120,16 @@ function NetworkWalletManager({ user, network, onConnect }: { user: UserProfile,
 export default function PaymentWalletsPage() {
     const router = useRouter();
     const { user, isConnected } = useWallet();
-    const [preferredNetwork, setPreferredNetwork] = useState(user?.preferredPaymentNetwork || 'TRON');
+    const [preferredNetwork, setPreferredNetwork] = useState<'TRON' | 'TON'>('TRON');
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
+
+    // Sync state with user data when it loads
+    useEffect(() => {
+        if (user?.preferredPaymentNetwork) {
+            setPreferredNetwork(user.preferredPaymentNetwork);
+        }
+    }, [user?.preferredPaymentNetwork]);
 
     if (!isConnected || !user) {
         return (
@@ -138,8 +145,8 @@ export default function PaymentWalletsPage() {
         const userRef = doc(db, 'users', user.uid);
         await updateDoc(userRef, {
             [`paymentWallets.${network}`]: { address, verified: true },
-             // Set as preferred if it's the first wallet connected
-            ...(!user.paymentWallets && { preferredPaymentNetwork: network })
+             // Set as preferred if it's the first wallet connected or if none is set
+            ...(!user.preferredPaymentNetwork && { preferredPaymentNetwork: network })
         });
         toast({ title: `${network} Wallet Connected`, description: `Address: ${address.slice(0,6)}...` });
     };
@@ -160,7 +167,7 @@ export default function PaymentWalletsPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-12">
             <header className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full bg-white/5">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/mypage')} className="h-10 w-10 rounded-full bg-white/5">
                   <ChevronLeft className="w-6 h-6" />
                 </Button>
                 <div>
@@ -183,15 +190,20 @@ export default function PaymentWalletsPage() {
                      <RadioGroup value={preferredNetwork} onValueChange={(v) => setPreferredNetwork(v as 'TRON' | 'TON')}>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="TRON" id="r-tron" disabled={!user.paymentWallets?.TRON} />
-                            <Label htmlFor="r-tron">TRON</Label>
+                            <Label htmlFor="r-tron" className="cursor-pointer">TRON</Label>
                         </div>
                         <div className="flex items-center space-x-2">
                             <RadioGroupItem value="TON" id="r-ton" disabled={!user.paymentWallets?.TON} />
-                            <Label htmlFor="r-ton">TON</Label>
+                            <Label htmlFor="r-ton" className="cursor-pointer">TON</Label>
                         </div>
                     </RadioGroup>
-                    <Button onClick={handleSavePreferences} disabled={isSaving || preferredNetwork === user.preferredPaymentNetwork}>
-                        {isSaving ? <Loader2 className="animate-spin"/> : 'Save Preference'}
+                    <Button 
+                        onClick={handleSavePreferences} 
+                        disabled={isSaving || preferredNetwork === user.preferredPaymentNetwork}
+                        className="w-full sm:w-auto mt-2"
+                    >
+                        {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : null}
+                        Save Preference
                     </Button>
                 </CardContent>
             </Card>
