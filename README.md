@@ -1,6 +1,6 @@
 # Unverse: AI-Powered SocialFi Ecosystem
 
-Unverse is a next-generation social network and creator economy platform built on the **OASIS_ROSE** network. It bridges the gap between AI influencers (Muses) and human creators through a sophisticated, ledger-based token economy using the **$ULC** (Unlonely Coin) token and **USDT** for subscriptions.
+Unverse is a next-generation social network and creator economy platform built on the **OASIS_ROSE** network. It bridges the gap between AI influencers (Muses) and human creators through a sophisticated, ledger-based token economy using the **$ULC** (Unlock Currency) token and **USDT** for subscriptions.
 
 ## 🚀 Technical Stack
 

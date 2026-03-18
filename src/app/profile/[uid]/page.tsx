@@ -6,30 +6,22 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost, SystemConfig } from '@/lib/types';
-import { recordTransaction, getSystemConfig } from '@/lib/ledger';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { UserProfile, ContentPost } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Coins, Calendar, Loader2, Heart, Gift, ArrowLeft } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import Link from 'next/link';
+import { Crown, CheckCircle, Coins, Calendar, Loader2, ArrowLeft, Gift } from 'lucide-react';
 import { ProfileContentFeed } from '@/components/profile/ProfileContentFeed';
+
 
 export default function PublicProfilePage() {
   const { uid } = useParams();
-  const { user: currentUser, isConnected, ulcBalance } = useWallet();
+  const { user: currentUser } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [tipAmount, setTipAmount] = useState('5');
-  const [isTipDialogOpen, setIsTipDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -37,14 +29,12 @@ export default function PublicProfilePage() {
     if (!uid) return;
 
     setLoading(true);
-    getSystemConfig().then(setSystemConfig);
-
     const userDocRef = doc(db, 'users', uid as string);
     const unsubUser = onSnapshot(userDocRef, (userSnap) => {
       if (userSnap.exists()) {
         setProfile(userSnap.data() as UserProfile);
       } else {
-        router.push('/');
+        router.push('/'); // Redirect if user not found
       }
       setLoading(false);
     });
@@ -63,81 +53,23 @@ export default function PublicProfilePage() {
   }, [uid, router]);
 
   useEffect(() => {
-    if (currentUser?.activeSubscriptionIds?.includes(uid as string)) {
-      setIsSubscribed(true);
-    } else {
-      setIsSubscribed(false);
-    }
+    // Update subscription status whenever the current user's subscriptions change
+    setIsSubscribed(currentUser?.activeSubscriptionIds?.includes(uid as string) ?? false);
   }, [currentUser, uid]);
 
-  const handleSubscribeClick = async () => {
-    if (!isConnected || !currentUser || !profile?.isCreator || !systemConfig) {
-      toast({ title: "Connect Required", description: "Login to subscribe." });
-      return;
-    }
-    const subscriptionPrice = profile.creatorData?.subscriptionPriceMonthly ?? 0;
-    if (ulcBalance < subscriptionPrice) {
-      toast({ variant: 'destructive', title: "Insufficient ULC", description: "You need more ULC to subscribe." });
-      return;
-    }
-    setIsProcessing('subscribe');
-    try {
-      await recordTransaction({
-        type: 'subscription_payment_ulc',
-        userId: currentUser.uid,
-        creatorId: profile.uid,
-        amount: subscriptionPrice,
-        currency: 'ULC',
-        platformFee: subscriptionPrice * systemConfig.platform_subscription_fee_split
-      });
-      toast({ title: "Subscribed!", description: `You now have premium access to ${profile.username}.` });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Subscription Failed", description: e.message || "An unknown error occurred." });
-    } finally {
-      setIsProcessing(null);
-    }
+  const handleSubscribeClick = () => {
+    if (!uid) return;
+    router.push(`/subscribe/${uid}`);
   };
 
-  const handleSendTip = async () => {
-    if (!isConnected || !currentUser || !profile?.isCreator || !systemConfig) return;
-    const numericTipAmount = parseFloat(tipAmount);
-    if (isNaN(numericTipAmount) || numericTipAmount <= 0) {
-        toast({ variant: 'destructive', title: "Invalid Amount", description: "Please enter a valid tip amount." });
-        return;
-    }
-    if (ulcBalance < numericTipAmount) {
-        toast({ variant: 'destructive', title: "Insufficient ULC", description: "You don't have enough ULC to send this tip." });
-        return;
-    }
-    setIsProcessing('tip');
-    try {
-      await recordTransaction({
-        type: 'tip_payment_ulc',
-        userId: currentUser.uid,
-        creatorId: profile.uid,
-        amount: numericTipAmount,
-        currency: 'ULC',
-        platformFee: numericTipAmount * systemConfig.platform_tip_fee_split
-      });
-      toast({ title: "Tip Sent!", description: `You sent ${numericTipAmount} ULC to ${profile.username}.` });
-      setIsTipDialogOpen(false);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Tipping Failed", description: e.message });
-    } finally {
-      setIsProcessing(null);
-    }
-  };
-
-  if (loading) return (
+  if (loading || !profile) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Loader2 className="w-10 h-10 animate-spin text-primary" />
     </div>
   );
 
-  if (!profile) return null;
-
   const isSelf = currentUser?.uid === uid;
-  const { username, bio, avatar, isCreator, creatorData } = profile;
+  const { username, bio, avatar, isCreator, creatorData, createdAt } = profile;
   const { coverImage, category, subscriptionPriceMonthly } = creatorData || {};
 
   return (
@@ -164,7 +96,7 @@ export default function PublicProfilePage() {
             <p className="text-muted-foreground text-lg max-w-2xl">{bio}</p>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-4">
               {category && <Badge variant="secondary" className="gap-1"><Coins className="w-3 h-3" /> {category}</Badge>}
-              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</Badge>
+              <Badge variant="outline" className="gap-1"><Calendar className="w-3 h-3" /> Joined {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}</Badge>
             </div>
           </div>
           <div className="flex flex-col gap-3 min-w-[200px] shrink-0">
@@ -175,57 +107,18 @@ export default function PublicProfilePage() {
             ) : (
               <Button 
                 onClick={handleSubscribeClick} 
-                disabled={isProcessing === 'subscribe' || isSelf || !isCreator}
+                disabled={isSelf || !isCreator}
                 className="bg-primary hover:bg-primary/90 gap-2 h-14 rounded-2xl w-full font-bold shadow-lg shadow-primary/20"
               >
-                {isProcessing === 'subscribe' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Crown className="w-5 h-5" />}
+                <Crown className="w-5 h-5" />
                 Subscribe ({subscriptionPriceMonthly ?? 0} ULC)
               </Button>
             )}
 
-            <Dialog open={isTipDialogOpen} onOpenChange={setIsTipDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" disabled={isSelf || !isCreator} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
-                  <Gift className="w-4 h-4" /> Tip Creator
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="glass-card border-white/10">
-                <DialogHeader>
-                  <DialogTitle>Support {username}</DialogTitle>
-                  <DialogDescription>Your tip goes directly to the creator's wallet.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <p className="text-xs font-bold text-muted-foreground uppercase">Tip Amount (ULC)</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['5', '20', '50'].map(amt => (
-                        <Button 
-                          key={amt} 
-                          variant={tipAmount === amt ? 'default' : 'outline'}
-                          onClick={() => setTipAmount(amt)}
-                          className="h-12 rounded-xl"
-                        >
-                          {amt}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <Input 
-                    type="number" 
-                    value={tipAmount} 
-                    onChange={(e) => setTipAmount(e.target.value)}
-                    placeholder="Custom amount..."
-                    className="bg-muted border-none h-12"
-                  />
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleSendTip} disabled={isProcessing === 'tip'} className="w-full h-14 rounded-2xl gap-2">
-                    {isProcessing === 'tip' ? <Loader2 className="animate-spin w-4 h-4" /> : <Heart className="w-4 h-4" />}
-                    Send {tipAmount} ULC Tip
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            {/* Tip button can remain as a dialog, or be moved to its own page later if desired */}
+            <Button variant="outline" disabled={isSelf || !isCreator} className="h-12 rounded-2xl border-white/10 hover:bg-white/5 gap-2">
+                <Gift className="w-4 h-4" /> Tip Creator
+            </Button>
           </div>
         </div>
       </header>

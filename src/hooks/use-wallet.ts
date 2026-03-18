@@ -48,7 +48,11 @@ export function useWallet() {
   useEffect(() => {
     if (!address || !firebaseUser) {
       setUser(null);
-      if (isDisconnected) setLoading(false);
+       if (isDisconnected) {
+         setLoading(false);
+       } else {
+         setTimeout(() => setLoading(false), 1000); 
+       }
       return;
     }
 

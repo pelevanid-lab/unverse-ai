@@ -1,151 +1,127 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
+import { collection, query, getDocs, orderBy } from 'firebase/firestore';
 import { updateClaimRequestStatus } from '@/lib/ledger';
 import { ClaimRequest } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShieldCheck, Hourglass, XCircle, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Toaster } from "@/components/ui/toaster";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
-function ClaimRow({ claim }: { claim: ClaimRequest }) {
-    const { toast } = useToast();
-    const [isBusy, setIsBusy] = useState(false);
-    const [txHash, setTxHash] = useState('');
-    const [adminNote, setAdminNote] = useState('');
+const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString();
 
-    const handleUpdate = async (status: ClaimRequest['status']) => {
-        if (status === 'completed' && !txHash) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Transaction Hash is required to complete a claim.' });
-            return;
-        }
-        if (status === 'rejected' && !adminNote) {
-            toast({ variant: 'destructive', title: 'Error', description: 'An admin note is required for rejection.' });
-            return;
-        }
-        
-        setIsBusy(true);
-        try {
-            await updateClaimRequestStatus(claim.id, status, adminNote, txHash);
-            toast({ title: 'Success', description: `Claim ${claim.id} has been ${status}.` });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Update Failed', description: error.message });
-        }
-        setIsBusy(false);
-    };
-
-    const getStatusBadge = (status: ClaimRequest['status']) => {
-        switch (status) {
-            case 'pending': return <Badge variant="secondary"><Hourglass className="w-3 h-3 mr-1" />Pending</Badge>;
-            case 'approved': return <Badge variant="default" className="bg-blue-500"><ShieldCheck className="w-3 h-3 mr-1" />Approved</Badge>;
-            case 'completed': return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
-            case 'rejected': return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
-            default: return <Badge>{status}</Badge>;
-        }
-    };
-
-    return (
-        <TableRow>
-            <TableCell className="font-mono text-xs">{claim.creatorId}</TableCell>
-            <TableCell className="font-medium">{(claim.amount || 0).toFixed(2)} {claim.currency}</TableCell>
-            <TableCell>{claim.network}</TableCell>
-            <TableCell className="font-mono text-xs">{claim.walletAddress}</TableCell>
-            <TableCell>{new Date(claim.requestedAt).toLocaleString()}</TableCell>
-            <TableCell>{getStatusBadge(claim.status)}</TableCell>
-            <TableCell className="space-y-2 w-[350px]">
-                {claim.status === 'pending' && (
-                    <div className="flex items-center gap-2">
-                         <Input 
-                            placeholder="Rejection reason..." 
-                            value={adminNote} 
-                            onChange={(e) => setAdminNote(e.target.value)}
-                            className="text-xs"
-                        />
-                        <Button variant="outline" size="sm" onClick={() => handleUpdate('approved')} disabled={isBusy}>Approve</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleUpdate('rejected')} disabled={isBusy || !adminNote}>Reject</Button>
-                    </div>
-                )}
-                {claim.status === 'approved' && (
-                    <div className="flex items-center gap-2">
-                        <Input 
-                            placeholder="Enter TX Hash from payout" 
-                            value={txHash} 
-                            onChange={(e) => setTxHash(e.target.value)}
-                            className="font-mono text-xs"
-                        />
-                        <Button size="sm" onClick={() => handleUpdate('completed')} disabled={isBusy || !txHash}>Complete</Button>
-                    </div>
-                )}
-                {claim.status === 'completed' && <p className="text-xs text-muted-foreground font-mono">TX: {claim.txHash}</p>}
-                {claim.status === 'rejected' && <p className="text-xs text-muted-foreground">Note: {claim.adminNote}</p>}
-            </TableCell>
-        </TableRow>
-    );
-}
+const getExplorerLink = (network: 'TRON' | 'TON', address: string) => {
+    if (network === 'TRON') return `https://tronscan.org/#/address/${address}`;
+    if (network === 'TON') return `https://tonscan.org/address/${address}`;
+    return '#';
+};
 
 export default function AdminClaimsPage() {
     const [claims, setClaims] = useState<ClaimRequest[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [txHashes, setTxHashes] = useState<Record<string, string>>({});
+    const [processing, setProcessing] = useState<Record<string, boolean>>({});
+    const { toast } = useToast();
+
+    const fetchClaims = useCallback(async () => {
+        setLoading(true);
+        try {
+            const q = query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc'));
+            const querySnapshot = await getDocs(q);
+            setClaims(querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClaimRequest)));
+        } catch (err) {
+            toast({ variant: "destructive", title: "Error", description: "Failed to load claim requests." });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
-        const q = query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc'));
-        const unsubscribe = onSnapshot(q, 
-            (snapshot) => {
-                const claimsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClaimRequest));
-                setClaims(claimsData);
-                setIsLoading(false);
-            },
-            (err) => {
-                console.error("Error fetching claims:", err);
-                setError("Failed to load claims. Check console for details.");
-                setIsLoading(false);
-            }
-        );
-        return () => unsubscribe();
-    }, []);
+        fetchClaims();
+    }, [fetchClaims]);
+
+    const handleAction = async (id: string, status: ClaimRequest['status'], txHash?: string) => {
+        if (status === 'completed' && !txHash?.trim()) {
+            toast({ variant: "destructive", title: "Validation Error", description: "Transaction Hash is required." });
+            return;
+        }
+        setProcessing(prev => ({ ...prev, [id]: true }));
+        try {
+            await updateClaimRequestStatus(id, status, undefined, txHash);
+            toast({ title: "Success", description: `Claim has been ${status}.` });
+            fetchClaims();
+        } catch (err: any) {
+            toast({ variant: "destructive", title: "Action Failed", description: err.message });
+        } finally {
+            setProcessing(prev => ({ ...prev, [id]: false }));
+        }
+    };
+
+    const StatusBadge = ({ status }: { status: ClaimRequest['status'] }) => {
+         const variant: "default" | "secondary" | "destructive" | "outline" = {
+            pending: "secondary", approved: "default", completed: "outline", rejected: "destructive",
+        }[status];
+        return <Badge variant={variant}>{status.toUpperCase()}</Badge>;
+    };
+
+    if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8">
-            <Card>
+            <Toaster />
+            <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ShieldCheck/> Admin: USDT Claim Requests</CardTitle>
+                    <CardTitle>Admin Claims Management</CardTitle>
+                    <CardDescription>Review, approve, and process creator claim requests.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
-                        <p>Loading claims...</p>
-                    ) : error ? (
-                         <Alert variant="destructive">
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    ) : claims.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">No claim requests found.</p>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Creator ID</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Network</TableHead>
-                                    <TableHead>Wallet Address</TableHead>
-                                    <TableHead>Requested At</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {claims.map(claim => <ClaimRow key={claim.id} claim={claim} />)}
-                            </TableBody>
-                        </Table>
-                    )}
+                    <div className="space-y-4">
+                        {claims.map((claim) => (
+                            <Card key={claim.id} className="p-4">
+                                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                                    <div className="md:col-span-3 space-y-2">
+                                        <p className="text-sm font-mono text-muted-foreground">Creator: {claim.creatorId}</p>
+                                        <p className="text-lg font-bold">{claim.amount} {claim.currency}</p>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline">{claim.network}</Badge>
+                                            <Link href={getExplorerLink(claim.network, claim.walletAddress)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm hover:underline">
+                                                <span className="font-mono break-all">{claim.walletAddress}</span>
+                                                <ExternalLink className="h-4 w-4" />
+                                            </Link>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Requested: {formatDate(claim.requestedAt)}</p>
+                                    </div>
+                                    <div className="md:col-span-2 flex flex-col items-end space-y-2">
+                                        <StatusBadge status={claim.status} />
+                                        {processing[claim.id] ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+                                            <>
+                                                {claim.status === 'pending' && (
+                                                    <div className="flex gap-2">
+                                                        <Button size="sm" variant="outline" onClick={() => handleAction(claim.id, 'approved')}>Approve</Button>
+                                                        <Button size="sm" variant="destructive" onClick={() => handleAction(claim.id, 'rejected')}>Reject</Button>
+                                                    </div>
+                                                )}
+                                                {claim.status === 'approved' && (
+                                                    <div className="flex flex-col space-y-2 w-full">
+                                                        <Input placeholder="Enter Transaction Hash (txHash)" value={txHashes[claim.id] || ''} onChange={(e) => setTxHashes(prev => ({ ...prev, [claim.id]: e.target.value }))} />
+                                                        <Button size="sm" onClick={() => handleAction(claim.id, 'completed', txHashes[claim.id])}>Complete Claim</Button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                         {claims.length === 0 && <p>No pending claim requests found.</p>}
+                    </div>
                 </CardContent>
             </Card>
         </div>

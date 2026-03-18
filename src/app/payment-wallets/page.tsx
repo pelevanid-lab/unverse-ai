@@ -14,45 +14,60 @@ import { UserProfile, NetworkWallet } from '@/lib/types';
 import Link from 'next/link';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { useTonConnectUI } from '@tonconnect/ui-react';
 
 
 // Specific component for a single network wallet (TRON, TON, etc.)
 function NetworkWalletManager({ user, network, onConnect }: { user: UserProfile, network: 'TRON' | 'TON', onConnect: (network: 'TRON' | 'TON', address: string) => Promise<void> }) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const [tonConnectUI] = useTonConnectUI();
     const walletInfo = user.paymentWallets?.[network];
 
     const handleConnectClick = async () => {
-        let provider;
-        let connectRequest;
-        let getAddress;
 
         if (network === 'TRON') {
-            provider = (window as any).tronWeb;
+            const provider = (window as any).tronWeb;
             if (!provider) {
                 toast({ variant: "destructive", title: "TronLink Not Found", description: "Please install TronLink extension." });
                 return;
             }
-            connectRequest = () => provider.request({ method: 'tron_requestAccounts' });
-            getAddress = () => provider.defaultAddress.base58;
-        }
-        // NOTE: Placeholder for TON connection logic. 
-        // This will require a specific TON wallet provider library (e.g., TonConnectUI).
-        else if (network === 'TON') {
-             toast({ title: "Coming Soon!", description: "TON wallet integration is currently under development." });
-             return; // Prevent execution for now
-        }
-
-        setIsLoading(true);
-        try {
-            await connectRequest();
-            const address = getAddress();
-            if (!address) throw new Error("Wallet connection failed.");
-            await onConnect(network, address);
-        } catch (error: any) {
-            toast({ variant: "destructive", title: `${network} Connection Failed`, description: error.message });
-        } finally {
-            setIsLoading(false);
+            setIsLoading(true);
+            try {
+                await provider.request({ method: 'tron_requestAccounts' });
+                const address = provider.defaultAddress.base58;
+                if (!address) throw new Error("Wallet connection failed.");
+                await onConnect(network, address);
+            } catch (error: any) {
+                toast({ variant: "destructive", title: `${network} Connection Failed`, description: error.message });
+            } finally {
+                setIsLoading(false);
+            }
+        } else if (network === 'TON') {
+             console.log('TON Connect: Initiating connection...');
+             setIsLoading(true);
+ 
+             const unsubscribe = tonConnectUI.onStatusChange(wallet => {
+                 unsubscribe(); 
+                 console.log('TON Connect: onStatusChange triggered', wallet);
+                 if (wallet) {
+                     const address = wallet.account.address;
+                     console.log('TON Connect: Wallet approved, address received:', address);
+                     onConnect('TON', address).catch((error: any) => {
+                         console.error('TON Connect: Wallet assignment failed after approval', error);
+                         toast({ variant: "destructive", title: "TON Wallet Assignment Failed", description: error.message });
+                     }).finally(() => {
+                         setIsLoading(false);
+                     });
+                 } else {
+                     console.log('TON Connect: Wallet connection declined or modal closed');
+                     toast({ variant: "default", title: "TON Connection Canceled" });
+                     setIsLoading(false);
+                 }
+             });
+ 
+             console.log('TON Connect: Opening modal');
+             tonConnectUI.openModal();
         }
     };
 

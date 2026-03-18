@@ -1,131 +1,51 @@
 
 "use client"
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useWallet } from '@/hooks/use-wallet';
+import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { UserProfile, Creator, SystemConfig } from '@/lib/types';
+import { confirmUlcPurchase, createClaimRequest, getSystemConfig, calculateCreatorUsdtEarnings } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Coins, History, ShoppingBag, Lock, RefreshCw, ChevronLeft, CheckCircle, XCircle, Star, Loader2, Wallet as WalletIcon, ExternalLink, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
-import { confirmUlcPurchase, getSystemConfig, createClaimRequest, calculateCreatorUsdtEarnings } from '@/lib/ledger';
-import { useToast } from '@/hooks/use-toast';
-import { SystemConfig, UserProfile, Creator } from '@/lib/types';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import Link from 'next/link';
+import { Label } from '@/components/ui/label';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Plus } from 'lucide-react';
+import { useTonConnectUI } from '@tonconnect/ui-react';
 
+// --- SUB-COMPONENTS ---
 
 function BalanceCard({ user }: { user: UserProfile | null }) {
-    const available = user?.ulcBalance?.available ?? 0;
-    const staked = (user?.ulcBalance as any)?.staked ?? 0; // Temp fix for staked which might not be in type
+    let numericBalance = 0;
+    const ulcBalance = user?.ulcBalance;
 
-    return (
-        <Card className="glass-card border-white/10">
-            <CardHeader><CardTitle className="flex items-center gap-2"><WalletIcon /> Wallet Overview</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-background/50">
-                    <p className="text-sm text-muted-foreground">Available ULC</p>
-                    <p className="text-3xl font-bold">{available.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-background/50">
-                    <p className="text-sm text-muted-foreground">Locked (Staked) ULC</p>
-                    <p className="text-3xl font-bold">{staked.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (amount: number, network: 'TRON' | 'TON') => Promise<void> }) {
-    const [usdtAmount, setUsdtAmount] = useState('10');
-    const [purchaseState, setPurchaseState] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
-    const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>(user.preferredPaymentNetwork || 'TRON');
-
-    const ulcToReceive = useMemo(() => {
-        if (!systemConfig) return 0;
-        const amount = parseFloat(usdtAmount);
-        return isNaN(amount) ? 0 : amount / systemConfig.internal_ulc_purchase_price;
-    }, [usdtAmount, systemConfig]);
-
-    const handleBuyClick = async () => {
-        const amount = parseFloat(usdtAmount);
-        if (isNaN(amount) || amount <= 0) return;
-        setPurchaseState('pending');
-        try {
-            await onPurchase(amount, selectedNetwork);
-            setPurchaseState('success');
-        } catch (err) {
-            setPurchaseState('error');
-        } finally {
-            setTimeout(() => setPurchaseState('idle'), 3000);
+    if (typeof ulcBalance === 'number') {
+        numericBalance = ulcBalance;
+    } else if (typeof ulcBalance === 'object' && ulcBalance !== null && 'available' in ulcBalance) {
+        const availableBalance = (ulcBalance as any).available;
+        if (typeof availableBalance === 'number') {
+            numericBalance = availableBalance;
         }
-    };
+    }
+
+    const displayBalance = isNaN(numericBalance) ? '0.00' : numericBalance.toFixed(2);
 
     return (
-        <Card className="glass-card border-white/10"> 
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle className="flex items-center gap-2"><ShoppingBag/> Buy ULC</CardTitle>
-                    <CardDescription>Purchase ULC tokens with USDT.</CardDescription>
-                </div>
-                <Link href="/payment-wallets">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
-                        <WalletIcon className="w-4 h-4"/> Payment Wallets
-                    </Button>
-                </Link>
+        <Card className="glass-card lg:col-span-2">
+            <CardHeader>
+                <CardTitle>Your Balance</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-                 <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="grid grid-cols-2 gap-2">
-                    <div><RadioGroupItem value="TRON" id="tron" className="peer sr-only" /><Label htmlFor="tron" className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary cursor-pointer">TRON</Label></div>
-                    <div><RadioGroupItem value="TON" id="ton" className="peer sr-only" /><Label htmlFor="ton" className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary cursor-pointer">TON</Label></div>
-                </RadioGroup>
-                <div className="space-y-1">
-                    <Label htmlFor="usdt-amount">You Spend (USDT)</Label>
-                    <Input id="usdt-amount" type="number" value={usdtAmount} onChange={e => setUsdtAmount(e.target.value)} placeholder="e.g., 100" />
+            <CardContent>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold font-headline">{displayBalance}</span>
+                    <span className="text-lg text-muted-foreground">ULC</span>
                 </div>
-                <div className="text-center p-4 rounded-lg bg-background/50">
-                    <p className="text-sm text-muted-foreground">You Receive (approx.)</p>
-                    <p className="text-2xl font-bold text-primary">{ulcToReceive.toFixed(2)} ULC</p>
-                </div>
-                <Button onClick={handleBuyClick} disabled={purchaseState !== 'idle' || !systemConfig} className="w-full h-12">
-                    {purchaseState === 'pending' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                    {purchaseState === 'success' && <><CheckCircle className="mr-2 h-4 w-4" /> Success!</>}
-                    {purchaseState === 'error' && <><XCircle className="mr-2 h-4 w-4" /> Failed</>}
-                    {purchaseState === 'idle' && 'Buy ULC'}
-                </Button>
-            </CardContent>
-        </Card>
-    );
-}
-
-function UsdtEarningsCard({ creator, onClaim, loading }: { creator: Creator, onClaim: () => void, loading: boolean }) {
-    const [earnings, setEarnings] = useState<{ available: number, pending: number }>({ available: 0, pending: 0 });
-    useEffect(() => {
-        if (!creator.uid) return;
-        calculateCreatorUsdtEarnings(creator.uid).then(setEarnings);
-    }, [creator.uid]);
-    const canClaim = earnings.available > 0 && earnings.pending === 0;
-    return (
-        <Card className="glass-card border-white/10 bg-gradient-to-br from-purple-500/10 to-blue-500/10">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle className="flex items-center gap-2">USDT Earnings</CardTitle>
-                    <CardDescription>Claim your earnings from subscriptions.</CardDescription>
-                </div>
-                <Link href="/creator/collection-wallets">
-                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
-                        <WalletIcon className="w-4 h-4"/> Collection Wallets
-                    </Button>
-                </Link>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-background/50"><p className="text-sm text-muted-foreground">Available to Claim</p><p className="text-3xl font-bold text-green-400">${earnings.available.toFixed(2)}</p></div>
-                <div className="p-4 rounded-lg bg-background/50"><p className="text-sm text-muted-foreground">Pending Claims</p><p className="text-3xl font-bold">${earnings.pending.toFixed(2)}</p></div>
-                <Button onClick={onClaim} disabled={!canClaim || loading} className="w-full h-12">
-                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                   {canClaim ? 'Request Claim' : (earnings.pending > 0 ? 'Claim is Pending' : 'No Earnings to Claim')}
-                </Button>
+                <p className="text-sm text-muted-foreground mt-1">Universal Loyalty Credits</p>
             </CardContent>
         </Card>
     );
@@ -149,78 +69,228 @@ function HistoryCardLink() {
     )
 }
 
+function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (amount: number, network: 'TRON' | 'TON') => Promise<void> }) {
+    const [ulcAmount, setUlcAmount] = useState(100);
+    const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handlePurchase = async () => {
+        setIsProcessing(true);
+        try {
+            await onPurchase(ulcAmount, selectedNetwork);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    return (
+        <Card className="glass-card lg:col-span-3">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Plus/> Buy ULC</CardTitle>
+                <CardDescription>
+                    Purchase Universal Loyalty Credits (ULC) with USDT.
+                    <br/>
+                    1 ULC = 1 USDT.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label>Amount of ULC to Buy</Label>
+                    <div className="flex items-center gap-2">
+                         <Button variant="outline" size="sm" onClick={() => setUlcAmount(p => Math.max(10, p - 10))}>-</Button>
+                         <Input
+                            type="number"
+                            value={ulcAmount}
+                            onChange={(e) => setUlcAmount(Number(e.target.value))}
+                            className="w-24 text-center font-bold"
+                            min="10"
+                            step="10"
+                        />
+                        <Button variant="outline" size="sm" onClick={() => setUlcAmount(p => p + 10)}>+</Button>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Pay with USDT on</Label>
+                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4 pt-2">
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="TON" id="ton" />
+                            <Label htmlFor="ton">TON Network</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="TRON" id="tron" />
+                            <Label htmlFor="tron">TRON Network</Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+
+                <Button onClick={handlePurchase} disabled={isProcessing || !user || !systemConfig} className="w-full">
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <DollarSign className="w-4 h-4 mr-2" />}
+                    Pay {ulcAmount} USDT via {selectedNetwork}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+function UsdtEarningsCard({ creator, onClaim, loading, availableBalance, pendingBalance }: { creator: Creator, onClaim: () => void, loading: boolean, availableBalance: number, pendingBalance: number }) {
+    return (
+        <Card className="glass-card lg:col-span-5">
+            <CardHeader>
+                <CardTitle>USDT Earnings</CardTitle>
+                <CardDescription>Your earnings from subscriptions. You can claim your available balance.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                 <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Available to Claim</p>
+                    <p className="text-2xl font-bold font-headline">{availableBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDT</span></p>
+                </div>
+                <div className="space-y-1">
+                     <p className="text-sm text-muted-foreground">Pending Claim</p>
+                    <p className="text-2xl font-bold font-headline">{pendingBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDT</span></p>
+                </div>
+                 <Button onClick={onClaim} disabled={loading || availableBalance <= 0} className="w-full md:w-auto">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <WalletIcon className="w-4 h-4 mr-2" />}
+                    Claim Funds
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 // --- MAIN WALLET PAGE ---
 export default function WalletPage() {
   const router = useRouter();
   const { user, isConnected } = useWallet();
   const { toast } = useToast();
+  const [tonConnectUI] = useTonConnectUI();
   
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   const [claimLoading, setClaimLoading] = useState(false);
-  
+  const [earnings, setEarnings] = useState<{ available: number, pending: number }>({ available: 0, pending: 0 });
+
+  // Fetch user profile and system config
   useEffect(() => {
-    getSystemConfig().then(setSystemConfig).catch(err => toast({ variant: 'destructive', title: 'Error', description: 'Could not load system configuration.' }));
-  }, [toast]);
+    getSystemConfig().then(setSystemConfig);
+    if (user?.uid) {
+        const unsub = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+            setUserProfile(doc.data() as UserProfile);
+        });
+        return () => unsub();
+    } 
+  }, [user, router]);
+
+  // Fetch creator earnings
+  useEffect(() => {
+      if(userProfile?.isCreator && userProfile.uid) {
+          calculateCreatorUsdtEarnings(userProfile.uid).then(setEarnings);
+      }
+  }, [userProfile]);
 
   const handlePurchase = async (amount: number, network: 'TRON' | 'TON') => {
-    if (!user) throw new Error("User not connected");
-    toast({ title: 'Action Required', description: 'Please confirm transaction in your wallet.' });
-    // This is a mock, replace with actual transaction call
-    const fakeTxHash = `fake_tx_${Date.now()}`;
+    if (!user || !userProfile || !systemConfig) {
+      toast({ variant: "destructive", title: "Error", description: "User profile or system config not loaded." });
+      return;
+    }
+
+    const treasuryWallet = systemConfig.treasury_wallets[network];
+    if (!treasuryWallet) {
+         toast({ variant: "destructive", title: "Error", description: `Treasury wallet for ${network} is not configured.` });
+         return;
+    }
+
     try {
-        await confirmUlcPurchase(user, amount, network, fakeTxHash);
-        toast({ title: 'Purchase Confirmed', description: 'ULC balance will update shortly.' });
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Unknown error';
-        toast({ variant: 'destructive', title: 'Purchase Failed', description: msg });
-        throw error;
+        let txHash: string;
+        if (network === 'TON') {
+             if (!tonConnectUI.connected) {
+                await tonConnectUI.openModal();
+             }
+            const result = await tonConnectUI.sendTransaction({
+                validUntil: Math.floor(Date.now() / 1000) + 360,
+                messages: [{ address: treasuryWallet, amount: (amount * 1_000_000).toString() }] // amount in nano-units
+            });
+            txHash = result.boc; // Use the BOC as a pseudo-tx hash for now
+        } else {
+             // Placeholder for TronWeb integration.
+             // This would involve calling a function to interact with TronLink or another wallet.
+             console.log(`Simulating TRON purchase of ${amount} USDT to ${treasuryWallet}`);
+             txHash = `fake_tron_tx_${Date.now()}`;
+        }
+        
+        // Confirm purchase with backend
+        await confirmUlcPurchase(userProfile, amount, network, txHash);
+
+        toast({
+            title: "Purchase Successful",
+            description: `Your purchase of ${amount} ULC has been processed.`,
+        });
+
+    } catch (e: any) {
+        console.error("Purchase failed", e);
+        toast({
+            variant: "destructive",
+            title: "Purchase Failed",
+            description: e.message || "An error occurred during the transaction.",
+        });
     }
   };
 
-  const handleClaimRequest = async () => {
-      if (!user?.isCreator) return;
-      setClaimLoading(true);
-      try {
-          await createClaimRequest(user as Creator);
-          toast({ title: 'Claim Request Submitted', description: 'Your request is pending admin approval.' });
-      } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Failed to submit claim.';
-          toast({ variant: 'destructive', title: 'Claim Failed', description: msg });
-      } finally {
-          setClaimLoading(false);
-      }
-  }
-
-  if (!isConnected || !user) {
+  const handleClaim = async () => {
+    if (!userProfile?.creatorData) return;
+    setClaimLoading(true);
+    try {
+        const claimId = await createClaimRequest(userProfile.creatorData);
+        toast({
+            title: "Claim Request Submitted",
+            description: `Your request to claim ${earnings.available.toFixed(2)} USDT is pending approval. Claim ID: ${claimId}`
+        });
+        calculateCreatorUsdtEarnings(userProfile.uid).then(setEarnings); // Refresh earnings
+    } catch (e: any) {
+         toast({
+            variant: "destructive",
+            title: "Claim Failed",
+            description: e.message || "An error occurred.",
+        });
+    } finally {
+        setClaimLoading(false);
+    }
+  };
+  
+  if (!isConnected || !user || !userProfile) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-[70vh]">
-            <WalletIcon className="w-16 h-16 mb-4 text-primary" />
-            <h1 className="text-3xl font-bold">My Wallet</h1>
-            <p className="text-muted-foreground">Please connect your wallet to continue.</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        <h1 className="text-3xl font-headline font-bold">Loading Wallet...</h1>
+        <p className="text-muted-foreground">Please connect your wallet to continue.</p>
+      </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 px-4">
-        <header className="flex items-center justify-between pt-8">
-          <div>
-             <h1 className="text-5xl font-headline font-bold gradient-text">My Wallet</h1>
-             <p className="text-muted-foreground">Your central dashboard for transactions and earnings.</p>
-          </div>
-          <Button onClick={() => router.back()} variant="ghost"><ChevronLeft className="w-4 h-4 mr-2" /> Back</Button>
+    <div className="space-y-8 pb-12">
+        <header>
+            <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
         </header>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <BalanceCard user={userProfile} />
+            <HistoryCardLink />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6">
-                <BalanceCard user={user} />
-                <BuyUlcCard user={user} systemConfig={systemConfig} onPurchase={handlePurchase} />
-            </div>
+            <div className="lg:col-span-5 border-b border-white/10"></div>
 
-            <div className="lg:col-span-2 space-y-6">
-                 {user.isCreator && <UsdtEarningsCard creator={user as Creator} onClaim={handleClaimRequest} loading={claimLoading} />}
-                 <HistoryCardLink />
-            </div>
+            <BuyUlcCard user={userProfile} systemConfig={systemConfig} onPurchase={handlePurchase} />
+
+            {userProfile.isCreator && userProfile.creatorData && (
+                <UsdtEarningsCard 
+                    creator={userProfile.creatorData} 
+                    onClaim={handleClaim} 
+                    loading={claimLoading}
+                    availableBalance={earnings.available}
+                    pendingBalance={earnings.pending}
+                />
+            )}
         </div>
     </div>
   );
