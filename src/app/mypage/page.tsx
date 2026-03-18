@@ -5,63 +5,41 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet } from 'lucide-react';
+import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Creator, LedgerEntry } from '@/lib/types';
+import { LedgerEntry } from '@/lib/types';
 
 const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
 
 export default function MyPage() {
   const { user, isConnected, disconnectWallet, rawAddress } = useWallet();
-  const [creatorProfile, setCreatorProfile] = useState<Creator | null>(null);
-  const [calculatedBalance, setCalculatedBalance] = useState<number | null>(null);
-  const [calculatedEarnings, setCalculatedEarnings] = useState<number | null>(null);
-  const [calculatedSpent, setCalculatedSpent] = useState<number | null>(null);
+  const [calculatedEarnings, setCalculatedEarnings] = useState(0);
+  const [calculatedSpent, setCalculatedSpent] = useState(0);
 
   useEffect(() => {
-    if (!user || !rawAddress) return;
+    if (!user?.uid) return;
 
-    const addressFormats = Array.from(new Set([user.walletAddress.toLowerCase(), rawAddress.toLowerCase()]));
     const ledgerRef = collection(db, 'ledger');
-    const entries = new Map<string, LedgerEntry>();
-    let debounceTimer: NodeJS.Timeout;
 
-    const processTransactions = () => {
-      const allEntries = Array.from(entries.values());
-      const totalIn = allEntries.filter(e => addressFormats.includes(e.toWallet.toLowerCase())).reduce((sum, e) => sum + e.amount, 0);
-      const totalOut = allEntries.filter(e => addressFormats.includes(e.fromWallet.toLowerCase())).reduce((sum, e) => sum + e.amount, 0);
-      const earnings = allEntries.filter(e => addressFormats.includes(e.toWallet.toLowerCase()) && ['creator_payout', 'tip', 'premium_unlock'].includes(e.type)).reduce((sum, e) => sum + e.amount, 0);
-      
-      setCalculatedBalance(totalIn - totalOut);
-      setCalculatedEarnings(earnings);
-      setCalculatedSpent(totalOut);
-    };
+    // Safe listeners for earnings and spendings
+    const qIn = query(ledgerRef, where('toUserId', '==', user.uid));
+    const qOut = query(ledgerRef, where('fromUserId', '==', user.uid));
 
-    const listener = (querySnapshot: any) => {
-      querySnapshot.forEach((doc: any) => { entries.set(doc.id, { id: doc.id, ...doc.data() }); });
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(processTransactions, 200);
-    };
+    const unsubIn = onSnapshot(qIn, (snap) => {
+        const total = snap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+        setCalculatedEarnings(total);
+    });
 
-    const qFrom = query(ledgerRef, where('fromWallet', 'in', addressFormats));
-    const qTo = query(ledgerRef, where('toWallet', 'in', addressFormats));
-    const unsubFrom = onSnapshot(qFrom, listener);
-    const unsubTo = onSnapshot(qTo, listener);
+    const unsubOut = onSnapshot(qOut, (snap) => {
+        const total = snap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+        setCalculatedSpent(total);
+    });
 
-    let unsubCreator: () => void = () => {};
-    if (user.isCreator) {
-      const creatorRef = doc(db, 'creators', user.uid);
-      unsubCreator = onSnapshot(creatorRef, (doc) => {
-        if (doc.exists()) setCreatorProfile(doc.data() as Creator);
-      });
-    }
-
-    return () => { unsubFrom(); unsubTo(); unsubCreator(); clearTimeout(debounceTimer); };
-  }, [user, rawAddress]);
+    return () => { unsubIn(); unsubOut(); };
+  }, [user?.uid]);
 
 
   if (!isConnected || !user) {
@@ -75,107 +53,136 @@ export default function MyPage() {
     );
   }
 
-  const displayName = creatorProfile?.username || user?.username;
-  const avatar = creatorProfile?.avatar || user?.avatar || NON_GENDER_AVATAR;
-  const bio = creatorProfile?.bio || user?.bio;
+  const displayName = user.username;
+  const avatar = user.avatar || NON_GENDER_AVATAR;
+  const bio = user.bio;
+  const availableULC = user.ulcBalance?.available || 0;
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-10 pb-20">
       <div className="flex flex-col md:flex-row items-center gap-8 pb-10 border-b border-white/10"> 
-        <Avatar className="w-32 h-32 border-4 border-primary/20 shadow-xl">
-          <AvatarImage src={avatar} className="object-cover"/>
-          <AvatarFallback>{displayName?.[0]}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+            <Avatar className="w-40 h-40 border-4 border-primary/20 shadow-2xl">
+                <AvatarImage src={avatar} className="object-cover"/>
+                <AvatarFallback className="text-4xl">{displayName?.[0]}</AvatarFallback>
+            </Avatar>
+            {user.isCreator && <div className="absolute -bottom-2 -right-2 bg-primary p-2 rounded-full border-4 border-background"><Crown className="w-5 h-5 text-white" /></div>}
+        </div>
+        
         <div className="flex-1 text-center md:text-left">
-          <h1 className="text-4xl font-headline font-bold mb-1 flex items-center justify-center md:justify-start gap-2">
+          <h1 className="text-5xl font-headline font-bold mb-2 flex items-center justify-center md:justify-start gap-3">
             {displayName}
-            {user?.isCreator && <CheckCircle className="w-5 h-5 text-primary" />}
+            {user.isCreator && <CheckCircle className="w-6 h-6 text-primary" />}
           </h1>
-          <p className="text-muted-foreground mb-4">{bio}</p>
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-            <div className="bg-muted px-4 py-1.5 rounded-full text-xs font-mono border border-white/5">{user?.walletAddress.slice(0, 16)}...</div>
-            <Button variant="outline" size="sm" onClick={disconnectWallet} className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-full px-4">
+          <p className="text-xl text-muted-foreground mb-6 max-w-2xl">{bio}</p>
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+            <div className="bg-white/5 px-4 py-2 rounded-full text-xs font-mono border border-white/10 text-muted-foreground">
+                {user.walletAddress.slice(0, 8)}...{user.walletAddress.slice(-8)}
+            </div>
+            <Button variant="ghost" size="sm" onClick={disconnectWallet} className="gap-2 text-destructive hover:bg-destructive/10 rounded-full px-4">
               <LogOut className="w-4 h-4" /> Disconnect
             </Button>
           </div>
         </div>
-        <div className="flex gap-4">
-          {user?.isCreator && <Link href="/creator"><Button className="bg-primary hover:bg-primary/90 rounded-2xl h-12 px-6 font-bold shadow-lg shadow-primary/20">Creator Panel</Button></Link>}
-          <Link href="/wallet"><Button variant="secondary" className="rounded-2xl h-12 px-6">My Wallet</Button></Link>
+        
+        <div className="flex flex-col gap-3 w-full md:w-auto">
+          {user.isCreator ? (
+             <Link href="/creator"><Button className="w-full bg-primary hover:bg-primary/90 rounded-2xl h-14 px-8 font-bold shadow-xl shadow-primary/20 text-lg">Creator Panel</Button></Link>
+          ) : (
+             <Link href="/creator"><Button variant="outline" className="w-full rounded-2xl h-14 px-8 border-primary/30 text-primary hover:bg-primary/5">Become a Creator</Button></Link>
+          )}
+          <Link href="/wallet"><Button variant="secondary" className="w-full rounded-2xl h-14 px-8 font-bold">My Wallet</Button></Link>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="glass-card border-white/10 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Coins className="w-4 h-4 text-primary" /> Available ULC</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><Coins className="w-4 h-4 text-primary" /> Available Balance</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-4xl font-headline font-bold">{calculatedBalance !== null ? calculatedBalance.toFixed(2) : '0.00'}</div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-mono uppercase">Internal Balance</p>
+            <div className="text-5xl font-headline font-bold tracking-tighter">{availableULC.toFixed(2)}</div>
+            <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-widest opacity-60">Unlock Currency (ULC)</p>
           </CardContent>
         </Card>
 
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ArrowUpRight className="w-4 h-4 text-green-400" /> Total Earnings</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-4xl font-headline font-bold">{calculatedEarnings !== null ? calculatedEarnings.toFixed(2) : '0.00'}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">From subscriptions, tips, and unlocks</p>
+            <div className="text-5xl font-headline font-bold tracking-tighter">{calculatedEarnings.toFixed(2)}</div>
+            <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-widest opacity-60">Lifetime USDT & ULC</p>
           </CardContent>
         </Card>
 
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2"><ArrowDownLeft className="w-4 h-4 text-orange-400" /> Total Spent</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-4xl font-headline font-bold">{calculatedSpent !== null ? calculatedSpent.toFixed(2) : '0.00'} ULC</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Premium unlocks and other fees</p>
+            <div className="text-5xl font-headline font-bold tracking-tighter">{calculatedSpent.toFixed(2)}</div>
+            <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-widest opacity-60">Unlocks & Subscriptions</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-4 pt-4">
-        <h2 className="text-xl font-headline font-bold">My Content & Settings</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Link href="/my-unlocks" passHref>
-                <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
+      <div className="space-y-6 pt-6">
+        <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+            <Settings className="w-6 h-6 text-primary" /> Management
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+            <Link href="/my-unlocks" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
-                            <Sparkles className="w-6 h-6 text-primary" />
-                            <p className="font-bold">Premium Unlocks</p>
+                            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"><Sparkles className="w-6 h-6 text-primary" /></div>
+                            <div>
+                                <p className="font-bold">Premium Unlocks</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Owned Content</p>
+                            </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardContent>
                 </Card>
             </Link>
-             <Link href="/active-subs" passHref>
-                <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
+
+             <Link href="/active-subs" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-yellow-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
-                            <Crown className="w-6 h-6 text-yellow-400" />
-                            <p className="font-bold">Active Subscriptions</p>
+                            <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-colors"><Crown className="w-6 h-6 text-yellow-400" /></div>
+                            <div>
+                                <p className="font-bold">Subscriptions</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Active Access</p>
+                            </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors" />
                     </CardContent>
                 </Card>
             </Link>
-             <Link href="/ai-muses" passHref>
-                <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
+
+             <Link href="/ai-muses" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-teal-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
-                            <Bot className="w-6 h-6 text-teal-400" />
-                            <p className="font-bold">Owned AI Muses</p>
+                            <div className="p-3 bg-teal-500/10 rounded-xl group-hover:bg-teal-500/20 transition-colors"><Bot className="w-6 h-6 text-teal-400" /></div>
+                            <div>
+                                <p className="font-bold">AI Muses</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Economic Agency</p>
+                            </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-teal-400 transition-colors" />
                     </CardContent>
                 </Card>
             </Link>
-            <Link href="/payment-wallets" passHref>
-                <Card className="glass-card border-white/10 hover:border-primary/30 transition-all h-full">
+
+            <Link href="/payment-wallets" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-blue-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
-                            <Wallet className="w-6 h-6 text-blue-400" />
-                            <p className="font-bold">Payment Wallets</p>
+                            <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors"><Wallet className="w-6 h-6 text-blue-400" /></div>
+                            <div>
+                                <p className="font-bold">Payment Wallets</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Connection</p>
+                            </div>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-400 transition-colors" />
                     </CardContent>
                 </Card>
             </Link>

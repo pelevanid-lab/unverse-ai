@@ -6,13 +6,13 @@ import { useEffect, useState } from 'react';
 import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2 } from 'lucide-react';
+import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, orderBy, limit, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, UserProfile, SystemConfig } from '@/lib/types';
+import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdminDashboard() {
@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [recentLedger, setRecentLedger] = useState<LedgerEntry[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [claims, setClaims] = useState<ClaimRequest[]>([]);
   const [loading, setLoading] = useState<string | boolean>(false);
   const { toast } = useToast();
 
@@ -52,15 +53,30 @@ export default function AdminDashboard() {
       setAllUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
     });
 
-    return () => { unsubLedger(); unsubUsers(); };
+    const unsubClaims = onSnapshot(query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc')), (snap) => {
+      setClaims(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClaimRequest)));
+    });
+
+    return () => { unsubLedger(); unsubUsers(); unsubClaims(); };
   }, [authorized]);
+
+  const handleUpdateClaim = async (claimId: string, status: 'approved' | 'completed' | 'rejected') => {
+    setLoading(`claim-${claimId}`);
+    try {
+        await updateDoc(doc(db, 'claim_requests', claimId), { status });
+        toast({ title: `Claim ${status.toUpperCase()}` });
+    } catch (e) {
+        toast({ variant: 'destructive', title: "Update Failed" });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const handleInitialize = async () => {
     setLoading('init');
     try {
-      const conf = await initializeSystemConfig();
-      setConfig(conf);
-      toast({ title: "System Initialized", description: "OASIS_ROSE Network and wallets established." });
+      await initializeSystemConfig();
+      toast({ title: "System Initialized" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Setup Failed", description: e.message });
     }
@@ -80,148 +96,94 @@ export default function AdminDashboard() {
 
   const handleGenesisAllocation = async () => {
     if (!user) return;
-    setLoading('claim');
+    setLoading('genesis');
     try {
       await triggerGenesisAllocation(user);
-      toast({ title: "Allocation Complete", description: "50k ULC team grant assigned and vested." });
+      toast({ title: "Allocation Complete", description: "50k ULC assigned." });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Allocation Failed", description: e.message });
     }
     setLoading(false);
   };
 
-  const handleToggleFreeze = async (uid: string, currentStatus: boolean) => {
-    try {
-      await toggleUserFreeze(uid, !currentStatus);
-      toast({ title: currentStatus ? "User Unfrozen" : "User Frozen" });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Moderation Failed" });
-    }
-  };
-
   if (!isConnected) return <div className="min-h-[60vh] flex items-center justify-center">Connect Wallet to Continue</div>;
-
-  if (!config && !authorized) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 text-center">
-         <Loader2 className="w-16 h-16 text-muted-foreground animate-spin" />
-      </div>
-    );
-  }
 
   if (!authorized) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 text-center px-4">
         <ShieldCheck className="w-16 h-16 text-destructive" />
         <h1 className="text-3xl font-headline font-bold">Unauthorized Access</h1>
-        <p className="text-muted-foreground max-w-sm">
-          Your wallet address is not registered as the Platform Administrator.
-        </p>
+        <p className="text-muted-foreground max-w-sm">Admin privileges required.</p>
       </div>
     );
   }
-
-  const walletsToRender = config && config.wallets 
-    ? Object.entries(config.wallets).map(([id, data]) => ({ id, ...(data as any) })) 
-    : [];
 
   return (
     <div className="space-y-8 pb-12">
       <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-headline font-bold text-yellow-400">Admin Console</h1>
-          <p className="text-xs font-mono opacity-50">Net: {config?.ulc_token_network || 'N/A'}</p>
+            <h1 className="text-4xl font-headline font-bold text-yellow-400">Admin Console</h1>
+            <p className="text-[10px] font-mono opacity-50 mt-1">Status: Master Key Active</p>
         </div>
-        <Badge className="bg-yellow-400 text-black">Master Key Active</Badge>
+        <Badge className="bg-yellow-400 text-black font-bold">PROD-ACCESS</Badge>
       </header>
 
-      <Tabs defaultValue="setup" className="space-y-6">
+      <Tabs defaultValue="claims" className="space-y-6">
         <TabsList className="bg-muted/30 p-1 rounded-2xl h-14">
-          <TabsTrigger value="setup">Setup</TabsTrigger>
-          <TabsTrigger value="wallets">System Wallets</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger</TabsTrigger>
+          <TabsTrigger value="claims">Claims</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger</TabsTrigger>
+          <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="setup" className="space-y-6">
-           <Card className="glass-card border-green-500/50">
-             <CardHeader>
-               <CardTitle>Step 1: System Initialization</CardTitle>
-               <CardDescription>Initialize the entire token economy and create all system wallets. This is a one-time operation.</CardDescription>
-             </CardHeader>
-             <CardContent>
-                <Button onClick={handleInitialize} disabled={loading || !!config?.genesis_initialized} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold">
-                  {loading === 'init' ? <Loader2 className="animate-spin"/> : (config?.genesis_initialized ? 'System Already Initialized' : 'Initialize System Economy')}
-                </Button>
-             </CardContent>
-           </Card>
-
-           <Card className={`glass-card ${!config?.genesis_initialized ? 'opacity-50 pointer-events-none' : ''}`}>
-             <CardHeader>
-               <CardTitle>Step 2: Grant & Seed</CardTitle>
-               <CardDescription>Allocate personal grants for the team and seed initial platform content. Requires Step 1.</CardDescription>
-             </CardHeader>
-             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button onClick={handleGenesisAllocation} disabled={loading || !config?.genesis_initialized} className="w-full h-12 bg-yellow-400 text-black font-bold">
-                   {loading === 'claim' ? <Loader2 className="animate-spin"/> : 'Claim Team Allocation (50k ULC)'}
-                </Button>
-               <Button onClick={handleSeedMuses} disabled={loading || !config?.genesis_initialized} variant="outline" className="w-full h-12">
-                {loading === 'seed' ? <Loader2 className="animate-spin"/> : 'Seed AI Muses'}
-               </Button>
-             </CardContent>
-           </Card>
-        </TabsContent>
-
-        <TabsContent value="wallets">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {walletsToRender.length > 0 ? walletsToRender.map(w => (
-              <Card key={w.id} className="glass-card">
-                <CardHeader className="pb-2 flex-row justify-between items-center">
-                  <CardTitle className="text-[10px] font-bold uppercase text-muted-foreground">{w.id.replace(/_/g, ' ')}</CardTitle>
-                  <Badge variant="outline" className="text-[9px]">{w.currency}</Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold">{w.balance.toLocaleString()}</div>
-                  <p className="text-xs font-mono opacity-50 truncate">{w.address}</p>
-                </CardContent>
-              </Card>
-            )) : (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                System wallets not initialized. Complete Step 1 in the 'Setup' tab.
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="ledger">
-          <Card className="glass-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentLedger.map(tx => (
-                  <TableRow key={tx.id}>
-                    <TableCell><Badge variant="outline" className="text-[9px]">{tx.type}</Badge></TableCell>
-                    <TableCell className="font-mono text-[10px]">{tx.fromWallet.slice(0, 12)}...</TableCell>
-                    <TableCell className="font-mono text-[10px]">{tx.toWallet.slice(0, 12)}...</TableCell>
-                    <TableCell className="font-bold">{tx.amount.toLocaleString()} {tx.currency}</TableCell>
-                    <TableCell className="text-right text-[10px] opacity-50">{new Date(tx.timestamp).toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+        <TabsContent value="claims">
+            <Card className="glass-card overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Requested At</TableHead>
+                            <TableHead>Creator</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Network</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {claims.map(claim => (
+                            <TableRow key={claim.id}>
+                                <TableCell className='text-xs opacity-60 font-mono'>{new Date(claim.requestedAt).toLocaleString()}</TableCell>
+                                <TableCell className='font-mono text-xs'>{claim.creatorId.slice(0, 10)}...</TableCell>
+                                <TableCell className='font-bold text-green-400'>{claim.amount.toFixed(2)} {claim.currency}</TableCell>
+                                <TableCell><Badge variant="outline" className="text-[10px]">{claim.network}</Badge></TableCell>
+                                <TableCell>
+                                    <Badge className={
+                                        claim.status === 'pending' ? 'bg-orange-500/20 text-orange-400' :
+                                        claim.status === 'completed' ? 'bg-green-500/20 text-green-400' : 
+                                        'bg-muted text-muted-foreground'
+                                    }>{claim.status.toUpperCase()}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {claim.status === 'pending' && (
+                                        <div className="flex justify-end gap-2">
+                                            <Button size="sm" onClick={() => handleUpdateClaim(claim.id, 'completed')} className="bg-green-600 hover:bg-green-700 h-8 rounded-lg">
+                                                <Check className="w-4 h-4 mr-1"/> Paid
+                                            </Button>
+                                            <Button size="sm" variant="destructive" onClick={() => handleUpdateClaim(claim.id, 'rejected')} className="h-8 rounded-lg">
+                                                <CloseIcon className="w-4 h-4"/>
+                                            </Button>
+                                        </div>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Card>
         </TabsContent>
 
         <TabsContent value="users">
-          <Card className="glass-card">
+          <Card className="glass-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -234,11 +196,11 @@ export default function AdminDashboard() {
               <TableBody>
                 {allUsers.map(u => (
                   <TableRow key={u.uid}>
-                    <TableCell className="font-bold">{u.username || u.walletAddress.slice(0, 8)}</TableCell>
-                    <TableCell>{u.ulcBalance.available.toFixed(1)} ULC</TableCell>
+                    <TableCell className="font-bold">{u.username || u.walletAddress?.slice(0, 8)}</TableCell>
+                    <TableCell>{u.ulcBalance?.available.toFixed(1) || 0} ULC</TableCell>
                     <TableCell>{u.isFrozen ? <Badge variant="destructive">Frozen</Badge> : <Badge className="bg-green-500">Active</Badge>}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant={u.isFrozen ? "outline" : "destructive"} onClick={() => handleToggleFreeze(u.uid, !!u.isFrozen)}>
+                      <Button size="sm" variant={u.isFrozen ? "outline" : "destructive"} onClick={() => toggleUserFreeze(u.uid, !u.isFrozen)}>
                         {u.isFrozen ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
                       </Button>
                     </TableCell>
@@ -247,6 +209,63 @@ export default function AdminDashboard() {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <Card className="glass-card overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead className="text-right">Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentLedger.map(tx => (
+                  <TableRow key={tx.id}>
+                    <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{tx.type.replace(/_/g, ' ')}</Badge></TableCell>
+                    <TableCell className="font-mono text-[10px] opacity-60 truncate max-w-[200px]">
+                        {tx.fromUserId ? `From: ${tx.fromUserId.slice(0,6)}` : tx.fromWallet ? `FW: ${tx.fromWallet.slice(0,6)}` : ''}
+                        {tx.toUserId ? ` To: ${tx.toUserId.slice(0,6)}` : tx.toWallet ? ` TW: ${tx.toWallet.slice(0,6)}` : ''}
+                    </TableCell>
+                    <TableCell className="font-bold whitespace-nowrap">{tx.amount.toFixed(2)} {tx.currency}</TableCell>
+                    <TableCell className="text-right text-[10px] opacity-50">{new Date(tx.timestamp).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="setup" className="space-y-6">
+           <Card className="glass-card border-green-500/50">
+             <CardHeader>
+               <CardTitle>System Initialization</CardTitle>
+               <CardDescription>Establish the token economy and wallets. This is a one-time operation.</CardDescription>
+             </CardHeader>
+             <CardContent>
+                <Button onClick={handleInitialize} disabled={loading === 'init'} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold">
+                  {loading === 'init' ? <Loader2 className="animate-spin"/> : 'Initialize System Economy'}
+                </Button>
+             </CardContent>
+           </Card>
+
+           <Card className="glass-card border-yellow-500/50">
+             <CardHeader>
+               <CardTitle>Management Tools</CardTitle>
+               <CardDescription>Personal grants and initial content seeding.</CardDescription>
+             </CardHeader>
+             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button onClick={handleGenesisAllocation} disabled={!!loading} className="w-full h-12 bg-yellow-400 text-black font-bold gap-2">
+                   {loading === 'genesis' ? <Loader2 className="animate-spin"/> : <><Sparkles className="w-4 h-4"/> Claim Admin Allocation (50k ULC)</>}
+                </Button>
+               <Button onClick={handleSeedMuses} disabled={!!loading} variant="outline" className="w-full h-12 gap-2">
+                {loading === 'seed' ? <Loader2 className="animate-spin"/> : <><Upload className="w-4 h-4"/> Seed AI Muses</>}
+               </Button>
+             </CardContent>
+           </Card>
         </TabsContent>
       </Tabs>
     </div>

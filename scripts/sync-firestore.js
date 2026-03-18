@@ -2,7 +2,14 @@
 const admin = require('firebase-admin');
 const path = require('path');
 const serviceAccountPath = path.resolve(__dirname, '../key.json');
-const serviceAccount = require(serviceAccountPath);
+// Check if key.json exists before requiring, as it was deleted in some steps
+let serviceAccount;
+try {
+    serviceAccount = require(serviceAccountPath);
+} catch (e) {
+    console.error("key.json not found. Please ensure it exists for syncing Firestore.");
+    process.exit(1);
+}
 
 if (!admin.apps.length) {
     admin.initializeApp({
@@ -18,33 +25,45 @@ async function cleanupAndSyncConfig() {
     const configRef = db.collection('config').doc('system');
     const configSnap = await configRef.get();
     
+    const newAdminAddress = "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
+
     if (configSnap.exists) {
-        // 1. Remove old fields using FieldValue.delete()
+        // 1. Remove old fields
         await configRef.update({
             treasury_network: admin.firestore.FieldValue.delete(),
             treasury_wallet_address: admin.firestore.FieldValue.delete()
         });
         console.log('Removed legacy treasury fields.');
 
-        // 2. Ensure new structure is solid
+        // 2. Update to new admin address and ensure structure
         const currentData = configSnap.data();
         const treasuryWallets = currentData.treasury_wallets || {};
         
-        // Use real values or maintain placeholders if they are already there
         const updateObj = {
+            admin_wallet_address: newAdminAddress,
             treasury_wallets: {
                 TON: treasuryWallets.TON || "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
-                TRON: treasuryWallets.TRON || "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2" // Use the old address as the new TRON treasury for now
-            },
-            platform_subscription_fee_split: currentData.platform_subscription_fee_split || 0.1,
-            admin_wallet_address: "0xd50e7b89510123456789abcdef0123456789abcd" // Sync with user's current wallet
+                TRON: treasuryWallets.TRON || "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
+            }
         };
 
         await configRef.set(updateObj, { merge: true });
-        console.log('Syncing treasury_wallets and admin_wallet_address.');
+        console.log(`Syncing admin_wallet_address to: ${newAdminAddress}`);
+    } else {
+        // Create if doesn't exist
+        await configRef.set({
+            admin_wallet_address: newAdminAddress,
+            platform_subscription_fee_split: 0.1,
+            genesis_initialized: false,
+            treasury_wallets: {
+                TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
+                TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
+            }
+        });
+        console.log(`Created system config with admin: ${newAdminAddress}`);
     }
 
-    console.log('Firestore cleanup complete.');
+    console.log('Firestore cleanup and sync complete.');
 }
 
 cleanupAndSyncConfig().catch(console.error);

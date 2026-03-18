@@ -330,7 +330,12 @@ export default function WalletPage() {
             </Button>
             <div>
                 <h1 className="text-4xl font-headline font-bold gradient-text">My Wallet</h1>
-                <p className="text-muted-foreground">Manage your credits and earnings.</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-muted-foreground">Manage your credits and earnings.</p>
+                    <div className="bg-white/5 px-2 py-0.5 rounded border border-white/10 font-mono text-[10px] text-primary/70">
+                        {user.walletAddress}
+                    </div>
+                </div>
             </div>
         </header>
         

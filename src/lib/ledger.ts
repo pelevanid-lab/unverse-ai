@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc } from 'firebase/firestore';
 import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest } from './types';
 
 let systemConfigCache: SystemConfig | null = null;
@@ -17,7 +17,7 @@ export async function getSystemConfig(): Promise<SystemConfig> {
 }
 
 /**
- * Basic transaction recording for single entries (like welcome bonus)
+ * Basic transaction recording for single entries
  */
 export async function recordTransaction(entry: Omit<LedgerEntry, 'id' | 'timestamp'>): Promise<string> {
     const docRef = await addDoc(collection(db, 'ledger'), {
@@ -59,7 +59,7 @@ export async function recordUsdtSubscription(
         type: 'creator_earning',
         timestamp: Date.now(),
         creatorId: creator.uid,
-        toUserId: creator.uid, // Explicitly set for balance queries
+        toUserId: creator.uid,
         userId: subscriber.uid,
         amount: creatorEarning,
         currency: 'USDT',
@@ -76,7 +76,6 @@ export async function recordUsdtSubscription(
 }
 
 export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{ available: number, pending: number }> {
-    // 1. Fetch all earnings (Direct earnings + Subscription shares)
     const earningsQuery = query(
         collection(db, 'ledger'), 
         where('toUserId', '==', creatorId),
@@ -87,7 +86,6 @@ export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{
     const earningsSnap = await getDocs(earningsQuery);
     const totalEarnings = earningsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
 
-    // 2. Fetch all claims (including ones that are already paid out)
     const claimsQuery = query(
         collection(db, 'claim_requests'),
         where('creatorId', '==', creatorId),
@@ -96,7 +94,6 @@ export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{
     const claimsSnap = await getDocs(claimsQuery);
     const totalClaimedOrPending = claimsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
 
-    // 3. Fetch only pending claims for the "Pending" display
     const pendingQuery = query(
         collection(db, 'claim_requests'),
         where('creatorId', '==', creatorId),
@@ -139,12 +136,10 @@ export async function createClaimRequest(creator: Creator): Promise<string> {
 
 export const confirmUlcPurchase = async (user: UserProfile, amount: number, network: string, txHash: string): Promise<void> => {
     const batch = writeBatch(db);
-    
-    // 1. Record the USDT incoming to Treasury
     const usdtEntryRef = doc(collection(db, 'ledger'));
     batch.set(usdtEntryRef, {
         fromUserId: user.uid,
-        amount: amount * 0.015, // Price calculation
+        amount: amount * 0.015,
         currency: 'USDT',
         type: 'ulc_purchase_payment',
         network: network,
@@ -152,7 +147,6 @@ export const confirmUlcPurchase = async (user: UserProfile, amount: number, netw
         timestamp: Date.now()
     });
 
-    // 2. Record the ULC credits given to User
     const ulcEntryRef = doc(collection(db, 'ledger'));
     batch.set(ulcEntryRef, {
         toUserId: user.uid,
@@ -163,11 +157,47 @@ export const confirmUlcPurchase = async (user: UserProfile, amount: number, netw
         timestamp: Date.now()
     });
 
-    // 3. Increment user's available balance
     const userRef = doc(db, 'users', user.uid);
     batch.update(userRef, {
         'ulcBalance.available': (user.ulcBalance?.available || 0) + amount
     });
 
     await batch.commit();
+}
+
+// --- ADMIN / SYSTEM FUNCTIONS ---
+
+export async function initializeSystemConfig() {
+    const configRef = doc(db, 'config', 'system');
+    const initialConfig = {
+        genesis_initialized: true,
+        platform_subscription_fee_split: 0.1,
+        admin_wallet_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
+        treasury_wallets: {
+            TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
+            TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
+        },
+        wallets: {
+            promo_pool: { address: "SYSTEM_PROMO", currency: "ULC", balance: 1000000 }
+        }
+    };
+    await setDoc(configRef, initialConfig);
+    return initialConfig as SystemConfig;
+}
+
+export async function seedMuses() {
+    // Placeholder for muse seeding logic
+    console.log("Seeding AI Muses...");
+}
+
+export async function triggerGenesisAllocation(user: UserProfile) {
+    const userRef = doc(db, 'users', user.uid);
+    await updateDoc(userRef, {
+        'ulcBalance.available': (user.ulcBalance?.available || 0) + 50000
+    });
+}
+
+export async function toggleUserFreeze(uid: string, freeze: boolean) {
+    const userRef = doc(db, 'users', uid);
+    await updateDoc(userRef, { isFrozen: freeze });
 }

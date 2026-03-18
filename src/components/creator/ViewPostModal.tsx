@@ -13,8 +13,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Trash2, X, Pencil, Save, Coins } from 'lucide-react';
+import { Loader2, Trash2, X, Pencil, Save, Coins, Globe, Lock, Clock } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { PostContentType } from '@/lib/types';
 
 interface ViewPostModalProps {
   post: ContentPost;
@@ -23,19 +25,19 @@ interface ViewPostModalProps {
 
 export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
   const { toast } = useToast();
-  // State initialization with fallbacks
   const [caption, setCaption] = useState('');
-  const [isPremium, setIsPremium] = useState(false);
+  const [contentType, setContentType] = useState<PostContentType>('public');
   const [unlockPrice, setUnlockPrice] = useState(0);
+  const [totalSupply, setTotalSupply] = useState(100);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Synchronize state when the post prop changes
   useEffect(() => {
     if (post) {
         setCaption(post.content || post.caption || '');
-        setIsPremium(post.isPremium || false);
-        setUnlockPrice(post.unlockPrice || post.priceULC || 0);
+        setContentType(post.contentType || (post.isPremium ? 'premium' : 'public'));
+        setUnlockPrice(post.contentType === 'limited' ? (post.limited?.price || 0) : (post.unlockPrice || post.priceULC || 0));
+        setTotalSupply(post.limited?.totalSupply || 100);
         setIsEditing(false);
     }
   }, [post]);
@@ -44,13 +46,24 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
     setLoading(true);
     try {
       const postRef = doc(db, 'posts', post.id);
-      const updateData = { 
+      const updateData: any = { 
         content: caption,
-        caption: caption, // Update both for safety
-        isPremium,
-        unlockPrice: isPremium ? Number(unlockPrice) : 0,
-        priceULC: isPremium ? Number(unlockPrice) : 0 // Update both for safety
+        caption: caption,
+        contentType,
+        unlockPrice: contentType === 'premium' ? Number(unlockPrice) : 0,
+        priceULC: contentType === 'premium' ? Number(unlockPrice) : 0,
+        isPremium: contentType !== 'public'
       };
+
+      if (contentType === 'limited') {
+          updateData.limited = {
+              totalSupply: Number(totalSupply),
+              soldCount: post.limited?.soldCount || 0,
+              price: Number(unlockPrice)
+          };
+      } else {
+          updateData.limited = null;
+      }
 
       await updateDoc(postRef, updateData);
       toast({ title: 'Post Updated Successfully!' });
@@ -72,7 +85,7 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
             const fileRef = ref(storage, post.mediaUrl);
             await deleteObject(fileRef);
           } catch (e) {
-            console.warn("Storage deletion failed or file already gone:", e);
+            console.warn("Storage deletion failed:", e);
           }
       }
       toast({ title: 'Post Deleted Successfully' });
@@ -90,7 +103,7 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] flex flex-col glass-card p-0 overflow-hidden">
-        <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-black/50 hover:bg-black/80">
+        <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-black/50 hover:bg-black/80 text-white">
             <X className="h-4 w-4" />
         </Button>
         <DialogTitle className="sr-only">{isEditing ? 'Edit Post' : 'View Post'}</DialogTitle>
@@ -106,10 +119,10 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
                 <div className="text-muted-foreground italic">No media preview available.</div>
             )}
           </div>
-          <div className="md:col-span-4 flex flex-col justify-between p-6 bg-background/50 overflow-y-auto">
+          <div className="md:col-span-4 flex flex-col justify-between p-6 bg-background/50 overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="caption" className="text-lg font-medium">Caption</Label>
+                <Label htmlFor="caption" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Caption</Label>
                 {isEditing ? (
                   <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} className="bg-input/50" rows={2} maxLength={280} />
                 ) : (
@@ -118,31 +131,76 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border p-4 bg-black/20">
-                    <div className='space-y-1'>
-                        <Label htmlFor="isPremiumEdit" className='text-base font-bold'>Premium Content</Label>
-                        <p className='text-xs text-muted-foreground'>Requires ULC to unlock.</p>
-                    </div>
-                    {isEditing ? (
-                        <Switch id="isPremiumEdit" checked={isPremium} onCheckedChange={setIsPremium} />
-                    ) : (
-                        <div className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${isPremium ? 'bg-primary/20 text-primary border border-primary/40' : 'bg-muted/30 text-muted-foreground'}`}>
-                            {isPremium ? 'PREMIUM' : 'FREE'}
+                <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Content Type</Label>
+                {isEditing ? (
+                    <RadioGroup value={contentType} onValueChange={(v) => setContentType(v as PostContentType)} className="grid grid-cols-1 gap-2">
+                         <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                            <RadioGroupItem value="public" id="e-public" />
+                            <Label htmlFor="e-public" className="flex-1 cursor-pointer flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-green-400" />
+                                <div className="flex flex-col">
+                                    <span className="font-bold">Public</span>
+                                    <span className="text-[10px] opacity-60">Visible to everyone</span>
+                                </div>
+                            </Label>
                         </div>
-                    )}
-                </div>
+                        <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                            <RadioGroupItem value="premium" id="e-premium" />
+                            <Label htmlFor="e-premium" className="flex-1 cursor-pointer flex items-center gap-2">
+                                <Lock className="w-4 h-4 text-primary" />
+                                <div className="flex flex-col">
+                                    <span className="font-bold">Premium</span>
+                                    <span className="text-[10px] opacity-60">Subscriber-only & Unlocks</span>
+                                </div>
+                            </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                            <RadioGroupItem value="limited" id="e-limited" />
+                            <Label htmlFor="e-limited" className="flex-1 cursor-pointer flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-yellow-400" />
+                                <div className="flex flex-col">
+                                    <span className="font-bold">Limited</span>
+                                    <span className="text-[10px] opacity-60">Restricted supply edition</span>
+                                </div>
+                            </Label>
+                        </div>
+                    </RadioGroup>
+                ) : (
+                    <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                        {contentType === 'public' && <><Globe className="w-4 h-4 text-green-400" /><span className="font-bold">Public Content</span></>}
+                        {contentType === 'premium' && <><Lock className="w-4 h-4 text-primary" /><span className="font-bold">Premium Content</span></>}
+                        {contentType === 'limited' && <><Clock className="w-4 h-4 text-yellow-400" /><span className="font-bold">Limited Content</span></>}
+                    </div>
+                )}
 
-                {(isPremium || isEditing) && (
-                    <div className={`space-y-2 transition-opacity duration-200 ${!isPremium && isEditing ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <Label htmlFor="priceEdit" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Unlock Price (ULC)</Label>
-                        {isEditing ? (
-                            <div className="relative">
-                                <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
-                                <Input id="priceEdit" type="number" value={unlockPrice} onChange={(e) => setUnlockPrice(Number(e.target.value))} className="bg-input/50 pl-10 h-12 font-bold text-lg" />
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 text-3xl font-bold font-headline text-primary bg-primary/5 p-4 rounded-xl border border-primary/10">
-                                <Coins className="w-8 h-8" /> {unlockPrice} <span className='text-sm font-normal text-muted-foreground'>ULC</span>
+                {contentType !== 'public' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 pt-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="e-price" className='text-xs font-bold uppercase tracking-wider text-muted-foreground'>Unlock Price (ULC)</Label>
+                            {isEditing ? (
+                                <div className="relative">
+                                    <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+                                    <Input id="e-price" type="number" value={unlockPrice} onChange={(e) => setUnlockPrice(Number(e.target.value))} className="bg-input/50 pl-10 h-11 font-bold" />
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-2xl font-bold font-headline text-primary">
+                                    <Coins className="w-6 h-6" /> {unlockPrice} ULC
+                                </div>
+                            )}
+                        </div>
+
+                        {contentType === 'limited' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="e-supply" className='text-xs font-bold uppercase tracking-wider text-muted-foreground'>Supply Strategy</Label>
+                                {isEditing ? (
+                                    <Input id="e-supply" type="number" value={totalSupply} onChange={(e) => setTotalSupply(Number(e.target.value))} className="bg-input/50 h-11 font-bold" />
+                                ) : (
+                                    <div className="text-sm font-bold flex items-center gap-2">
+                                        <Badge variant="secondary" className="bg-yellow-400/10 text-yellow-400 border-yellow-400/20">
+                                            {post.limited?.soldCount || 0} / {totalSupply} SOLD
+                                        </Badge>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -153,36 +211,36 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
             <div className="flex flex-col space-y-3 mt-8">
                 <div className="flex gap-3">
                     {isEditing ? (
-                        <Button onClick={handleUpdate} disabled={loading} className="w-full h-14 text-lg font-bold gap-2 rounded-2xl">
+                        <Button onClick={handleUpdate} disabled={loading} className="w-full h-12 text-lg font-bold gap-2 rounded-xl">
                             {loading ? <Loader2 className="animate-spin" /> : <><Save size={20}/> Save Changes</>}
                         </Button>
                     ) : (
-                        <Button onClick={() => setIsEditing(true)} className="w-full h-14 text-lg font-bold gap-2 rounded-2xl shadow-lg shadow-primary/20">
-                            <Pencil size={20}/> Edit Post
+                        <Button onClick={() => setIsEditing(true)} className="w-full h-12 text-lg font-bold gap-2 rounded-xl">
+                            <Pencil size={20}/> Edit Content
                         </Button>
                     )}
                 </div>
                 
                 {isEditing && (
-                    <Button variant="ghost" onClick={() => setIsEditing(false)} className="w-full rounded-2xl">Cancel</Button>
+                    <Button variant="ghost" onClick={() => setIsEditing(false)} className="w-full h-11 rounded-xl">Cancel</Button>
                 )}
 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" disabled={loading} className='w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 h-12 rounded-2xl'>
-                        <Trash2 size={16}/> Delete Post
+                    <Button variant="ghost" disabled={loading} className='w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 h-11 rounded-xl'>
+                        <Trash2 size={16}/> Delete Content
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className='rounded-[2rem]'>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this content?</AlertDialogTitle>
+                      <AlertDialogTitle>Permanent Deletion</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. All earnings data will remain in the ledger, but the media and post will be gone forever.
+                        This will remove the post and media. History of existing unlocks will be preserved.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel className='rounded-xl'>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl">Yes, Delete Post</AlertDialogAction>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl">Confirm Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

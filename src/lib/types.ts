@@ -33,6 +33,7 @@ export interface UserProfile {
     };
     preferredPaymentNetwork?: 'TRON' | 'TON';
     creatorData?: Creator;
+    isFrozen?: boolean;
 }
 
 export interface Creator {
@@ -46,6 +47,10 @@ export interface Creator {
         TON?: { address: string };
     };
     preferredPayoutNetwork?: 'TRON' | 'TON';
+    category?: string;
+    coverImage?: string;
+    creatorStatus?: 'active' | 'inactive';
+    visibility?: 'public' | 'private';
 }
 
 export interface SystemConfig {
@@ -60,6 +65,8 @@ export interface SystemConfig {
         }
     };
     admin_wallet_address: string;
+    genesis_initialized?: boolean;
+    ulc_token_network?: string;
 }
 
 export type LedgerEntryType = 
@@ -69,7 +76,10 @@ export type LedgerEntryType =
     | 'premium_unlock' 
     | 'tip' 
     | 'withdrawal'
-    | 'ulc_purchase';
+    | 'ulc_purchase'
+    | 'ulc_purchase_payment'
+    | 'staking_reward'
+    | 'treasury_fee';
 
 export interface LedgerEntry {
     id: string;
@@ -102,17 +112,50 @@ export interface ClaimRequest {
     requestedAt: number;
 }
 
+export type PostContentType = "public" | "premium" | "limited";
+
 export interface ContentPost {
     id: string;
     creatorId: string;
-    title: string;
-    content: string;
-    isPremium: boolean;
-    unlockPrice: number;
+    creatorName?: string;
+    creatorAvatar?: string;
+    title?: string;
+    content: string; // Used for caption
+    contentType: PostContentType;
+    unlockPrice: number; // Price in ULC (used for premium)
     createdAt: number;
-    updatedAt: number;
+    updatedAt?: number;
     mediaUrl?: string;
     mediaType?: 'image' | 'video';
+    
+    // Limited edition fields
+    limited?: {
+        totalSupply: number;
+        soldCount: number;
+        price: number;
+    };
+
+    // Stats
+    likes?: number;
+    unlockCount?: number;
+    earningsULC?: number;
+}
+
+export interface CreatorMedia {
+    id: string;
+    creatorId: string;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    caption?: string;
+    contentType: PostContentType;
+    priceULC: number;
+    status: 'draft' | 'scheduled' | 'published';
+    createdAt: any;
+    scheduledFor?: number;
+    limited?: {
+        totalSupply: number;
+        price: number;
+    };
 }
 
 export interface GroupedLedgerEntry {
