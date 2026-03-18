@@ -1,17 +1,19 @@
 
-"use client"
+"use client";
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
-import { ClaimRequest } from '@/lib/types';
+import { db } from '@/lib/firebase';
 import { updateClaimRequestStatus } from '@/lib/ledger';
+import { ClaimRequest } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ShieldCheck, Hourglass, XCircle, CheckCircle } from 'lucide-react';
 
 function ClaimRow({ claim }: { claim: ClaimRequest }) {
     const { toast } = useToast();
@@ -21,10 +23,10 @@ function ClaimRow({ claim }: { claim: ClaimRequest }) {
 
     const handleUpdate = async (status: ClaimRequest['status']) => {
         if (status === 'completed' && !txHash) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Transaction Hash is required.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Transaction Hash is required to complete a claim.' });
             return;
         }
-         if (status === 'rejected' && !adminNote) {
+        if (status === 'rejected' && !adminNote) {
             toast({ variant: 'destructive', title: 'Error', description: 'An admin note is required for rejection.' });
             return;
         }
@@ -39,82 +41,111 @@ function ClaimRow({ claim }: { claim: ClaimRequest }) {
         setIsBusy(false);
     };
 
-    const getBadgeVariant = (status: ClaimRequest['status']) => {
+    const getStatusBadge = (status: ClaimRequest['status']) => {
         switch (status) {
-            case 'pending': return 'secondary';
-            case 'approved': return 'default';
-            case 'completed': return 'success';
-            case 'rejected': return 'destructive';
+            case 'pending': return <Badge variant="secondary"><Hourglass className="w-3 h-3 mr-1" />Pending</Badge>;
+            case 'approved': return <Badge variant="default" className="bg-blue-500"><ShieldCheck className="w-3 h-3 mr-1" />Approved</Badge>;
+            case 'completed': return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+            case 'rejected': return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+            default: return <Badge>{status}</Badge>;
         }
     };
 
     return (
-        <div className="border-b p-4 grid grid-cols-6 gap-4 items-center">
-            <div className="font-mono text-xs truncate">{claim.creatorId}</div>
-            <div>${claim.amount.toFixed(2)}</div>
-            <div>{claim.network}</div>
-            <div className="font-mono text-xs truncate">{claim.walletAddress}</div>
-            <div><Badge variant={getBadgeVariant(claim.status)}>{claim.status}</Badge></div>
-            <div className="space-y-2">
+        <TableRow>
+            <TableCell className="font-mono text-xs">{claim.creatorId}</TableCell>
+            <TableCell className="font-medium">{(claim.amount || 0).toFixed(2)} {claim.currency}</TableCell>
+            <TableCell>{claim.network}</TableCell>
+            <TableCell className="font-mono text-xs">{claim.walletAddress}</TableCell>
+            <TableCell>{new Date(claim.requestedAt).toLocaleString()}</TableCell>
+            <TableCell>{getStatusBadge(claim.status)}</TableCell>
+            <TableCell className="space-y-2 w-[350px]">
                 {claim.status === 'pending' && (
-                    <div className='flex gap-2'>
-                        <Button size='sm' onClick={() => handleUpdate('approved')} disabled={isBusy}>Approve</Button>
-                        <Input placeholder='Rejection note...' value={adminNote} onChange={e => setAdminNote(e.target.value)} className='h-9'/>
-                        <Button size='sm' variant='destructive' onClick={() => handleUpdate('rejected')} disabled={isBusy || !adminNote}>Reject</Button>
+                    <div className="flex items-center gap-2">
+                         <Input 
+                            placeholder="Rejection reason..." 
+                            value={adminNote} 
+                            onChange={(e) => setAdminNote(e.target.value)}
+                            className="text-xs"
+                        />
+                        <Button variant="outline" size="sm" onClick={() => handleUpdate('approved')} disabled={isBusy}>Approve</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleUpdate('rejected')} disabled={isBusy || !adminNote}>Reject</Button>
                     </div>
                 )}
                 {claim.status === 'approved' && (
-                    <div className='flex gap-2'>
-                         <Input placeholder='Enter txHash...' value={txHash} onChange={e => setTxHash(e.target.value)} className='h-9'/>
-                         <Button size='sm' onClick={() => handleUpdate('completed')} disabled={isBusy || !txHash}>Complete</Button>
+                    <div className="flex items-center gap-2">
+                        <Input 
+                            placeholder="Enter TX Hash from payout" 
+                            value={txHash} 
+                            onChange={(e) => setTxHash(e.target.value)}
+                            className="font-mono text-xs"
+                        />
+                        <Button size="sm" onClick={() => handleUpdate('completed')} disabled={isBusy || !txHash}>Complete</Button>
                     </div>
                 )}
-                {claim.status === 'completed' && <a href={`https://tronscan.org/#/transaction/${claim.txHash}`} target='_blank' className='text-xs underline'>View Tx</a>}
-                 {claim.status === 'rejected' && <p className='text-xs text-red-400 truncate'>Note: {claim.adminNote}</p>}
-            </div>
-        </div>
+                {claim.status === 'completed' && <p className="text-xs text-muted-foreground font-mono">TX: {claim.txHash}</p>}
+                {claim.status === 'rejected' && <p className="text-xs text-muted-foreground">Note: {claim.adminNote}</p>}
+            </TableCell>
+        </TableRow>
     );
 }
 
 export default function AdminClaimsPage() {
     const [claims, setClaims] = useState<ClaimRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const q = query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const claimsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClaimRequest));
-            setClaims(claimsData);
-            setIsLoading(false);
-        });
+        const unsubscribe = onSnapshot(q, 
+            (snapshot) => {
+                const claimsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClaimRequest));
+                setClaims(claimsData);
+                setIsLoading(false);
+            },
+            (err) => {
+                console.error("Error fetching claims:", err);
+                setError("Failed to load claims. Check console for details.");
+                setIsLoading(false);
+            }
+        );
         return () => unsubscribe();
     }, []);
 
     return (
-        <div className='max-w-7xl mx-auto py-8'>
-            <Card className='glass-card'>
+        <div className="max-w-7xl mx-auto p-4 md:p-8">
+            <Card>
                 <CardHeader>
-                    <CardTitle>Claim Requests</CardTitle>
-                    <CardDescription>Review and process USDT claim requests from creators.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><ShieldCheck/> Admin: USDT Claim Requests</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="border-t">
-                        <div className="grid grid-cols-6 gap-4 p-4 font-bold text-sm text-muted-foreground">
-                           <div>Creator ID</div>
-                           <div>Amount</div>
-                           <div>Network</div>
-                           <div>Wallet Address</div>
-                           <div>Status</div>
-                           <div>Actions</div>
-                        </div>
-                        {isLoading ? (
-                            <div className='text-center p-8'><Loader2 className='animate-spin mx-auto'/></div>
-                        ) : claims.length === 0 ? (
-                            <div className='text-center p-8 text-muted-foreground'>No claim requests found.</div>
-                        ) : (
-                            claims.map(claim => <ClaimRow key={claim.id} claim={claim} />)
-                        )}
-                    </div>
+                    {isLoading ? (
+                        <p>Loading claims...</p>
+                    ) : error ? (
+                         <Alert variant="destructive">
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    ) : claims.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">No claim requests found.</p>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Creator ID</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Network</TableHead>
+                                    <TableHead>Wallet Address</TableHead>
+                                    <TableHead>Requested At</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {claims.map(claim => <ClaimRow key={claim.id} claim={claim} />)}
+                            </TableBody>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
         </div>

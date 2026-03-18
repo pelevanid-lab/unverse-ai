@@ -8,11 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Coins, History, ShoppingBag, Lock, RefreshCw, ChevronLeft, CheckCircle, XCircle, Star, Loader2, Wallet as WalletIcon, ExternalLink, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { confirmUlcPurchase, getSystemConfig, claimVestedTokens, calculateVestingClaimable, calculateCreatorUsdtEarnings, createClaimRequest } from '@/lib/ledger';
+import { confirmUlcPurchase, getSystemConfig, createClaimRequest, calculateCreatorUsdtEarnings } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { LedgerEntry, VestingSchedule, SystemConfig, UserProfile, Creator } from '@/lib/types';
+import { SystemConfig, UserProfile, Creator } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link';
@@ -20,7 +18,7 @@ import Link from 'next/link';
 
 function BalanceCard({ user }: { user: UserProfile | null }) {
     const available = user?.ulcBalance?.available ?? 0;
-    const staked = user?.ulcBalance?.staked ?? 0;
+    const staked = (user?.ulcBalance as any)?.staked ?? 0; // Temp fix for staked which might not be in type
 
     return (
         <Card className="glass-card border-white/10">
@@ -133,87 +131,41 @@ function UsdtEarningsCard({ creator, onClaim, loading }: { creator: Creator, onC
     );
 }
 
-function HistoryCard({ history, user }: { history: LedgerEntry[], user: UserProfile | null }) {
-    const getTxUrl = (txHash: string, network?: string) => network === 'TON' ? `https://tonscan.org/tx/${txHash}` : `https://tronscan.org/#/transaction/${txHash}`;
-    const userAddresses = [user?.walletAddress, user?.rawAddress].filter(Boolean).map(a => a.toLowerCase());
-
+function HistoryCardLink() {
     return (
-        <Card className="glass-card lg:col-span-2 border-white/10">
-            <CardHeader><CardTitle className="flex items-center gap-2"><History/> Transaction History</CardTitle></CardHeader>
-            <CardContent className="max-h-[600px] overflow-y-auto pr-2">
-                 {history.length === 0 ? (
-                    <div className='text-center py-10'><p className='text-muted-foreground'>No transactions recorded yet.</p></div>
-                 ) : (
-                    <div className="space-y-2">
-                        {history.map(entry => {
-                             const toAddress = entry.toWallet?.toLowerCase();
-                             const fromAddress = entry.fromWallet?.toLowerCase();
-                             const isIncoming = (toAddress && userAddresses.includes(toAddress)) || (user?.isCreator && entry.creatorId === user.uid && entry.type === 'creator_claim_executed');
-                             const isOutgoing = fromAddress && userAddresses.includes(fromAddress);
-                             const color = isIncoming ? 'text-green-400' : isOutgoing ? 'text-red-400' : 'text-gray-500';
-                             const sign = isIncoming ? '+' : isOutgoing ? '-' : '';
-
-                             return (
-                                <div key={entry.id} className='flex items-center justify-between p-3 rounded-md bg-background/50 hover:bg-background/90'>
-                                    <div className='flex items-center gap-3'>
-                                        <div className={`p-2 rounded-full bg-slate-800 ${color}`} >{isIncoming ? <ArrowDownLeft size={16} /> : isOutgoing ? <ArrowUpRight size={16} /> : <Coins size={16}/>}</div>
-                                        <div>
-                                            <p className='font-semibold'>{entry.type.replace(/_/g, ' ').toUpperCase()}</p>
-                                            <p className='text-xs text-muted-foreground'>{new Date(entry.timestamp).toLocaleString()}</p>
-                                        </div>
-                                    </div>
-                                    <div className='text-right'>
-                                        <p className={`font-bold text-lg ${color}`}>{sign}{(entry.amount || 0).toFixed(2)} {entry.currency}</p>
-                                        {entry.txHash && <a href={getTxUrl(entry.txHash, entry.network)} target='_blank' rel='noopener noreferrer' className='text-xs text-blue-400 hover:underline flex items-center justify-end gap-1'>View Tx <ExternalLink size={12}/></a>}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                 )}
-              </CardContent>
-        </Card>
+        <Link href="/wallet/history">
+            <Card className="glass-card lg:col-span-2 border-white/10 hover:border-primary/50 transition-colors cursor-pointer">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2"><History/> Transaction History</span>
+                        <ExternalLink className="w-5 h-5 text-muted-foreground"/>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">View your complete transaction history.</p>
+                </CardContent>
+            </Card>
+        </Link>
     )
 }
 
 // --- MAIN WALLET PAGE ---
 export default function WalletPage() {
   const router = useRouter();
-  const { user, isConnected, rawAddress } = useWallet();
+  const { user, isConnected } = useWallet();
   const { toast } = useToast();
   
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
-  const [history, setHistory] = useState<LedgerEntry[]>([]);
   const [claimLoading, setClaimLoading] = useState(false);
   
   useEffect(() => {
     getSystemConfig().then(setSystemConfig).catch(err => toast({ variant: 'destructive', title: 'Error', description: 'Could not load system configuration.' }));
   }, [toast]);
 
-  useEffect(() => {
-    if (!user?.walletAddress) return;
-
-    const q = query(
-        collection(db, 'ledger'), 
-        where('involvedParties', 'array-contains', user.walletAddress),
-        orderBy('timestamp', 'desc'), 
-        limit(50)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newHistory = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LedgerEntry));
-      setHistory(newHistory);
-    }, (error) => {
-      console.error("History snapshot error:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch transaction history.' });
-    });
-
-    return () => unsubscribe();
-  }, [user?.walletAddress, toast]);
-
   const handlePurchase = async (amount: number, network: 'TRON' | 'TON') => {
     if (!user) throw new Error("User not connected");
     toast({ title: 'Action Required', description: 'Please confirm transaction in your wallet.' });
+    // This is a mock, replace with actual transaction call
     const fakeTxHash = `fake_tx_${Date.now()}`;
     try {
         await confirmUlcPurchase(user, amount, network, fakeTxHash);
@@ -267,7 +219,7 @@ export default function WalletPage() {
 
             <div className="lg:col-span-2 space-y-6">
                  {user.isCreator && <UsdtEarningsCard creator={user as Creator} onClaim={handleClaimRequest} loading={claimLoading} />}
-                 <HistoryCard history={history} user={user} />
+                 <HistoryCardLink />
             </div>
         </div>
     </div>

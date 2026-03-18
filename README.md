@@ -69,8 +69,8 @@ The ecosystem is powered by 16 strictly defined internal system wallets:
 
 ## 🔥 Economic Rules & Splits
 
-1. **Premium Unlocks**: User pays $ULC to unlock a post. 95% goes to the creator, 2.5% is burned, and 2.5% goes to the Staking Pool.
-2. **USDT Subscriptions**: 10 USDT/mo. Split: 90% Creator, 5% Treasury, 5% Buyback/Burn.
+1. **Premium Unlocks**: When a user pays $ULC to unlock a post, the creator receives **95%** of the price. The remaining **5%** platform commission is split between the Staking Pool (**1.65%** of total price) and the Treasury (**3.35%** of total price), based on ratios defined in the system configuration.
+2. **USDT Subscriptions**: For a 10 USDT/mo subscription, the creator receives **90%**. The remaining **10%** platform commission is split between a Buyback/Burn mechanism (**3.3%** of total price) and the Treasury (**6.7%** of total price).
 3. **AI Chat**: Costs 0.5 $ULC per message, which is sent directly to the `burn_pool`.
 4. **Vesting**: Most allocations (Team, Creator, Presale) follow a 24-36 month linear release schedule.
 
