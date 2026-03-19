@@ -4,6 +4,21 @@ export interface NetworkWallet {
     lastUsed?: number;
 }
 
+export interface CharacterProfile {
+    id: string;
+    name: string;
+    gender: 'female' | 'male' | 'other';
+    ageRange: string;
+    hairColor: string;
+    eyeColor: string;
+    faceStyle: string;
+    bodyStyle: string;
+    vibe: string;
+    characterPromptBase: string;
+    referenceImageUrl?: string;
+    createdAt: number;
+}
+
 export interface UserProfile {
     uid: string;
     email?: string;
@@ -40,6 +55,7 @@ export interface UserProfile {
         discord?: string;
     };
     promoCard?: PromoCard | null;
+    savedCharacter?: CharacterProfile | null;
 }
 
 export interface PromoCard {
@@ -104,7 +120,9 @@ export type LedgerEntryType =
     | 'ulc_purchase_payment'
     | 'staking_reward'
     | 'treasury_fee'
-    | 'buyback_burn_fee';
+    | 'buyback_burn_fee'
+    | 'ai_generation_payment'
+    | 'ai_generation_refund';
 
 export interface LedgerEntry {
     id: string;
@@ -173,6 +191,11 @@ export interface ContentPost {
     likes?: number;
     unlockCount?: number;
     earningsULC?: number;
+    
+    // AI Metadata
+    isAI?: boolean;
+    aiPrompt?: string;
+    aiEnhancedPrompt?: string;
 }
 
 export interface CreatorMedia {
@@ -190,6 +213,11 @@ export interface CreatorMedia {
         totalSupply: number;
         price: number;
     };
+    prompt?: string;
+    enhancedPrompt?: string;
+    isAI?: boolean;
+    aiPrompt?: string;
+    aiEnhancedPrompt?: string;
 }
 
 export interface GroupedLedgerEntry {

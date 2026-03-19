@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock } from 'lucide-react';
+import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AICreatorCopilot } from './AICreatorCopilot';
+import { generateCaption } from '@/lib/CopilotEngine';
 
 interface EditMediaModalProps {
   media: CreatorMedia;
@@ -42,6 +42,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
     media.status === 'scheduled' && media.scheduledFor ? new Date(media.scheduledFor) : undefined
   );
 
+  const handleGenerateCaption = () => {
+    const generated = generateCaption(media.prompt || "", contentType);
+    setCaption(generated);
+    toast({ title: "Caption Generated", description: "Deterministic engine created a template for you." });
+  };
+
   const handlePublish = async () => {
     if (!user) {
       toast({ variant: "destructive", title: "Authentication Error", description: "Please ensure your wallet is connected." });
@@ -50,7 +56,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
     setLoadingAction('publish');
     try {
-      const postData: Omit<ContentPost, 'id'> = {
+      const postData: any = {
         creatorId: user.uid,
         creatorName: creatorProfile.username,
         creatorAvatar: creatorProfile.avatar,
@@ -63,6 +69,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
         likes: 0,
         unlockCount: 0,
         earningsULC: 0,
+        // Carry over AI prompt data if exists
+        ...(media.isAI && {
+            isAI: true,
+            aiPrompt: media.aiPrompt || media.prompt,
+            aiEnhancedPrompt: media.aiEnhancedPrompt || media.enhancedPrompt
+        }),
         ...(contentType === 'limited' && {
             limited: {
                 totalSupply: Number(totalSupply),
@@ -157,19 +169,19 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
               <div className="md:col-span-5 flex flex-col justify-between p-6 bg-background/50 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
                       
-                      {/* AI COPILOT INTEGRATION */}
-                      <AICreatorCopilot 
-                        contentType={contentType} 
-                        creatorName={creatorProfile.username} 
-                        onApply={(data) => {
-                            setCaption(data.caption);
-                            if (data.price) setPriceULC(data.price);
-                        }}
-                      />
-
                       <div className="space-y-2">
-                          <Label htmlFor="caption" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Caption</Label>
-                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="What's on your mind?" className="bg-input/50 resize-none h-20" maxLength={280} />
+                          <div className="flex justify-between items-center">
+                            <Label htmlFor="caption" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Caption</Label>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={handleGenerateCaption}
+                                className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
+                            >
+                                <Wand2 size={12} /> Copilot: Generate Caption
+                            </Button>
+                          </div>
+                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="What's on your mind?" className="bg-input/50 resize-none h-24" maxLength={280} />
                       </div>
 
                       <div className="space-y-3">

@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit, runTransaction, increment } from 'firebase/firestore';
 import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord } from './types';
 
 let systemConfigCache: SystemConfig | null = null;
@@ -237,4 +237,85 @@ export async function triggerGenesisAllocation(user: UserProfile) {
 export async function toggleUserFreeze(uid: string, freeze: boolean) {
     const userRef = doc(db, 'users', uid);
     await updateDoc(userRef, { isFrozen: freeze });
+}
+
+/**
+ * AI Generation Monetization Logic
+ * Costs 3 ULC: 70% Treasury (2.1), 30% Burn (0.9)
+ */
+export async function processAiGenerationPayment(userId: string): Promise<string> {
+    return await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await transaction.get(userRef);
+        
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+        const balance = userData.ulcBalance?.available || 0;
+        const cost = 3;
+
+        if (balance < cost) {
+            throw new Error("INSUFFICIENT_ULC");
+        }
+
+        const treasuryShare = cost * 0.7; // 2.1
+        const burnShare = cost * 0.3;     // 0.9
+
+        // 1. Deduct from user
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(-cost)
+        });
+
+        // 2. Update Global Treasury and Burn Stats
+        const statsRef = doc(db, 'config', 'stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: increment(treasuryShare),
+            totalBurnedULC: increment(burnShare)
+        }, { merge: true });
+
+        // 3. Record in Ledger
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'ai_generation_payment',
+            fromUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: Date.now(),
+            details: { treasury: treasuryShare, burn: burnShare }
+        });
+
+        return ledgerRef.id;
+    });
+}
+
+export async function refundAiGenerationPayment(userId: string, ledgerId: string): Promise<void> {
+    await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const cost = 3;
+        const treasuryShare = cost * 0.7;
+        const burnShare = cost * 0.3;
+
+        // 1. Refund user
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(cost)
+        });
+
+        // 2. Reverse Stats
+        const statsRef = doc(db, 'config', 'stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: increment(-treasuryShare),
+            totalBurnedULC: increment(-burnShare)
+        }, { merge: true });
+
+        // 3. Record Refund Entry
+        const refundLedgerRef = doc(collection(db, 'ledger'));
+        transaction.set(refundLedgerRef, {
+            type: 'ai_generation_refund',
+            toUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: Date.now(),
+            referenceId: ledgerId
+        });
+    });
 }
