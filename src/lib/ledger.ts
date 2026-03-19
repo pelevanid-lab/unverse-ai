@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc } from 'firebase/firestore';
-import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest } from './types';
+import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit } from 'firebase/firestore';
+import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord, AIMuse } from './types';
 
 let systemConfigCache: SystemConfig | null = null;
 
@@ -38,13 +38,49 @@ export async function recordUsdtSubscription(
 
     const batch = writeBatch(db);
     const subscriptionPrice = creator.creatorData.subscriptionPriceMonthly;
-    const platformFee = subscriptionPrice * (config.platform_subscription_fee_split || 0.1);
-    const creatorEarning = subscriptionPrice - platformFee;
+    
+    const platformRatio = 0.15;
+    const treasuryShare = subscriptionPrice * 0.10;
+    const buybackShare = subscriptionPrice * 0.05;
+    const creatorEarning = subscriptionPrice - (treasuryShare + buybackShare);
+
+    const now = Date.now();
+    const duration = 30 * 24 * 60 * 60 * 1000;
+
+    const subQuery = query(
+        collection(db, 'subscriptions'),
+        where('userId', '==', subscriber.uid),
+        where('creatorId', '==', creator.uid),
+        where('status', '==', 'active')
+    );
+    const subSnap = await getDocs(subQuery);
+    
+    let subRef;
+    let newExpiry;
+
+    if (!subSnap.empty) {
+        const currentSub = subSnap.docs[0];
+        subRef = doc(db, 'subscriptions', currentSub.id);
+        const currentExpiry = currentSub.data().expiresAt;
+        newExpiry = Math.max(now, currentExpiry) + duration;
+        batch.update(subRef, { expiresAt: newExpiry, updatedAt: now });
+    } else {
+        subRef = doc(collection(db, 'subscriptions'));
+        newExpiry = now + duration;
+        const newSub: Omit<SubscriptionRecord, 'id'> = {
+            userId: subscriber.uid,
+            creatorId: creator.uid,
+            startedAt: now,
+            expiresAt: newExpiry,
+            status: 'active'
+        };
+        batch.set(subRef, newSub);
+    }
 
     const paymentRef = doc(collection(db, "ledger"));
     batch.set(paymentRef, {
-        type: 'subscription_payment_usdt',
-        timestamp: Date.now(),
+        type: 'subscription_payment',
+        timestamp: now,
         fromUserId: subscriber.uid,
         toUserId: creator.uid,
         amount: subscriptionPrice,
@@ -54,22 +90,38 @@ export async function recordUsdtSubscription(
         toWallet: config.treasury_wallets[network],
     });
 
-    const earningRef = doc(collection(db, "ledger"));
-    batch.set(earningRef, {
+    batch.set(doc(collection(db, "ledger")), {
         type: 'creator_earning',
-        timestamp: Date.now(),
+        timestamp: now,
         creatorId: creator.uid,
         toUserId: creator.uid,
         userId: subscriber.uid,
         amount: creatorEarning,
         currency: 'USDT',
         referenceId: paymentRef.id,
-        platformFee: platformFee,
+    });
+
+    batch.set(doc(collection(db, "ledger")), {
+        type: 'treasury_fee',
+        timestamp: now,
+        amount: treasuryShare,
+        currency: 'USDT',
+        referenceId: paymentRef.id,
+        toWallet: config.treasury_wallets[network]
+    });
+
+    batch.set(doc(collection(db, "ledger")), {
+        type: 'buyback_burn_fee',
+        timestamp: now,
+        amount: buybackShare,
+        currency: 'USDT',
+        referenceId: paymentRef.id,
     });
     
     const userRef = doc(db, "users", subscriber.uid);
+    const updatedSubs = Array.from(new Set([...(subscriber.activeSubscriptionIds || []), creator.uid]));
     batch.update(userRef, {
-        activeSubscriptionIds: [...(subscriber.activeSubscriptionIds || []), creator.uid]
+        activeSubscriptionIds: updatedSubs
     });
 
     await batch.commit();
@@ -110,16 +162,12 @@ export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{
 
 export async function createClaimRequest(creator: Creator): Promise<string> {
     if (!creator.uid) throw new Error("Creator ID is missing.");
-
     const network = creator.preferredPayoutNetwork;
     if (!network) throw new Error("Please select a default collection network in your settings.");
-    
     const walletAddress = creator.payoutWallets?.[network]?.address;
     if (!walletAddress) throw new Error(`Your default ${network} collection address is not configured.`);
-
     const { available } = await calculateCreatorUsdtEarnings(creator.uid);
     if (available <= 0) throw new Error("You have no available USDT to claim.");
-
     const newClaim: Omit<ClaimRequest, 'id'> = {
         creatorId: creator.uid,
         amount: available,
@@ -129,7 +177,6 @@ export async function createClaimRequest(creator: Creator): Promise<string> {
         status: "pending",
         requestedAt: Date.now(),
     };
-
     const docRef = await addDoc(collection(db, 'claim_requests'), newClaim);
     return docRef.id;
 }
@@ -146,7 +193,6 @@ export const confirmUlcPurchase = async (user: UserProfile, amount: number, netw
         txHash: txHash,
         timestamp: Date.now()
     });
-
     const ulcEntryRef = doc(collection(db, 'ledger'));
     batch.set(ulcEntryRef, {
         toUserId: user.uid,
@@ -156,12 +202,10 @@ export const confirmUlcPurchase = async (user: UserProfile, amount: number, netw
         referenceId: usdtEntryRef.id,
         timestamp: Date.now()
     });
-
     const userRef = doc(db, 'users', user.uid);
     batch.update(userRef, {
         'ulcBalance.available': (user.ulcBalance?.available || 0) + amount
     });
-
     await batch.commit();
 }
 
@@ -186,15 +230,94 @@ export async function initializeSystemConfig() {
 }
 
 export async function seedMuses() {
-    // Placeholder for muse seeding logic
     console.log("Seeding AI Muses...");
+    const batch = writeBatch(db);
+
+    const musesData: Omit<AIMuse, 'id'>[] = [
+        {
+            name: "Isabella",
+            avatar: "https://picsum.photos/seed/isabella/400/400",
+            category: "Luxury Lifestyle",
+            personality: "Sophisticated, elegant, and world-traveler. Loves fine dining and exclusive events.",
+            tone: "Refined and encouraging",
+            description: "Your guide to the world's most exclusive destinations.",
+            chatCount: 0,
+            isActive: true
+        },
+        {
+            name: "Elena",
+            avatar: "https://picsum.photos/seed/elena/400/400",
+            category: "Fitness & Wellness",
+            personality: "Energetic, disciplined, and mindful. Expert in yoga and high-performance training.",
+            tone: "Motivating and direct",
+            description: "Unlocking your peak physical and mental potential.",
+            chatCount: 0,
+            isActive: true
+        },
+        {
+            name: "Chloe",
+            avatar: "https://picsum.photos/seed/chloe/400/400",
+            category: "Digital Nomad / Tech",
+            personality: "Witty, adventurous, and futuristic. Obsessed with Web3, AI, and remote work hacks.",
+            tone: "Casual and intellectually stimulating",
+            description: "Navigating the digital frontier one block at a time.",
+            chatCount: 0,
+            isActive: true
+        }
+    ];
+
+    for (const muse of musesData) {
+        const museId = muse.name.toLowerCase();
+        const museRef = doc(db, 'ai_muses', museId);
+        const userRef = doc(db, 'users', museId);
+
+        // 1. Create AI Muse Config
+        batch.set(museRef, muse);
+
+        // 2. Create corresponding User/Creator record
+        batch.set(userRef, {
+            uid: museId,
+            username: muse.name,
+            avatar: muse.avatar,
+            bio: muse.description,
+            isCreator: true,
+            isAiContent: true,
+            createdAt: Date.now(),
+            creatorData: {
+                subscriptionPriceMonthly: 15,
+                category: muse.category,
+                creatorStatus: 'active'
+            },
+            ulcBalance: { available: 1000, locked: 0, claimable: 0 }
+        });
+
+        // 3. Create 3 Seed Posts for each muse
+        for (let i = 1; i <= 3; i++) {
+            const postRef = doc(collection(db, 'posts'));
+            batch.set(postRef, {
+                creatorId: museId,
+                creatorName: muse.name,
+                creatorAvatar: muse.avatar,
+                mediaUrl: `https://picsum.photos/seed/${museId}_${i}/800/1000`,
+                mediaType: 'image',
+                content: `AI Post #${i} from ${muse.name}. Exploring ${muse.category} vibes.`,
+                contentType: 'public',
+                unlockPrice: 0,
+                createdAt: Date.now() - (i * 3600000), // Spaced by hours
+                isAiContent: true,
+                likes: Math.floor(Math.random() * 100),
+                unlockCount: 0
+            });
+        }
+    }
+
+    await batch.commit();
+    console.log("Muses and their content seeded successfully.");
 }
 
 export async function triggerGenesisAllocation(user: UserProfile) {
     const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, {
-        'ulcBalance.available': (user.ulcBalance?.available || 0) + 50000
-    });
+    await updateDoc(userRef, { 'ulcBalance.available': (user.ulcBalance?.available || 0) + 50000 });
 }
 
 export async function toggleUserFreeze(uid: string, freeze: boolean) {

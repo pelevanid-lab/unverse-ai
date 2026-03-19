@@ -34,6 +34,23 @@ export interface UserProfile {
     preferredPaymentNetwork?: 'TRON' | 'TON';
     creatorData?: Creator;
     isFrozen?: boolean;
+    socials?: {
+        twitter?: string;
+        telegram?: string;
+        discord?: string;
+    };
+    promoCard?: PromoCard | null;
+}
+
+export interface PromoCard {
+    imageUrl: string;
+    title: string;
+    description: string;
+    ctaText: string;
+    creatorId: string;
+    creatorName: string;
+    creatorAvatar: string;
+    updatedAt: number;
 }
 
 export interface Creator {
@@ -51,6 +68,11 @@ export interface Creator {
     coverImage?: string;
     creatorStatus?: 'active' | 'inactive';
     visibility?: 'public' | 'private';
+    collectionWallets?: {
+        TRON?: NetworkWallet | null;
+        TON?: NetworkWallet | null;
+    };
+    defaultClaimNetwork?: 'TRON' | 'TON';
 }
 
 export interface SystemConfig {
@@ -71,15 +93,18 @@ export interface SystemConfig {
 
 export type LedgerEntryType = 
     | 'welcome_bonus' 
+    | 'subscription_payment' 
     | 'subscription_payment_usdt' 
     | 'creator_earning' 
     | 'premium_unlock' 
+    | 'limited_purchase'
     | 'tip' 
     | 'withdrawal'
     | 'ulc_purchase'
     | 'ulc_purchase_payment'
     | 'staking_reward'
-    | 'treasury_fee';
+    | 'treasury_fee'
+    | 'buyback_burn_fee';
 
 export interface LedgerEntry {
     id: string;
@@ -112,6 +137,15 @@ export interface ClaimRequest {
     requestedAt: number;
 }
 
+export interface SubscriptionRecord {
+    id: string;
+    userId: string;
+    creatorId: string;
+    startedAt: number;
+    expiresAt: number;
+    status: 'active' | 'expired';
+}
+
 export type PostContentType = "public" | "premium" | "limited";
 
 export interface ContentPost {
@@ -139,6 +173,7 @@ export interface ContentPost {
     likes?: number;
     unlockCount?: number;
     earningsULC?: number;
+    isAiContent?: boolean;
 }
 
 export interface CreatorMedia {
@@ -163,4 +198,40 @@ export interface GroupedLedgerEntry {
     timestamp: number;
     mainEntry: LedgerEntry;
     relatedEntries: LedgerEntry[];
+}
+
+export interface AccessStatus {
+    hasAccess: boolean;
+    reason?: 'not_subscribed' | 'sold_out' | 'insufficient_balance' | 'not_logged_in';
+}
+
+export interface Chat {
+    id: string;
+    participants: string[];
+    lastMessage: string;
+    lastTimestamp: number;
+    creatorId: string;
+    subscriberId: string;
+    subscriberName: string;
+    subscriberAvatar: string;
+    unreadCount: number;
+}
+
+export interface Message {
+    id: string;
+    senderId: string;
+    content: string;
+    timestamp: number;
+}
+
+export interface AIMuse {
+    id: string;
+    name: string;
+    avatar: string;
+    category: string;
+    personality: string;
+    tone: string;
+    description: string;
+    chatCount: number;
+    isActive: boolean;
 }

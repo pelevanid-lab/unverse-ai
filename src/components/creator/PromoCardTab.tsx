@@ -1,0 +1,169 @@
+
+"use client";
+
+import { useState, useEffect } from 'react';
+import { useWallet } from '@/hooks/use-wallet';
+import { db, storage } from '@/lib/firebase';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { UserProfile, PromoCard } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Upload, Sparkles, Megaphone, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+export function PromoCardTab() {
+  const { user } = useWallet();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [promo, setPromo] = useState<Partial<PromoCard>>({
+      title: '',
+      description: '',
+      ctaText: 'Subscribe',
+      imageUrl: ''
+  });
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data() as UserProfile;
+            if (data.promoCard) setPromo(data.promoCard);
+        }
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.uid) return;
+
+    setLoading(true);
+    try {
+        const sRef = ref(storage, `promo_cards/${user.uid}/${Date.now()}_${file.name}`);
+        const task = uploadBytesResumable(sRef, file);
+        
+        task.on('state_changed', null, (err) => { throw err; }, async () => {
+            const url = await getDownloadURL(task.snapshot.ref);
+            setPromo(prev => ({ ...prev, imageUrl: url }));
+            setLoading(false);
+        });
+    } catch (err) {
+        toast({ variant: 'destructive', title: 'Upload Failed' });
+        setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user?.uid || !promo.imageUrl || !promo.title) {
+        toast({ variant: 'destructive', title: 'Missing Info', description: 'Image and Title are required.' });
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const userRef = doc(db, 'users', user.uid);
+        const fullPromo: PromoCard = {
+            imageUrl: promo.imageUrl,
+            title: promo.title,
+            description: promo.description || '',
+            ctaText: promo.ctaText || 'Subscribe',
+            creatorId: user.uid,
+            creatorName: user.username,
+            creatorAvatar: user.avatar || '',
+            updatedAt: Date.now()
+        };
+
+        await updateDoc(userRef, { promoCard: fullPromo });
+        toast({ title: 'Promo Card Saved!', description: 'It will now appear in the Discover feed.' });
+    } catch (err) {
+        toast({ variant: 'destructive', title: 'Save Failed' });
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Editor */}
+        <Card className="glass-card border-white/10">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Megaphone className="w-5 h-5 text-primary" /> Create Promo Card</CardTitle>
+                <CardDescription>This card will be featured in the global Discover feed to attract new subscribers.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-4">
+                    <Label>Promo Image</Label>
+                    <div className="relative aspect-[16/9] rounded-2xl border-2 border-dashed border-white/10 overflow-hidden group">
+                        {promo.imageUrl ? (
+                            <>
+                                <img src={promo.imageUrl} className="w-full h-full object-cover" alt="Promo" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button variant="secondary" size="sm" onClick={() => setPromo(p => ({ ...p, imageUrl: '' }))}><Trash2 className="w-4 h-4 mr-2"/> Replace</Button>
+                                </div>
+                            </>
+                        ) : (
+                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
+                                <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                                <span className="text-xs font-bold text-muted-foreground">UPLOAD RECTANGULAR IMAGE (16:9)</span>
+                                <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
+                            </label>
+                        )}
+                        {loading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Card Title</Label>
+                        <Input value={promo.title} onChange={e => setPromo(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Join my inner circle" className="bg-white/5" maxLength={40} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Short Description</Label>
+                        <Textarea value={promo.description} onChange={e => setPromo(p => ({ ...p, description: e.target.value }))} placeholder="Tell people why they should follow you..." className="bg-white/5 resize-none h-20" maxLength={100} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Button Text</Label>
+                        <Input value={promo.ctaText} onChange={e => setPromo(p => ({ ...p, ctaText: e.target.value }))} placeholder="Subscribe" className="bg-white/5" />
+                    </div>
+                </div>
+
+                <Button onClick={handleSave} disabled={loading} className="w-full h-12 font-bold shadow-xl shadow-primary/20 rounded-xl">
+                    {loading ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    Save & Feature Card
+                </Button>
+            </CardContent>
+        </Card>
+
+        {/* Preview */}
+        <div className="space-y-4">
+            <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Live Preview</Label>
+            <div className="w-full max-w-sm mx-auto aspect-[4/5] relative rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl group">
+                 <div className="absolute inset-0 bg-muted animate-pulse" />
+                 {promo.imageUrl && <img src={promo.imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />}
+                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                 
+                 <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <Avatar className="w-8 h-8 border border-white/20">
+                        <AvatarImage src={user?.avatar} />
+                        <AvatarFallback>{user?.username?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs font-bold text-white shadow-sm">{user?.username}</span>
+                 </div>
+
+                 <div className="absolute bottom-0 left-0 right-0 p-6 space-y-3">
+                    <h3 className="text-2xl font-headline font-bold text-white leading-tight">{promo.title || "Your Title Here"}</h3>
+                    <p className="text-sm text-white/70 line-clamp-2">{promo.description || "Your description will appear here..."}</p>
+                    <Button className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90">
+                        {promo.ctaText || "Subscribe"}
+                    </Button>
+                 </div>
+            </div>
+            <p className="text-center text-[10px] text-muted-foreground italic">This is how your card will look in the carousel.</p>
+        </div>
+    </div>
+  );
+}

@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
+import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone } from 'lucide-react';
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,6 +13,8 @@ import { UserProfile } from '@/lib/types';
 import Link from 'next/link';
 import { ContainerTab } from '@/components/creator/ContainerTab';
 import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
+import { CreatorInbox } from '@/components/creator/CreatorInbox';
+import { PromoCardTab } from '@/components/creator/PromoCardTab';
 import { useRouter } from 'next/navigation';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
@@ -72,11 +74,11 @@ export default function CreatorPanel() {
 
   if (!isConnected || !user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4">
         <DollarSign className="w-16 h-16 text-primary" />
         <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
         <p className="text-muted-foreground">Please connect your wallet to manage your content.</p>
-        <Link href="/"><Button>Back to Home</Button></Link>
+        <Link href="/"><Button className="rounded-xl">Back to Home</Button></Link>
       </div>
     );
   }
@@ -86,7 +88,7 @@ export default function CreatorPanel() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6">
       <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-10 border-white/10">
         <div className="flex items-start gap-4">
             <Button 
@@ -98,10 +100,10 @@ export default function CreatorPanel() {
                 <ChevronLeft className="w-6 h-6" />
             </Button>
             <div>
-                <h1 className="text-5xl font-headline font-bold gradient-text">Creator Panel</h1>
+                <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter">Creator Panel</h1>
                 <div className='mt-2'>
                     <Link href="/creator/settings" className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                        <span className="text-sm">Manage your digital empire</span>
+                        <span className="text-sm font-medium">Manage your digital empire</span>
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </div>
@@ -110,9 +112,9 @@ export default function CreatorPanel() {
         
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <Link href="/wallet" className='w-full'>
-                <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-white/10 transition-colors cursor-pointer group">
+                <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-primary/10 transition-colors cursor-pointer group min-w-[200px]">
                     <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Available Balance</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Total Balance</p>
                         <p className="text-3xl font-bold font-headline group-hover:text-primary transition-colors">
                             {user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span>
                         </p>
@@ -120,14 +122,14 @@ export default function CreatorPanel() {
                 </Card>
             </Link>
             <div className="flex flex-col gap-2">
-                <Link href={`/profile/${user?.walletAddress}`} className="w-full">
-                    <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5">
-                        <Globe className="w-4 h-4" /> View Public Profile
+                <Link href={`/profile/${user?.uid}`} className="w-full">
+                    <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5 font-bold">
+                        <Globe className="w-4 h-4" /> View Profile
                     </Button>
                 </Link>
                 <Link href="/creator/settings" className="w-full">
-                    <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6">
-                        <Settings className="w-4 h-4" /> Empire Settings
+                    <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6 font-bold">
+                        <Settings className="w-4 h-4" /> Settings
                     </Button>
                 </Link>
             </div>
@@ -135,9 +137,15 @@ export default function CreatorPanel() {
       </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-16 bg-muted/20 p-1.5 rounded-[2rem] border border-white/5 mb-10">
-                <TabsTrigger value="container" className="rounded-2xl text-base font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Container</TabsTrigger>
-                <TabsTrigger value="published" className="rounded-2xl text-base font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Published Contents</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 h-16 bg-muted/20 p-1.5 rounded-[2rem] border border-white/5 mb-10">
+                <TabsTrigger value="container" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Container</TabsTrigger>
+                <TabsTrigger value="published" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Published</TabsTrigger>
+                <TabsTrigger value="promo" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none flex items-center gap-2">
+                    Promo <span className="hidden sm:inline">Card</span>
+                </TabsTrigger>
+                <TabsTrigger value="messages" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none flex items-center gap-2">
+                    Messages
+                </TabsTrigger>
             </TabsList>
 
             <TabsContent value="container" className="mt-0 focus-visible:outline-none">
@@ -145,6 +153,12 @@ export default function CreatorPanel() {
             </TabsContent>
             <TabsContent value="published" className="mt-0 focus-visible:outline-none">
                 <PublishContentsTab />
+            </TabsContent>
+            <TabsContent value="promo" className="mt-0 focus-visible:outline-none">
+                <PromoCardTab />
+            </TabsContent>
+            <TabsContent value="messages" className="mt-0 focus-visible:outline-none">
+                <CreatorInbox />
             </TabsContent>
         </Tabs>
     </div>

@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet, Settings } from 'lucide-react';
+import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet, Settings, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -59,7 +59,7 @@ export default function MyPage() {
   const availableULC = user.ulcBalance?.available || 0;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-20">
+    <div className="max-w-6xl mx-auto space-y-10 pb-20 px-4 mt-6">
       <div className="flex flex-col md:flex-row items-center gap-8 pb-10 border-b border-white/10"> 
         <div className="relative">
             <Avatar className="w-40 h-40 border-4 border-primary/20 shadow-2xl">
@@ -142,6 +142,21 @@ export default function MyPage() {
                 </Card>
             </Link>
 
+            <Link href="/limited-editions" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-yellow-500/40 transition-all h-full bg-white/[0.02]">
+                    <CardContent className="p-6 flex items-center justify-between">
+                        <div className='flex items-center gap-4'>
+                            <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-colors"><Clock className="w-6 h-6 text-yellow-400" /></div>
+                            <div>
+                                <p className="font-bold">Limited Editions</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Restricted Supply</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors" />
+                    </CardContent>
+                </Card>
+            </Link>
+
              <Link href="/active-subs" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-yellow-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
@@ -153,21 +168,6 @@ export default function MyPage() {
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-
-             <Link href="/ai-muses" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-teal-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-teal-500/10 rounded-xl group-hover:bg-teal-500/20 transition-colors"><Bot className="w-6 h-6 text-teal-400" /></div>
-                            <div>
-                                <p className="font-bold">AI Muses</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Economic Agency</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-teal-400 transition-colors" />
                     </CardContent>
                 </Card>
             </Link>

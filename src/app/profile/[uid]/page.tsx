@@ -5,20 +5,22 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost, AccessStatus } from '@/lib/types';
+import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { UserProfile, ContentPost, AIMuse } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock } from 'lucide-react';
+import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock, MessageSquare, Sparkles } from 'lucide-react';
 import { PostGrid } from '@/components/profile/PostGrid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { canAccessPremiumSection, canAccessLimitedSection } from '@/lib/access';
+import { checkSubscription } from '@/lib/access';
 
-/**
- * LockedStateUI - The subscription gate component
- */
+// A unified profile type for both creators and AI muses
+interface UnifiedProfile extends Partial<UserProfile> {
+    isAiMuse: boolean;
+}
+
 function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSubscribe: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 glass-card rounded-[2.5rem] border-white/5 bg-white/[0.02] animate-in fade-in zoom-in duration-300">
@@ -27,22 +29,12 @@ function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSu
             </div>
             <div className="space-y-2">
                 <h2 className="text-3xl font-headline font-bold">Subscribers only</h2>
-                <p className="text-muted-foreground max-w-sm mx-auto">
-                    Subscribe to {creatorName} to unlock this exclusive section and view premium content.
-                </p>
+                <p className="text-muted-foreground max-w-sm mx-auto">Subscribe to {creatorName} to unlock this exclusive section and view premium content.</p>
             </div>
-            <Button 
-                onClick={onSubscribe} 
-                size="lg" 
-                className="rounded-2xl px-10 h-14 text-lg font-bold shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
-            >
+            <Button onClick={onSubscribe} size="lg" className="rounded-2xl px-10 h-14 text-lg font-bold shadow-xl shadow-primary/20">
                 <Crown className="w-5 h-5 mr-2" /> Subscribe
             </Button>
-            <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-50">
-                    Premium and Limited content are available to subscribers
-                </p>
-            </div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-50">Premium and Limited content are available to subscribers</p>
         </div>
     );
 }
@@ -50,12 +42,12 @@ function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSu
 export default function PublicProfilePage() {
   const { uid } = useParams();
   const { user: currentUser } = useWallet();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UnifiedProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('public');
   
-  // Access states
   const [premiumAccess, setPremiumAccess] = useState<boolean>(false);
   const [limitedAccess, setLimitedAccess] = useState<boolean>(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -63,20 +55,47 @@ export default function PublicProfilePage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Fetch Profile and Posts
   useEffect(() => {
     if (!uid) return;
 
     setLoading(true);
-    const userDocRef = doc(db, 'users', uid as string);
-    const unsubUser = onSnapshot(userDocRef, (userSnap) => {
-      if (userSnap.exists()) {
-        setProfile(userSnap.data() as UserProfile);
-      } else {
-        router.push('/discover');
-      }
-      setLoading(false);
-    });
+    const fetchProfile = async () => {
+        const id = uid as string;
+        const userDocRef = doc(db, 'users', id);
+        const museDocRef = doc(db, 'ai_muses', id);
+
+        const userSnap = await getDoc(userDocRef);
+        const museSnap = await getDoc(museDocRef);
+
+        let profileData: UnifiedProfile | null = null;
+
+        if (museSnap.exists()) {
+            const muse = museSnap.data() as AIMuse;
+            profileData = {
+                uid: id,
+                username: muse.name,
+                avatar: muse.avatar,
+                bio: muse.description,
+                isCreator: true,
+                isAiMuse: true,
+                creatorData: {
+                    category: muse.category,
+                    subscriptionPriceMonthly: 15, // Example price
+                },
+            };
+        } else if (userSnap.exists()) {
+            profileData = { ...(userSnap.data() as UserProfile), isAiMuse: false };
+        }
+
+        if (profileData) {
+            setProfile(profileData);
+        } else {
+            router.push('/discover');
+        }
+        setLoading(false);
+    };
+
+    fetchProfile();
 
     const unsubPosts = onSnapshot(
       query(collection(db, 'posts'), where('creatorId', '==', uid), orderBy('createdAt', 'desc')),
@@ -86,37 +105,49 @@ export default function PublicProfilePage() {
     );
 
     return () => {
-      unsubUser();
       unsubPosts();
     };
   }, [uid, router]);
 
-  // Unified Access Check
   useEffect(() => {
       const verifyAccess = async () => {
           if (!uid) return;
           setCheckingAccess(true);
-          
           const isSelf = currentUser?.uid === uid;
-          
           if (isSelf) {
               setPremiumAccess(true);
               setLimitedAccess(true);
+              setIsSubscribed(true);
+          } else if (currentUser?.uid) {
+              const active = await checkSubscription(currentUser.uid, uid as string);
+              setIsSubscribed(active);
+              setPremiumAccess(active);
+              setLimitedAccess(active);
           } else {
-              const premiumRes = await canAccessPremiumSection(currentUser?.uid, uid as string);
-              const limitedRes = await canAccessLimitedSection(currentUser?.uid, uid as string);
-              setPremiumAccess(premiumRes.hasAccess);
-              setLimitedAccess(limitedRes.hasAccess);
+              setIsSubscribed(false);
+              setPremiumAccess(false);
+              setLimitedAccess(false);
           }
           setCheckingAccess(false);
       };
-      
       verifyAccess();
   }, [currentUser, uid]);
 
   const handleSubscribeClick = () => {
     if (!uid) return;
     router.push(`/subscribe/${uid}`);
+  };
+
+  const handleMessageClick = () => {
+    if (!isSubscribed) {
+        toast({
+            title: "Subscription Required",
+            description: "You must be subscribed to message this creator.",
+            variant: "destructive"
+        });
+        return;
+    }
+    router.push(`/muses/${uid}/chat`);
   };
 
   if (loading || !profile) return (
@@ -126,10 +157,9 @@ export default function PublicProfilePage() {
   );
 
   const isSelf = currentUser?.uid === uid;
-  const { username, bio, avatar, isCreator, creatorData, createdAt } = profile;
+  const { username, bio, avatar, isCreator, creatorData, createdAt, isAiMuse } = profile;
   const { coverImage, subscriptionPriceMonthly } = creatorData || {};
 
-  // Separate data for tabs
   const publicPosts = posts.filter(p => p.contentType === 'public');
   const premiumPosts = posts.filter(p => p.contentType === 'premium');
   const limitedPosts = posts.filter(p => p.contentType === 'limited');
@@ -157,26 +187,44 @@ export default function PublicProfilePage() {
             <div className="space-y-1">
                 <h1 className="text-5xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
                 {username}
-                {isCreator && <CheckCircle className="w-8 h-8 text-primary fill-primary/10" />}
+                {isAiMuse ? (
+                    <Badge className="text-lg font-bold gap-2 bg-primary/10 text-primary border-primary/20">
+                        <Sparkles className="w-4 h-4" /> AI Muse
+                    </Badge>
+                ) : ( isCreator && <CheckCircle className="w-8 h-8 text-primary fill-primary/10" />)}
                 </h1>
                 <p className="text-xl text-muted-foreground/90 font-medium leading-relaxed max-w-2xl">{bio}</p>
             </div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
-              <Badge variant="outline" className="gap-2 px-4 py-1.5 rounded-full bg-white/5 border-white/10 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                <Calendar className="w-4 h-4" /> Joined {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}
-              </Badge>
+              {!isAiMuse && (
+                <Badge variant="outline" className="gap-2 px-4 py-1.5 rounded-full bg-white/5 border-white/10 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    <Calendar className="w-4 h-4" /> Joined {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}
+                </Badge>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 min-w-[240px] shrink-0">
-            {(premiumAccess && !isSelf) ? (
-              <Button disabled className="bg-green-500/10 text-green-400 border border-green-500/20 gap-2 h-16 rounded-2xl w-full text-lg font-bold">
-                <Crown className="w-6 h-6" /> Active Subscriber
-              </Button>
+          <div className="flex flex-col gap-3 min-w-[240px] shrink-0">
+            {isSubscribed && !isSelf ? (
+              <div className="flex flex-col gap-2">
+                <Button disabled className="bg-green-500/10 text-green-400 border border-green-500/20 gap-2 h-16 rounded-2xl w-full text-lg font-bold">
+                  <Crown className="w-6 h-6" /> Active Subscriber
+                </Button>
+                <Button onClick={handleMessageClick} variant="outline" className="h-14 rounded-2xl gap-2 border-white/10 hover:bg-white/5 font-bold">
+                  <MessageSquare className="w-5 h-5" /> Send Message
+                </Button>
+              </div>
             ) : (
-              <Button onClick={handleSubscribeClick} disabled={isSelf || !isCreator} className="bg-primary hover:bg-primary/90 gap-3 h-16 rounded-2xl w-full text-xl font-bold shadow-2xl shadow-primary/30">
-                <Crown className="w-6 h-6" /> Subscribe ({subscriptionPriceMonthly ?? 0} USDT)
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button onClick={handleSubscribeClick} disabled={isSelf || !isCreator} className="bg-primary hover:bg-primary/90 gap-3 h-16 rounded-2xl w-full text-xl font-bold shadow-2xl shadow-primary/30">
+                  <Crown className="w-6 h-6" /> Subscribe ({subscriptionPriceMonthly ?? 0} USDT)
+                </Button>
+                {!isSelf && (
+                    <Button onClick={handleMessageClick} variant="ghost" className="h-12 rounded-2xl gap-2 text-muted-foreground hover:text-white">
+                        <Lock className="w-4 h-4" /> Message (Subscribers Only)
+                    </Button>
+                )}
+              </div>
             )}
           </div>
         </div>

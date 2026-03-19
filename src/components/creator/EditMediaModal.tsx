@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AICreatorCopilot } from './AICreatorCopilot';
 
 interface EditMediaModalProps {
   media: CreatorMedia;
@@ -57,7 +58,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
         mediaType: media.mediaType,
         content: caption,
         contentType: contentType,
-        unlockPrice: contentType === 'premium' ? priceULC : 0,
+        unlockPrice: contentType === 'premium' ? priceULC : (contentType === 'limited' ? priceULC : 0),
         createdAt: Date.now(),
         likes: 0,
         unlockCount: 0,
@@ -138,26 +139,37 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] flex flex-col glass-card p-0 overflow-hidden">
+      <DialogContent className="max-w-5xl w-full h-full max-h-[90vh] flex flex-col glass-card p-0 overflow-hidden">
            <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-black/50 hover:bg-black/80 text-white">
               <X className="h-4 w-4" />
           </Button>
           <DialogTitle className="sr-only">Edit Content</DialogTitle>
           <DialogDescription className="sr-only">Configure your content type and pricing.</DialogDescription>
 
-          <div className="grid grid-cols-1 md:grid-cols-10 h-full overflow-hidden">
-              <div className="md:col-span-6 flex items-center justify-center bg-black/80 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-12 h-full overflow-hidden">
+              <div className="md:col-span-7 flex items-center justify-center bg-black/80 overflow-hidden">
                   {media.mediaType === 'image' ? (
                       <img src={media.mediaUrl} alt="Preview" className="max-w-full max-h-full w-auto h-auto object-contain"/>
                   ) : (
                       <video src={media.mediaUrl} controls autoPlay className="max-w-full max-h-full w-auto h-auto" />
                   )}
               </div>
-              <div className="md:col-span-4 flex flex-col justify-between p-6 bg-background/50 overflow-y-auto custom-scrollbar">
+              <div className="md:col-span-5 flex flex-col justify-between p-6 bg-background/50 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
+                      
+                      {/* AI COPILOT INTEGRATION */}
+                      <AICreatorCopilot 
+                        contentType={contentType} 
+                        creatorName={creatorProfile.username} 
+                        onApply={(data) => {
+                            setCaption(data.caption);
+                            if (data.price) setPriceULC(data.price);
+                        }}
+                      />
+
                       <div className="space-y-2">
                           <Label htmlFor="caption" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Caption</Label>
-                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="What's on your mind?" className="bg-input/50 resize-none h-24" maxLength={280} />
+                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="What's on your mind?" className="bg-input/50 resize-none h-20" maxLength={280} />
                       </div>
 
                       <div className="space-y-3">
@@ -266,8 +278,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                           </div>
                       </div>
                   </div>
-                  <div className="flex flex-col space-y-3 mt-6">
-                      <Button onClick={handlePublish} disabled={!!loadingAction} className='h-14 w-full text-lg font-bold gap-2 rounded-2xl'>
+                  <div className="flex flex-col space-y-3 mt-8">
+                      <Button onClick={handlePublish} disabled={!!loadingAction} className='h-14 w-full text-lg font-bold gap-2 rounded-2xl bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20'>
                           {loadingAction === 'publish' ? <Loader2 className="animate-spin" /> : <><Upload size={20}/>Publish Now</>}
                       </Button>
                       
