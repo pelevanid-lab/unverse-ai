@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { ContentPost, LedgerEntry } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, Clock } from 'lucide-react';
 import { ViewPostModal } from './ViewPostModal';
 
 export function PublishContentsTab() {
@@ -17,32 +17,37 @@ export function PublishContentsTab() {
   const [selectedPost, setSelectedPost] = useState<ContentPost | null>(null);
 
   useEffect(() => {
-    if (!user?.walletAddress) return;
+    if (!user?.uid) return;
 
     setLoading(true);
-    const q = query(collection(db, 'posts'), where('creatorId', '==', user.walletAddress));
+    // Use uid instead of walletAddress for creatorId
+    const q = query(collection(db, 'posts'), where('creatorId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const fetchedPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
+      // Filter out invalid documents without contentType in memory to stay simple and safe
+      const fetchedPosts = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as ContentPost))
+        .filter(p => !!p.contentType);
       
-      const premiumPostIds = fetchedPosts
-        .filter(p => p.isPremium)
+      const premiumAndLimitedPostIds = fetchedPosts
+        .filter(p => p.contentType === 'premium' || p.contentType === 'limited')
         .map(p => p.id);
 
       let postsWithStats = fetchedPosts;
 
-      if (premiumPostIds.length > 0) {
+      if (premiumAndLimitedPostIds.length > 0) {
+        // Stats for premium unlocks
         const ledgerQuery = query(
           collection(db, 'ledger'),
           where('type', '==', 'premium_unlock'),
-          where('referenceId', 'in', premiumPostIds)
+          where('referenceId', 'in', premiumAndLimitedPostIds)
         );
         
         const ledgerSnapshot = await getDocs(ledgerQuery);
         const unlocks = ledgerSnapshot.docs.map(doc => doc.data() as LedgerEntry);
 
         postsWithStats = fetchedPosts.map(post => {
-          if (post.isPremium) {
+          if (post.contentType === 'premium' || post.contentType === 'limited') {
             const postUnlocks = unlocks.filter(u => u.referenceId === post.id);
             return {
               ...post,
@@ -54,18 +59,14 @@ export function PublishContentsTab() {
         });
       }
       
-      const sortedPosts = postsWithStats.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-        return timeB - timeA;
-      });
+      const sortedPosts = postsWithStats.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
       setPosts(sortedPosts);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user?.walletAddress]);
+  }, [user?.uid]);
 
   return (
     <>
@@ -97,7 +98,7 @@ export function PublishContentsTab() {
                   >
                     {mediaUrl && (
                       isImage ? (
-                        <img src={mediaUrl} alt={post.caption || 'post'} className="w-full h-full object-cover" />
+                        <img src={mediaUrl} alt={post.content || 'post'} className="w-full h-full object-cover" />
                       ) : (
                         <video src={mediaUrl} muted loop playsInline className="w-full h-full object-cover" />
                       )
@@ -105,14 +106,13 @@ export function PublishContentsTab() {
                  
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                      <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                        {post.isPremium && (
-                            <div className="flex items-center gap-3 text-xs font-semibold">
-                              <div className="flex items-center gap-1">
-                                  <Lock size={14} />
-                                  <span>{post.unlockCount || 0}</span>
-                              </div>
-                            </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {post.contentType === 'premium' && <Lock size={14} className="text-primary" />}
+                            {post.contentType === 'limited' && <Clock size={14} className="text-yellow-400" />}
+                            {(post.contentType !== 'public') && (
+                                <span className="text-[10px] font-bold">{post.unlockCount || 0} Unlocks</span>
+                            )}
+                        </div>
                     </div>
                   </div>
                 )

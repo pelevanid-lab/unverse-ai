@@ -12,41 +12,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-function PromoCarousel({ promos }: { promos: PromoCard[] }) {
-    if (promos.length === 0) return null;
-    
-    return (
-        <div className="w-full overflow-x-auto custom-scrollbar flex gap-6 pb-6 px-1 snap-x">
-            {promos.map((p, i) => (
-                <Link href={`/profile/${p.creatorId}`} key={i} className="flex-shrink-0 w-[280px] sm:w-[340px] snap-start">
-                    <div className="aspect-[16/10] relative rounded-[2rem] overflow-hidden border border-white/10 shadow-xl group hover:border-primary/50 transition-all bg-muted/20">
-                        <img src={p.imageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={p.title} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                        
-                        <div className="absolute top-4 left-4 flex items-center gap-2">
-                            <Avatar className="w-8 h-8 border border-white/20 shadow-md">
-                                <AvatarImage src={p.creatorAvatar} />
-                                <AvatarFallback>{p.creatorName?.[0]}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-md">{p.creatorName}</span>
-                        </div>
-
-                        <div className="absolute bottom-0 left-0 right-0 p-6 space-y-2">
-                            <h3 className="text-xl font-headline font-bold text-white leading-tight">{p.title}</h3>
-                            <p className="text-xs text-white/70 line-clamp-1">{p.description}</p>
-                            <Button className="w-full h-10 rounded-xl font-bold bg-white text-black hover:bg-primary hover:text-white transition-all shadow-lg text-xs gap-2">
-                                {p.ctaText || "View Profile"} <ChevronRight size={14} />
-                            </Button>
-                        </div>
-                    </div>
-                </Link>
-            ))}
-        </div>
-    );
-}
 
 export default function DiscoverPage() {
-  const [contentChunks, setContentChunks] = useState<{ type: 'posts' | 'promo', data: any }[]>([]);
+  const [posts, setPosts] = useState<ContentPost[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useWallet();
 
@@ -59,45 +27,17 @@ export default function DiscoverPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch only PUBLIC posts
         const postsQuery = query(
           collection(db, 'posts'),
-          where('contentType', '==', 'public'),
           orderBy('createdAt', 'desc'),
-          limit(60)
+          limit(100)
         );
         const postsSnap = await getDocs(postsQuery);
-        const publicPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ContentPost));
+        const publicPosts = postsSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as ContentPost))
+            .filter(post => post.contentType === 'public');
 
-        // 2. Fetch Creator PROMO CARDS
-        const creatorsQuery = query(collection(db, 'users'), where('isCreator', '==', true), limit(30));
-        const creatorsSnap = await getDocs(creatorsQuery);
-        const allPromos = creatorsSnap.docs
-            .map(doc => (doc.data() as UserProfile).promoCard)
-            .filter(p => !!p) as PromoCard[];
-
-        // 3. Interleaving Logic
-        const chunks: { type: 'posts' | 'promo', data: any }[] = [];
-        const POSTS_PER_CHUNK = 8;
-        
-        for (let i = 0; i < publicPosts.length; i += POSTS_PER_CHUNK) {
-            const chunk = publicPosts.slice(i, i + POSTS_PER_CHUNK);
-            chunks.push({ type: 'posts', data: chunk });
-            
-            // Insert carousel after every 8 posts
-            if (allPromos.length > 0) {
-                // Shuffle and take a subset for variety
-                const promoSubset = [...allPromos].sort(() => 0.5 - Math.random()).slice(0, 6);
-                chunks.push({ type: 'promo', data: promoSubset });
-            }
-        }
-
-        // Handle empty feed (unlikely but safe)
-        if (chunks.length === 0) {
-            // We could add dummy/AI content here
-        }
-
-        setContentChunks(chunks);
+        setPosts(publicPosts);
 
       } catch (error) {
         console.error("Error fetching Discover data: ", error);
@@ -142,29 +82,18 @@ export default function DiscoverPage() {
         </div>
       ) : (
         <div className="space-y-16 pb-20">
-            {contentChunks.map((chunk, index) => (
-                <div key={`${chunk.type}-${index}`} className="space-y-8">
-                    {chunk.type === 'posts' ? (
-                        <PostGrid 
-                            postsToShow={chunk.data}
-                            unlockedPostIds={allUnlockedPostIds}
-                            subscribedToCreatorIds={subscribedToCreatorIds}
-                            onPostUnlocked={handlePostUnlocked}
-                        />
-                    ) : (
-                        <section className="space-y-6">
-                            <div className="flex items-center justify-between px-2">
-                                <div className="flex items-center gap-3">
-                                    <Megaphone className="w-5 h-5 text-primary" />
-                                    <h2 className="text-xl font-headline font-bold uppercase tracking-widest">Featured</h2>
-                                </div>
-                                <Link href="/muses" className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-widest">View All Muses</Link>
-                            </div>
-                            <PromoCarousel promos={chunk.data} />
-                        </section>
-                    )}
+            {posts.length > 0 ? (
+                 <PostGrid 
+                    postsToShow={posts}
+                    unlockedPostIds={allUnlockedPostIds}
+                    subscribedToCreatorIds={subscribedToCreatorIds}
+                    onPostUnlocked={handlePostUnlocked}
+                />
+            ) : (
+                <div className="text-center py-20">
+                    <p className="text-muted-foreground">No public content available yet.</p>
                 </div>
-            ))}
+            )}
         </div>
       )}
     </div>

@@ -4,17 +4,13 @@
 import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone } from 'lucide-react';
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile } from '@/lib/types';
 import Link from 'next/link';
-import { ContainerTab } from '@/components/creator/ContainerTab';
-import { PublishContentsTab } from '@/components/creator/PublishContentsTab';
-import { CreatorInbox } from '@/components/creator/CreatorInbox';
-import { PromoCardTab } from '@/components/creator/PromoCardTab';
+import { CreatorTabs } from '@/components/creator/CreatorTabs';
 import { useRouter } from 'next/navigation';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
@@ -47,7 +43,6 @@ export default function CreatorPanel() {
   const { user, isConnected } = useWallet();
   const router = useRouter();
   const [activationLoading, setActivationLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('container');
 
   const handleBecomeCreator = async () => {
       if (!user?.uid) return;
@@ -136,31 +131,7 @@ export default function CreatorPanel() {
         </div>
       </header>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 h-16 bg-muted/20 p-1.5 rounded-[2rem] border border-white/5 mb-10">
-                <TabsTrigger value="container" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Container</TabsTrigger>
-                <TabsTrigger value="published" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none">Published</TabsTrigger>
-                <TabsTrigger value="promo" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none flex items-center gap-2">
-                    Promo <span className="hidden sm:inline">Card</span>
-                </TabsTrigger>
-                <TabsTrigger value="messages" className="rounded-2xl text-xs sm:text-sm font-headline font-bold data-[state=active]:bg-primary data-[state=active]:text-white shadow-none flex items-center gap-2">
-                    Messages
-                </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="container" className="mt-0 focus-visible:outline-none">
-                <ContainerTab />
-            </TabsContent>
-            <TabsContent value="published" className="mt-0 focus-visible:outline-none">
-                <PublishContentsTab />
-            </TabsContent>
-            <TabsContent value="promo" className="mt-0 focus-visible:outline-none">
-                <PromoCardTab />
-            </TabsContent>
-            <TabsContent value="messages" className="mt-0 focus-visible:outline-none">
-                <CreatorInbox />
-            </TabsContent>
-        </Tabs>
+        <CreatorTabs />
     </div>
   );
 }

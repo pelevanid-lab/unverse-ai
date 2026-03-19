@@ -154,9 +154,9 @@ export interface ContentPost {
     creatorName?: string;
     creatorAvatar?: string;
     title?: string;
-    content: string; // Used for caption
+    content: string; // Caption
     contentType: PostContentType;
-    unlockPrice: number; // Price in ULC (used for premium)
+    unlockPrice: number; // Price in ULC
     createdAt: number;
     updatedAt?: number;
     mediaUrl?: string;
@@ -173,7 +173,6 @@ export interface ContentPost {
     likes?: number;
     unlockCount?: number;
     earningsULC?: number;
-    isAiContent?: boolean;
 }
 
 export interface CreatorMedia {
@@ -222,16 +221,4 @@ export interface Message {
     senderId: string;
     content: string;
     timestamp: number;
-}
-
-export interface AIMuse {
-    id: string;
-    name: string;
-    avatar: string;
-    category: string;
-    personality: string;
-    tone: string;
-    description: string;
-    chatCount: number;
-    isActive: boolean;
 }

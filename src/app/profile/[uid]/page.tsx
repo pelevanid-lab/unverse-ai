@@ -6,20 +6,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { UserProfile, ContentPost, AIMuse } from '@/lib/types';
+import { UserProfile, ContentPost } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock, MessageSquare, Sparkles } from 'lucide-react';
+import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock } from 'lucide-react';
 import { PostGrid } from '@/components/profile/PostGrid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { checkSubscription } from '@/lib/access';
-
-// A unified profile type for both creators and AI muses
-interface UnifiedProfile extends Partial<UserProfile> {
-    isAiMuse: boolean;
-}
 
 function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSubscribe: () => void }) {
     return (
@@ -42,7 +37,7 @@ function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSu
 export default function PublicProfilePage() {
   const { uid } = useParams();
   const { user: currentUser } = useWallet();
-  const [profile, setProfile] = useState<UnifiedProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -62,33 +57,10 @@ export default function PublicProfilePage() {
     const fetchProfile = async () => {
         const id = uid as string;
         const userDocRef = doc(db, 'users', id);
-        const museDocRef = doc(db, 'ai_muses', id);
-
         const userSnap = await getDoc(userDocRef);
-        const museSnap = await getDoc(museDocRef);
 
-        let profileData: UnifiedProfile | null = null;
-
-        if (museSnap.exists()) {
-            const muse = museSnap.data() as AIMuse;
-            profileData = {
-                uid: id,
-                username: muse.name,
-                avatar: muse.avatar,
-                bio: muse.description,
-                isCreator: true,
-                isAiMuse: true,
-                creatorData: {
-                    category: muse.category,
-                    subscriptionPriceMonthly: 15, // Example price
-                },
-            };
-        } else if (userSnap.exists()) {
-            profileData = { ...(userSnap.data() as UserProfile), isAiMuse: false };
-        }
-
-        if (profileData) {
-            setProfile(profileData);
+        if (userSnap.exists()) {
+            setProfile(userSnap.data() as UserProfile);
         } else {
             router.push('/discover');
         }
@@ -138,18 +110,6 @@ export default function PublicProfilePage() {
     router.push(`/subscribe/${uid}`);
   };
 
-  const handleMessageClick = () => {
-    if (!isSubscribed) {
-        toast({
-            title: "Subscription Required",
-            description: "You must be subscribed to message this creator.",
-            variant: "destructive"
-        });
-        return;
-    }
-    router.push(`/muses/${uid}/chat`);
-  };
-
   if (loading || !profile) return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -157,7 +117,7 @@ export default function PublicProfilePage() {
   );
 
   const isSelf = currentUser?.uid === uid;
-  const { username, bio, avatar, isCreator, creatorData, createdAt, isAiMuse } = profile;
+  const { username, bio, avatar, isCreator, creatorData, createdAt } = profile;
   const { coverImage, subscriptionPriceMonthly } = creatorData || {};
 
   const publicPosts = posts.filter(p => p.contentType === 'public');
@@ -187,20 +147,14 @@ export default function PublicProfilePage() {
             <div className="space-y-1">
                 <h1 className="text-5xl font-headline font-bold flex items-center justify-center md:justify-start gap-3">
                 {username}
-                {isAiMuse ? (
-                    <Badge className="text-lg font-bold gap-2 bg-primary/10 text-primary border-primary/20">
-                        <Sparkles className="w-4 h-4" /> AI Muse
-                    </Badge>
-                ) : ( isCreator && <CheckCircle className="w-8 h-8 text-primary fill-primary/10" />)}
+                {isCreator && <CheckCircle className="w-8 h-8 text-primary fill-primary/10" />}
                 </h1>
                 <p className="text-xl text-muted-foreground/90 font-medium leading-relaxed max-w-2xl">{bio}</p>
             </div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
-              {!isAiMuse && (
                 <Badge variant="outline" className="gap-2 px-4 py-1.5 rounded-full bg-white/5 border-white/10 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     <Calendar className="w-4 h-4" /> Joined {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}
                 </Badge>
-              )}
             </div>
           </div>
 
@@ -210,20 +164,12 @@ export default function PublicProfilePage() {
                 <Button disabled className="bg-green-500/10 text-green-400 border border-green-500/20 gap-2 h-16 rounded-2xl w-full text-lg font-bold">
                   <Crown className="w-6 h-6" /> Active Subscriber
                 </Button>
-                <Button onClick={handleMessageClick} variant="outline" className="h-14 rounded-2xl gap-2 border-white/10 hover:bg-white/5 font-bold">
-                  <MessageSquare className="w-5 h-5" /> Send Message
-                </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
                 <Button onClick={handleSubscribeClick} disabled={isSelf || !isCreator} className="bg-primary hover:bg-primary/90 gap-3 h-16 rounded-2xl w-full text-xl font-bold shadow-2xl shadow-primary/30">
                   <Crown className="w-6 h-6" /> Subscribe ({subscriptionPriceMonthly ?? 0} USDT)
                 </Button>
-                {!isSelf && (
-                    <Button onClick={handleMessageClick} variant="ghost" className="h-12 rounded-2xl gap-2 text-muted-foreground hover:text-white">
-                        <Lock className="w-4 h-4" /> Message (Subscribers Only)
-                    </Button>
-                )}
               </div>
             )}
           </div>

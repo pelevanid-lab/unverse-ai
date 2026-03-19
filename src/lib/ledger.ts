@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit } from 'firebase/firestore';
-import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord, AIMuse } from './types';
+import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord } from './types';
 
 let systemConfigCache: SystemConfig | null = null;
 
@@ -227,92 +227,6 @@ export async function initializeSystemConfig() {
     };
     await setDoc(configRef, initialConfig);
     return initialConfig as SystemConfig;
-}
-
-export async function seedMuses() {
-    console.log("Seeding AI Muses...");
-    const batch = writeBatch(db);
-
-    const musesData: Omit<AIMuse, 'id'>[] = [
-        {
-            name: "Isabella",
-            avatar: "https://picsum.photos/seed/isabella/400/400",
-            category: "Luxury Lifestyle",
-            personality: "Sophisticated, elegant, and world-traveler. Loves fine dining and exclusive events.",
-            tone: "Refined and encouraging",
-            description: "Your guide to the world's most exclusive destinations.",
-            chatCount: 0,
-            isActive: true
-        },
-        {
-            name: "Elena",
-            avatar: "https://picsum.photos/seed/elena/400/400",
-            category: "Fitness & Wellness",
-            personality: "Energetic, disciplined, and mindful. Expert in yoga and high-performance training.",
-            tone: "Motivating and direct",
-            description: "Unlocking your peak physical and mental potential.",
-            chatCount: 0,
-            isActive: true
-        },
-        {
-            name: "Chloe",
-            avatar: "https://picsum.photos/seed/chloe/400/400",
-            category: "Digital Nomad / Tech",
-            personality: "Witty, adventurous, and futuristic. Obsessed with Web3, AI, and remote work hacks.",
-            tone: "Casual and intellectually stimulating",
-            description: "Navigating the digital frontier one block at a time.",
-            chatCount: 0,
-            isActive: true
-        }
-    ];
-
-    for (const muse of musesData) {
-        const museId = muse.name.toLowerCase();
-        const museRef = doc(db, 'ai_muses', museId);
-        const userRef = doc(db, 'users', museId);
-
-        // 1. Create AI Muse Config
-        batch.set(museRef, muse);
-
-        // 2. Create corresponding User/Creator record
-        batch.set(userRef, {
-            uid: museId,
-            username: muse.name,
-            avatar: muse.avatar,
-            bio: muse.description,
-            isCreator: true,
-            isAiContent: true,
-            createdAt: Date.now(),
-            creatorData: {
-                subscriptionPriceMonthly: 15,
-                category: muse.category,
-                creatorStatus: 'active'
-            },
-            ulcBalance: { available: 1000, locked: 0, claimable: 0 }
-        });
-
-        // 3. Create 3 Seed Posts for each muse
-        for (let i = 1; i <= 3; i++) {
-            const postRef = doc(collection(db, 'posts'));
-            batch.set(postRef, {
-                creatorId: museId,
-                creatorName: muse.name,
-                creatorAvatar: muse.avatar,
-                mediaUrl: `https://picsum.photos/seed/${museId}_${i}/800/1000`,
-                mediaType: 'image',
-                content: `AI Post #${i} from ${muse.name}. Exploring ${muse.category} vibes.`,
-                contentType: 'public',
-                unlockPrice: 0,
-                createdAt: Date.now() - (i * 3600000), // Spaced by hours
-                isAiContent: true,
-                likes: Math.floor(Math.random() * 100),
-                unlockCount: 0
-            });
-        }
-    }
-
-    await batch.commit();
-    console.log("Muses and their content seeded successfully.");
 }
 
 export async function triggerGenesisAllocation(user: UserProfile) {

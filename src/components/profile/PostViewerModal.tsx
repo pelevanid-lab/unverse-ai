@@ -12,6 +12,7 @@ import { Lock, Loader2, X, Clock, Sparkles, Wallet } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 interface PostViewerModalProps {
   post: ContentPost;
@@ -180,7 +181,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
               </Link>
             </header>
 
-            {(canViewMedia || !post.isPremium) && post.content && (
+            {(canViewMedia || post.contentType === 'public') && post.content && (
               <footer className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/90 to-transparent">
                   <div className="max-w-3xl">
                     <p className="text-lg text-white font-medium leading-relaxed drop-shadow-xl">{post.content}</p>

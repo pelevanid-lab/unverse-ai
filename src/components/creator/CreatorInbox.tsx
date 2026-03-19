@@ -4,13 +4,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, serverTimestamp, setDoc, limit } from 'firebase/firestore';
-import { Chat, Message, UserProfile } from '@/lib/types';
+import { collection, query, where, orderBy, onSnapshot, addDoc, doc, updateDoc, limit } from 'firebase/firestore';
+import { Chat, Message } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Send, MessageSquare, Search } from 'lucide-react';
+import { Loader2, Send, MessageSquare } from 'lucide-react';
 
 export function CreatorInbox() {
   const { user } = useWallet();

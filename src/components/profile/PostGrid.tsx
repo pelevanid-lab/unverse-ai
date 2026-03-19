@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { ContentPost, UserProfile } from '@/lib/types';
-import { Lock, Clock, ShieldCheck, Sparkles } from 'lucide-react';
+import { Lock, Clock, Sparkles } from 'lucide-react';
 import { PostViewerModal } from './PostViewerModal';
 import { useWallet } from '@/hooks/use-wallet';
 import { doc, getDoc } from 'firebase/firestore';
@@ -48,10 +48,13 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
     setPostCreator(null);
   }
 
+  // Filter out legacy posts that don't have contentType
+  const validPosts = postsToShow.filter(post => !!post.contentType);
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-        {postsToShow.map(post => {
+        {validPosts.map(post => {
           const isOwner = user?.uid === post.creatorId;
           const isUnlocked = unlockedPostIds.includes(post.id);
           const canViewContent = isOwner || post.contentType === 'public' || isUnlocked;

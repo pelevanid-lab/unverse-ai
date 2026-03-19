@@ -31,7 +31,7 @@ const generateMuseImageFlow = ai.defineFlow(
   },
   async (input) => {
     const { media } = await ai.generate({
-      model: 'googleai/imagen-4.0-fast-generate-001',
+      model: 'googleai/imagen-3', // Ensure this is a valid image generation model
       prompt: input.prompt,
     });
 

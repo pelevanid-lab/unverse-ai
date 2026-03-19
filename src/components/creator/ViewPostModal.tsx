@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { ContentPost } from '@/lib/types';
+import { ContentPost, PostContentType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -12,11 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Loader2, Trash2, X, Pencil, Save, Coins, Globe, Lock, Clock } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { PostContentType } from '@/lib/types';
+import { Badge } from "@/components/ui/badge";
 
 interface ViewPostModalProps {
   post: ContentPost;
@@ -34,9 +33,9 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
 
   useEffect(() => {
     if (post) {
-        setCaption(post.content || post.caption || '');
-        setContentType(post.contentType || (post.isPremium ? 'premium' : 'public'));
-        setUnlockPrice(post.contentType === 'limited' ? (post.limited?.price || 0) : (post.unlockPrice || post.priceULC || 0));
+        setCaption(post.content || '');
+        setContentType(post.contentType || 'public');
+        setUnlockPrice(post.contentType === 'limited' ? (post.limited?.price || 0) : (post.unlockPrice || 0));
         setTotalSupply(post.limited?.totalSupply || 100);
         setIsEditing(false);
     }
@@ -48,11 +47,8 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
       const postRef = doc(db, 'posts', post.id);
       const updateData: any = { 
         content: caption,
-        caption: caption,
         contentType,
-        unlockPrice: contentType === 'premium' ? Number(unlockPrice) : 0,
-        priceULC: contentType === 'premium' ? Number(unlockPrice) : 0,
-        isPremium: contentType !== 'public'
+        unlockPrice: (contentType === 'premium' || contentType === 'limited') ? Number(unlockPrice) : 0,
       };
 
       if (contentType === 'limited') {
