@@ -4,6 +4,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { ContentPost, UserProfile } from '@/lib/types';
 import { handleUnlock } from '@/lib/unlock';
+import { getPostMediaAction } from '@/lib/ledger';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -29,19 +32,49 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   const router = useRouter();
   const [unlocking, setUnlocking] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [secureMediaUrl, setSecureMediaUrl] = useState<string | null>(null);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [serialNumber, setSerialNumber] = useState<number | null>(null);
   const overlayTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const isOwner = currentUser?.uid === creator.uid;
   const isUnlocked = unlockedPostIds.includes(post.id);
   const canViewMedia = isOwner || post.contentType === 'public' || isUnlocked;
   
-  const mediaUrl = post.mediaUrl;
+  // Use secure URL if available, fallback to post.mediaUrl if public
+  const mediaUrl = secureMediaUrl || (post.contentType === 'public' ? post.mediaUrl : null);
   const isImage = mediaUrl && (mediaUrl.includes('.webp') || mediaUrl.includes('.png') || mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('image'));
   
   const isSoldOut = post.contentType === 'limited' && post.limited && post.limited.soldCount >= post.limited.totalSupply;
   const currentPrice = post.contentType === 'limited' ? post.limited?.price : post.unlockPrice;
 
   useEffect(() => {
+    async function fetchSecureMedia() {
+        if (!canViewMedia || !post.id || !currentUser) return;
+        
+        setLoadingMedia(true);
+        try {
+            // 1. Fetch Secure 30-min URL
+            const { url } = await getPostMediaAction(post.id);
+            setSecureMediaUrl(url);
+
+            // 2. Fetch Serial Number if limited
+            if (post.contentType === 'limited' && !isOwner) {
+                const unlockRef = doc(db, 'users', currentUser.uid, 'unlocked_media', post.id);
+                const unlockSnap = await getDoc(unlockRef);
+                if (unlockSnap.exists()) {
+                    setSerialNumber(unlockSnap.data().serialNumber);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching secure media:", error);
+        } finally {
+            setLoadingMedia(false);
+        }
+    }
+
+    fetchSecureMedia();
+
     if (isImage) {
       setShowOverlay(true);
       return;
@@ -53,7 +86,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
     return () => {
       if (overlayTimeout.current) clearTimeout(overlayTimeout.current);
     };
-  }, [showOverlay, isImage]);
+  }, [showOverlay, isImage, canViewMedia, post.id, currentUser, isOwner, post.contentType]);
 
   const handleUnlockPost = async () => {
     if (!currentUser || !isConnected) {
@@ -142,10 +175,22 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                     )}
                     
                     {post.contentType === 'limited' && post.limited && (
-                         <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-yellow-500/60 bg-yellow-500/5 px-4 py-1 rounded-full border border-yellow-500/10">
-                            Availability: {post.limited.totalSupply - post.limited.soldCount} left
-                         </p>
+                         <div className="mt-4 flex flex-col items-center gap-2">
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-500/60 bg-yellow-500/5 px-4 py-1 rounded-full border border-yellow-500/10">
+                                Availability: {post.limited.totalSupply - post.limited.soldCount} left
+                            </p>
+                            {serialNumber && (
+                                <p className="text-sm font-bold text-yellow-500 animate-pulse">
+                                    YOUR SERIAL NO: #{serialNumber} / {post.limited.totalSupply}
+                                </p>
+                            )}
+                         </div>
                     )}
+                </div>
+            ) : (loadingMedia ? (
+                <div className="flex flex-col items-center gap-4 text-white/50">
+                    <Loader2 className="animate-spin w-12 h-12" />
+                    <p className="text-sm font-medium animate-pulse">Securing Media Connection...</p>
                 </div>
             ) : mediaUrl && (
                 isImage ? (
@@ -153,7 +198,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                 ) : (
                     <video src={mediaUrl} controls autoPlay muted loop className="object-contain block max-w-full max-h-full transition-all duration-700 animate-in fade-in" />
                 )
-            )}
+            ))}
             
             {!canViewMedia && mediaUrl && (
                 <div className="absolute inset-0 -z-10 opacity-40">
@@ -174,6 +219,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                     <h3 className="font-bold text-white text-lg group-hover:text-primary transition-colors flex items-center gap-2">
                         {creator.username}
                         {post.contentType === 'limited' && <Badge className="bg-yellow-400 text-black text-[10px] font-black h-5 px-2 leading-none uppercase rounded-md">LIMITED</Badge>}
+                        {serialNumber && <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 text-[10px] font-bold">#{serialNumber}</Badge>}
                     </h3>
                     <p className="text-xs text-white/50 font-mono">{new Date(post.createdAt).toLocaleString('tr-TR')}</p>
                   </div>

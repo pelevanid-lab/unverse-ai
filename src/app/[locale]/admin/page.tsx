@@ -3,7 +3,7 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles } from 'lucide-react';
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest } from '@/lib/types';
+import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest, VestingSchedule } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdminDashboard() {
@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [recentLedger, setRecentLedger] = useState<LedgerEntry[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [claims, setClaims] = useState<ClaimRequest[]>([]);
+  const [vestingSchedules, setVestingSchedules] = useState<VestingSchedule[]>([]);
   const [loading, setLoading] = useState<string | boolean>(false);
   const { toast } = useToast();
 
@@ -56,6 +57,8 @@ export default function AdminDashboard() {
     const unsubClaims = onSnapshot(query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc')), (snap) => {
       setClaims(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClaimRequest)));
     });
+
+    getAllVestingSchedules().then(setVestingSchedules);
 
     return () => { unsubLedger(); unsubUsers(); unsubClaims(); };
   }, [authorized]);
@@ -123,9 +126,18 @@ export default function AdminDashboard() {
         <TabsList className="bg-muted/30 p-1 rounded-2xl h-14">
           <TabsTrigger value="claims">Claims</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="vesting">Vesting</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="vesting">
+            <VestingManager 
+                users={allUsers} 
+                schedules={vestingSchedules} 
+                onRefresh={() => getAllVestingSchedules().then(setVestingSchedules)}
+            />
+        </TabsContent>
         
         <TabsContent value="claims">
             <Card className="glass-card overflow-hidden">
@@ -258,4 +270,107 @@ export default function AdminDashboard() {
       </Tabs>
     </div>
   );
+}
+
+function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[], schedules: VestingSchedule[], onRefresh: () => void }) {
+    const [targetUserId, setTargetUserId] = useState('');
+    const [amount, setAmount] = useState(1000);
+    const [duration, setDuration] = useState(12);
+    const [cliff, setCliff] = useState(0);
+    const [desc, setDesc] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const { toast } = useToast();
+
+    const handleCreate = async () => {
+        if (!targetUserId) return;
+        setSubmitting(true);
+        try {
+            await createVestingScheduleAction({
+                targetUserId,
+                totalAmount: amount,
+                durationMonths: duration,
+                cliffMonths: cliff,
+                description: desc
+            });
+            toast({ title: "Vesting Schedule Created" });
+            onRefresh();
+            setTargetUserId('');
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: "Creation Failed", description: e.message });
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="glass-card lg:col-span-1">
+                <CardHeader>
+                    <CardTitle>Create Vesting</CardTitle>
+                    <CardDescription>Lock tokens for a user with linear release.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold opacity-50 uppercase">Target User</label>
+                        <select 
+                            value={targetUserId} 
+                            onChange={(e) => setTargetUserId(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"
+                        >
+                            <option value="">Select a user...</option>
+                            {users.map(u => (
+                                <option key={u.uid} value={u.uid}>{u.username || u.uid.slice(0,8)}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold opacity-50 uppercase">Amount (ULC)</label>
+                            <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold opacity-50 uppercase">Duration (Months)</label>
+                            <input type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold opacity-50 uppercase">Cliff (Months)</label>
+                        <input type="number" value={cliff} onChange={(e) => setCliff(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold opacity-50 uppercase">Description</label>
+                        <input type="text" value={desc} placeholder="e.g. Team Allocation" onChange={(e) => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                    </div>
+                    <Button onClick={handleCreate} disabled={submitting || !targetUserId} className="w-full bg-yellow-400 text-black font-bold h-12">
+                        {submitting ? <Loader2 className="animate-spin"/> : 'Create Schedule'}
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <Card className="glass-card lg:col-span-2 overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>User</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead>Released</TableHead>
+                            <TableHead>Duration</TableHead>
+                            <TableHead>Start Date</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {schedules.map(s => (
+                            <TableRow key={s.id}>
+                                <TableCell className="font-mono text-[10px]">{s.userId.slice(0,8)}...</TableCell>
+                                <TableCell className="font-bold">{s.totalAmount} ULC</TableCell>
+                                <TableCell className="text-green-400">{s.releasedAmount.toFixed(1)}</TableCell>
+                                <TableCell>{s.duration / (30*24*60*60*1000)}m</TableCell>
+                                <TableCell className="text-[10px] opacity-60">{new Date(s.startTime).toLocaleDateString()}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </Card>
+        </div>
+    );
 }

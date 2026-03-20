@@ -1,7 +1,8 @@
 
-import { db } from './firebase';
-import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit, runTransaction, increment } from 'firebase/firestore';
-import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord } from './types';
+import { collection, query, where, getDocs, getDoc, addDoc, serverTimestamp, writeBatch, doc, or, updateDoc, setDoc, limit, runTransaction, increment, orderBy } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from './firebase';
+import { UserProfile, Creator, SystemConfig, LedgerEntry, LedgerEntryType, ClaimRequest, SubscriptionRecord, VestingSchedule } from './types';
 
 let systemConfigCache: SystemConfig | null = null;
 
@@ -25,6 +26,37 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'id' | 'timesta
         timestamp: Date.now(),
     });
     return docRef.id;
+}
+
+export async function grantWelcomeBonus(address: string): Promise<void> {
+    const userDocRef = doc(db, 'users', address);
+    const config = await getSystemConfig();
+    
+    if (!config?.wallets?.promo_pool?.address) {
+        throw new Error("Promo pool address not configured.");
+    }
+
+    const batch = writeBatch(db);
+    
+    // 1. Record in Ledger
+    const ledgerRef = doc(collection(db, 'ledger'));
+    batch.set(ledgerRef, {
+        fromWallet: config.wallets.promo_pool.address,
+        toUserId: address,
+        toWallet: address,
+        amount: 100,
+        currency: 'ULC',
+        type: 'welcome_bonus',
+        timestamp: Date.now(),
+    });
+
+    // 2. Update User Profile
+    batch.update(userDocRef, {
+        welcomeBonusClaimed: true,
+        'ulcBalance.available': increment(100)
+    });
+
+    await batch.commit();
 }
 
 export async function recordUsdtSubscription(
@@ -182,34 +214,70 @@ export async function createClaimRequest(creator: Creator): Promise<string> {
 }
 
 export const confirmUlcPurchase = async (user: UserProfile, amount: number, network: string, txHash: string): Promise<void> => {
-    const batch = writeBatch(db);
-    const usdtEntryRef = doc(collection(db, 'ledger'));
-    batch.set(usdtEntryRef, {
-        fromUserId: user.uid,
-        amount: amount * 0.015,
-        currency: 'USDT',
-        type: 'ulc_purchase_payment',
-        network: network,
-        txHash: txHash,
-        timestamp: Date.now()
-    });
-    const ulcEntryRef = doc(collection(db, 'ledger'));
-    batch.set(ulcEntryRef, {
-        toUserId: user.uid,
-        amount: amount,
-        currency: 'ULC',
-        type: 'ulc_purchase',
-        referenceId: usdtEntryRef.id,
-        timestamp: Date.now()
-    });
-    const userRef = doc(db, 'users', user.uid);
-    batch.update(userRef, {
-        'ulcBalance.available': (user.ulcBalance?.available || 0) + amount
-    });
-    await batch.commit();
+    const confirmFunction = httpsCallable(functions, 'confirmPurchase');
+    
+    try {
+        await confirmFunction({ amount, network, txHash });
+    } catch (error: any) {
+        console.error("Purchase confirmation error:", error);
+        throw error;
+    }
 }
 
 // --- ADMIN / SYSTEM FUNCTIONS ---
+
+export async function getVestingSchedules(userId: string): Promise<VestingSchedule[]> {
+    const q = query(
+        collection(db, 'vesting_schedules'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as VestingSchedule));
+}
+
+export async function getAllVestingSchedules(): Promise<VestingSchedule[]> {
+    const q = query(
+        collection(db, 'vesting_schedules'),
+        orderBy('createdAt', 'desc'),
+        limit(100)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as VestingSchedule));
+}
+
+/**
+ * Admin action to create a schedule
+ */
+export async function createVestingScheduleAction(data: {
+    targetUserId: string;
+    totalAmount: number;
+    durationMonths: number;
+    cliffMonths?: number;
+    description?: string;
+}): Promise<any> {
+    const createFunc = httpsCallable(functions, 'createVestingSchedule');
+    const result = await createFunc(data);
+    return result.data;
+}
+
+/**
+ * Frontend wrapper for the claimVestedULC cloud function
+ */
+export async function claimVestedULCAction(scheduleId: string): Promise<any> {
+    const claimFunc = httpsCallable(functions, 'claimVestedULC');
+    const result = await claimFunc({ scheduleId });
+    return result.data;
+}
+
+/**
+ * Retrieves a secure 30-min signed URL for a post
+ */
+export async function getPostMediaAction(postId: string): Promise<{ url: string }> {
+    const getMediaFunc = httpsCallable(functions, 'getPostMedia');
+    const result = await getMediaFunc({ postId });
+    return result.data as { url: string };
+}
 
 export async function initializeSystemConfig() {
     const configRef = doc(db, 'config', 'system');
@@ -231,7 +299,24 @@ export async function initializeSystemConfig() {
 
 export async function triggerGenesisAllocation(user: UserProfile) {
     const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, { 'ulcBalance.available': (user.ulcBalance?.available || 0) + 50000 });
+    const amount = 50000;
+    
+    const batch = writeBatch(db);
+    
+    batch.update(userRef, { 
+        'ulcBalance.available': increment(amount) 
+    });
+
+    batch.set(doc(collection(db, 'ledger')), {
+        toUserId: user.uid,
+        toWallet: user.walletAddress,
+        amount: amount,
+        currency: 'ULC',
+        type: 'genesis_allocation',
+        timestamp: Date.now()
+    });
+
+    await batch.commit();
 }
 
 export async function toggleUserFreeze(uid: string, freeze: boolean) {

@@ -50,5 +50,5 @@ export function UnlockedContentFeed() {
     return <div>Loading unlocked content...</div>;
   }
 
-  return <PostGrid postsToShow={unlockedPosts} />;
+  return <PostGrid postsToShow={unlockedPosts} unlockedPostIds={unlockedPosts.map(p => p.id)} onPostUnlocked={() => {}} />;
 }

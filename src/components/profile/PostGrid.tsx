@@ -82,13 +82,18 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
         onClick={() => handlePostClick(post)}
       >
           {/* Media Layer */}
-          <div className="absolute inset-0">
-              {post.mediaUrl && (
+          <div className="absolute inset-0 bg-muted/30">
+              {post.mediaUrl && canViewContent ? (
                   post.mediaType === 'image' || !post.mediaType ? (
-                      <img src={post.mediaUrl} alt="post" className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-110 ${!canViewContent ? 'blur-2xl scale-125 opacity-50' : 'opacity-100'}`} />
+                      <img src={post.mediaUrl} alt="post" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" />
                   ) : (
-                      <video src={post.mediaUrl} muted loop playsInline className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-110 ${!canViewContent ? 'blur-2xl scale-125 opacity-50' : 'opacity-100'}`} />
+                      <video src={post.mediaUrl} muted loop playsInline className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" />
                   )
+              ) : (
+                  // Placeholder for locked content - No mediaUrl in src for security
+                  <div className="w-full h-full bg-gradient-to-br from-primary/5 via-primary/10 to-transparent flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/20" />
+                  </div>
               )}
           </div>
 

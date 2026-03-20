@@ -122,7 +122,20 @@ export type LedgerEntryType =
     | 'treasury_fee'
     | 'buyback_burn_fee'
     | 'ai_generation_payment'
-    | 'ai_generation_refund';
+    | 'ai_generation_refund'
+    | 'vesting_claim';
+
+export interface VestingSchedule {
+    id: string;
+    userId: string;
+    totalAmount: number;
+    startTime: number;
+    duration: number; // in milliseconds
+    cliff: number;    // in milliseconds
+    releasedAmount: number;
+    lastClaimedAt?: number;
+    description?: string;
+}
 
 export interface LedgerEntry {
     id: string;

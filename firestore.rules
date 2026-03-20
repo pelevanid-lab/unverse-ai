@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      
+      // Users can update their basic profile, Admins can update everything
+      allow update: if (isOwner(userId) 
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['ulcBalance', 'totalEarnings', 'totalSpent', 'isCreator', 'isFrozen', 'isAdmin']))
+                    || isAdmin();
+      
+      // Prevent users from setting admin or financial flags during creation
+      allow create: if isSignedIn() && userId == request.auth.uid
+                    && !request.resource.data.hasAny(['isAdmin', 'isCreator', 'isFrozen', 'ulcBalance', 'totalEarnings']);
+    }
+
+    // Ledger (ReadOnly for users, Write only by backend)
+    match /ledger/{entryId} {
+      allow read: if isSignedIn() && (
+        resource.data.fromUserId == request.auth.uid || 
+        resource.data.toUserId == request.auth.uid
+      );
+      allow write: if false; // Only Cloud Functions (Admin SDK) can write
+    }
+
+    // Subscriptions
+    match /subscriptions/{subId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.creatorId == request.auth.uid
+      );
+      allow write: if false; // Only Cloud Functions
+    }
+
+    // Claim Requests
+    match /claim_requests/{claimId} {
+      allow read: if isSignedIn() && resource.data.creatorId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if false; // Status changes handled by backend
+    }
+
+    // Vesting Schedules
+    match /vesting_schedules/{scheduleId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only Cloud Functions
+    }
+    
+    // Posts & Content
+    match /posts/{postId} {
+      allow read: if true; // Public discovery
+      allow write: if isSignedIn() && (
+        resource == null || resource.data.creatorId == request.auth.uid
+      );
+    }
+
+    // System Config (ReadOnly for users, Admin only for write)
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if false; 
+    }
+    
+    // Creator Media (Drafts/Processing)
+    match /creator_media/{mediaId} {
+      allow read, write: if isSignedIn() && resource.data.creatorId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+    }
+    
+    // Default fallback
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

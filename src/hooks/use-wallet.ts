@@ -19,7 +19,7 @@ import {
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useDisconnect } from 'wagmi';
 import { UserProfile } from '@/lib/types';
-import { getSystemConfig, recordTransaction } from '@/lib/ledger';
+import { getSystemConfig, recordTransaction, grantWelcomeBonus } from '@/lib/ledger';
 
 let isUserCreationInProgress = false;
 
@@ -68,17 +68,7 @@ export function useWallet() {
           const ledgerSnap = await getDocs(ledgerQuery);
           if (ledgerSnap.empty) {
             try {
-              const config = await getSystemConfig();
-              if (config?.wallets.promo_pool) {
-                await recordTransaction({
-                  fromWallet: config.wallets.promo_pool.address,
-                  toWallet: address,
-                  amount: 100,
-                  currency: 'ULC',
-                  type: 'welcome_bonus',
-                });
-                await updateDoc(userDocRef, { welcomeBonusClaimed: true });
-              }
+               await grantWelcomeBonus(address);
             } catch (error) {
               console.error("Error granting retroactive welcome bonus:", error);
             }
@@ -102,8 +92,6 @@ export function useWallet() {
           // Legacy migration logic (omitted)
         } else {
           // === THE FIX ===
-          // The UserProfile now includes the new fields for unlocks and subscriptions.
-          // They are initialized as empty arrays for all new users.
           const newUserProfile: UserProfile = {
             uid: address,
             walletAddress: address,
@@ -121,15 +109,10 @@ export function useWallet() {
           };
           await setDoc(userDocRef, newUserProfile);
 
-          const config = await getSystemConfig();
-          if (config?.wallets.promo_pool) {
-            await recordTransaction({
-              fromWallet: config.wallets.promo_pool.address,
-              toWallet: address,
-              amount: 100,
-              currency: 'ULC',
-              type: 'welcome_bonus',
-            });
+          try {
+            await grantWelcomeBonus(address);
+          } catch (error) {
+            console.error("Error granting initial welcome bonus:", error);
           }
         }
       } catch (error) {
