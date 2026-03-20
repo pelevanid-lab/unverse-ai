@@ -50,7 +50,7 @@ export default function InvestorTokenomics() {
                         <CardTitle className="flex items-center gap-2"><Flame className="w-5 h-5 text-red-400" /> {t('deflationaryBurn')}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-3xl font-bold font-headline text-red-400">Continuous <span className="text-sm font-normal opacity-50">Burn</span></p>
+                        <p className="text-3xl font-bold font-headline text-red-400">{t('continuous')} <span className="text-sm font-normal opacity-50">{t('burn')}</span></p>
                         <p className="text-sm text-muted-foreground mt-2">{t('deflationaryBurnDesc')}</p>
                     </CardContent>
                 </Card>
@@ -94,61 +94,98 @@ export default function InvestorTokenomics() {
                 <h2 className="text-2xl font-headline font-bold flex items-center gap-3">
                     <TrendingUp className="text-primary" /> {t('projectionTitle')}
                 </h2>
-                <Card className="glass-card p-8 border-white/10 overflow-hidden">
+                <Card className="glass-card p-8 border-white/10 overflow-hidden relative group">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-50 pointer-events-none" />
+                    
                     <div className="relative h-64 w-full mt-4">
                         {/* SVG Chart */}
                         <svg className="w-full h-full overflow-visible" viewBox="0 0 1000 300" preserveAspectRatio="none">
-                            {/* Grid Lines */}
-                            <line x1="0" y1="300" x2="1000" y2="300" stroke="white" strokeOpacity="0.1" />
-                            <line x1="0" y1="225" x2="1000" y2="225" stroke="white" strokeOpacity="0.05" />
-                            <line x1="0" y1="150" x2="1000" y2="150" stroke="white" strokeOpacity="0.05" />
-                            <line x1="0" y1="75" x2="1000" y2="75" stroke="white" strokeOpacity="0.05" />
-                            <line x1="0" y1="0" x2="1000" y2="0" stroke="white" strokeOpacity="0.05" />
-
-                            {/* Area Fill */}
-                            <path 
-                                d="M 0 300 L 0 255 L 125 246 L 250 234 L 375 195 L 500 156 L 750 75 L 1000 0 L 1000 300 Z" 
-                                fill="url(#gradient-fill)" 
-                                fillOpacity="0.1"
-                            />
-                            
-                            {/* Line Path */}
-                            <path 
-                                d="M 0 255 L 125 246 L 250 234 L 375 195 L 500 156 L 750 75 L 1000 0" 
-                                fill="none" 
-                                stroke="var(--primary)" 
-                                strokeWidth="4" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round"
-                                className="drop-shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]"
-                            />
-
-                            {/* Data Points */}
-                            {projectionData.map((d, i) => (
-                                <circle 
-                                    key={i}
-                                    cx={(d.month / 48) * 1000} 
-                                    cy={300 - (d.supply / 1000) * 300} 
-                                    r="5" 
-                                    fill="var(--primary)" 
-                                />
-                            ))}
-
                             <defs>
                                 <linearGradient id="gradient-fill" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="var(--primary)" />
-                                    <stop offset="100%" stopColor="transparent" />
+                                    <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.3" />
+                                    <stop offset="50%" stopColor="var(--primary)" stopOpacity="0.1" />
+                                    <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                                 </linearGradient>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="4" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
                             </defs>
+
+                            {/* Grid Lines (Horizontal) */}
+                            <line x1="0" y1="300" x2="1000" y2="300" stroke="white" strokeOpacity="0.1" strokeWidth="1" />
+                            <line x1="0" y1="225" x2="1000" y2="225" stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+                            <line x1="0" y1="150" x2="1000" y2="150" stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+                            <line x1="0" y1="75" x2="1000" y2="75" stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+                            <line x1="0" y1="0" x2="1000" y2="0" stroke="white" strokeOpacity="0.05" strokeWidth="1" />
+
+                            {/* Grid Lines (Vertical) */}
+                            {[0, 250, 500, 750, 1000].map(x => (
+                                <line key={x} x1={x} y1="0" x2={x} y2="300" stroke="white" strokeOpacity="0.03" strokeWidth="1" />
+                            ))}
+
+                            {/* Area Fill - Smoothed Path */}
+                            <path 
+                                d="M 0 300 Q 125 240, 250 234 T 500 156 T 750 75 T 1000 0 L 1000 300 Z" 
+                                fill="url(#gradient-fill)" 
+                            />
+                            
+                            {/* Glow Path - Smoothed */}
+                            <path 
+                                d="M 0 255 Q 125 240, 250 234 T 500 156 T 750 75 T 1000 0" 
+                                fill="none" 
+                                stroke="var(--primary)" 
+                                strokeWidth="8" 
+                                opacity="0.2"
+                                filter="url(#glow)"
+                            />
+
+                            {/* Main Line Path - Smoothed */}
+                            <path 
+                                d="M 0 255 Q 125 240, 250 234 T 500 156 T 750 75 T 1000 0" 
+                                fill="none" 
+                                stroke="var(--primary)" 
+                                strokeWidth="3" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                                className="drop-shadow-[0_0_12px_rgba(var(--primary-rgb),0.8)]"
+                            />
+
+                            {/* Data Points + Halos */}
+                            {projectionData.map((d, i) => {
+                                const cx = (d.month / 48) * 1000;
+                                const cy = 300 - (d.supply / 1000) * 300;
+                                return (
+                                    <g key={i} className="group/point">
+                                        <circle cx={cx} cy={cy} r="10" fill="var(--primary)" fillOpacity="0.15" />
+                                        <circle cx={cx} cy={cy} r="5" fill="var(--primary)" />
+                                    </g>
+                                );
+                            })}
                         </svg>
 
                         {/* Labels */}
-                        <div className="flex justify-between mt-6 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                            <span>{t('month')} 0</span>
-                            <span>{t('month')} 12</span>
-                            <span>{t('month')} 24</span>
-                            <span>{t('month')} 36</span>
-                            <span>{t('month')} 48</span>
+                        <div className="flex justify-between mt-8 text-[11px] font-black text-white/40 uppercase tracking-[0.2em]">
+                            <span className="flex flex-col items-center gap-1">
+                                <div className="w-px h-2 bg-white/20" />
+                                {t('month')} 0
+                            </span>
+                            <span className="flex flex-col items-center gap-1">
+                                <div className="w-px h-2 bg-white/20" />
+                                {t('month')} 12
+                            </span>
+                            <span className="flex flex-col items-center gap-1">
+                                <div className="w-px h-2 bg-white/20" />
+                                {t('month')} 24
+                            </span>
+                            <span className="flex flex-col items-center gap-1">
+                                <div className="w-px h-2 bg-white/20" />
+                                {t('month')} 36
+                            </span>
+                            <span className="flex flex-col items-center gap-1">
+                                <div className="w-px h-2 bg-white/20" />
+                                {t('month')} 48
+                            </span>
                         </div>
                     </div>
                 </Card>

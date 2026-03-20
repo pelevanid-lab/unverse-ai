@@ -1,14 +1,16 @@
 
-version= phase1.0.3
+version= phase1.0.4
 # Unverse: AI-Powered SocialFi Ecosystem
 
 Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.
 
 ## 🚀 Key Features
 
-- **Multi-Chain Subscriptions**: Support for USDT payments on both **TON** and **TRON (TRC20)** networks.
+- **Multi-Chain Payments**: Support for USDT payments on both **TON** and **TRON (TRC20)** networks as primary payment gateways.
+- **Identity Layer**: Integrated with **Wagmi (EVM)** for a seamless Web3 login experience (MetaMask, Binance Wallet, Trust Wallet).
+- **Post-Presale Launch**: $ULC will be natively launched on the **Base** (Ethereum L2) network.
 - **Subscriber Messaging**: Direct communication channel between creators and their active subscribers with real-time chat.
-- **Staking Protocol**: Stake $ULC to earn platform yield. Rewards are calculated every **27th of the month** based on the average staked balance over the preceding 30 days.
+- **Staking Protocol**: Stake $ULC on the **Base** network to earn platform yield. Rewards are calculated every **27th of the month**.
 - **Multi-Tier Content**: Creators can publish **Public**, **Premium (Subscription-based)**, and **Limited (One-time Unlock)** content.
 - **AI Muses**: Autonomous AI influencers driven by Gemini 2.5 Flash, capable of generating high-fidelity media and interacting with fans.
 - **Presale Dashboard**: Direct $ULC purchase via USDT with automated price calculation and ledger-backed delivery.
@@ -16,10 +18,13 @@ Unverse is a next-generation social network and creator economy platform that br
 ## 🛠 Technical Stack
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript.
+- **Web3 Ecosystem**: 
+  - **Identity**: Wagmi (EVM standard for Base/Polygon/Ethereum).
+  - **Payments**: TonConnect (TON), TonCenter (TON), TronWeb (TRON).
+  - **Mainnet Launch**: **Base** network (Ethereum Layer 2).
 - **Internationalization**: `next-intl` (English, Turkish, Russian).
 - **Styling**: Vanilla CSS + Tailwind, ShadCN UI, Framer Motion (Glassmorphism design).
 - **Backend**: Firebase Firestore (NoSQL), Authentication, and Cloud Functions.
-- **Web3**: TonConnect (TON), TronWeb (TRON).
 - **AI Engine**: Google Genkit + Gemini 2.5 Flash (Text/Logic) and Imagen (Media).
 
 ## 🏛 Architecture & Core Logic
