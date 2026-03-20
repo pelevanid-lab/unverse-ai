@@ -30,8 +30,16 @@ export function UserInbox() {
 
   // 1. Fetch Chats for this Subscriber
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      if (loadingChats) {
+        // If wallet is connected but user profile is missing, we might want to wait. 
+        // But if completely disconnected, we should stop loading.
+        setLoadingChats(false);
+      }
+      return;
+    }
 
+    setLoadingChats(true);
     const chatsRef = collection(db, 'chats');
     const q = query(
         chatsRef, 
@@ -39,15 +47,21 @@ export function UserInbox() {
         orderBy('lastTimestamp', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedChats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
-      setChats(fetchedChats);
-      setLoadingChats(false);
-      
-      // Handle initialChatId
-      if (initialChatId && !selectedChat) {
-          const chat = fetchedChats.find(c => c.id === initialChatId);
-          if (chat) setSelectedChat(chat);
+    const unsubscribe = onSnapshot(q, {
+      next: (snapshot) => {
+        const fetchedChats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+        setChats(fetchedChats);
+        setLoadingChats(false);
+        
+        // Handle initialChatId
+        if (initialChatId && !selectedChat) {
+            const chat = fetchedChats.find(c => c.id === initialChatId);
+            if (chat) setSelectedChat(chat);
+        }
+      },
+      error: (err) => {
+        console.error("UserInbox Snapshot Error:", err);
+        setLoadingChats(false);
       }
     });
 

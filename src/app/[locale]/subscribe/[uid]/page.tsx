@@ -40,7 +40,7 @@ export default function SubscribePage() {
                 setCreatorProfile(docSnap.data() as UserProfile);
             } else {
                 toast({ variant: 'destructive', title: t('creatorNotFound') });
-                router.push('/discover');
+                router.push('/');
             }
         });
         return () => unsub();

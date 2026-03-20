@@ -10,15 +10,16 @@ import { AnimatedText } from '@/components/landing/AnimatedText';
 import { 
     ArrowRight, Zap, Coins, Flame, Gem, TrendingUp, 
     Lock, Shield, BarChart3, ChevronRight, Info,
-    DollarSign, Loader2, ArrowRightLeft, Database
+    DollarSign, Loader2, ArrowRightLeft, Database, Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTonConnectUI } from '@tonconnect/ui-react';
-import { getSystemConfig, confirmPresalePurchase } from '@/lib/ledger';
+import { getSystemConfig, confirmUlcPurchase } from '@/lib/ledger';
 import { SystemConfig } from '@/lib/types';
 
 const PRESALE_PRICE = 0.01;
@@ -73,7 +74,7 @@ export default function TokenomicsPage() {
             txHash = result;
         }
 
-        await confirmPresalePurchase(usdtAmount, selectedNetwork, txHash);
+        await confirmUlcPurchase(user, usdtAmount, selectedNetwork, txHash);
         toast({ title: "Purchase Success!", description: `${ulcAmount.toLocaleString()} ULC locked in vesting.` });
         getSystemConfig().then(setSystemConfig);
     } catch (e: any) {

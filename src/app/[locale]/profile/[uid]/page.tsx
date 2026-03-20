@@ -66,7 +66,7 @@ export default function PublicProfilePage() {
         if (userSnap.exists()) {
             setProfile(userSnap.data() as UserProfile);
         } else {
-            router.push('/discover');
+            router.push('/');
         }
         setLoading(false);
     };
@@ -172,7 +172,7 @@ export default function PublicProfilePage() {
   return (
     <div className="relative pb-12 px-4 max-w-5xl mx-auto">
       <header className="relative pt-32 pb-12 px-8 rounded-[2.5rem] overflow-hidden glass-card border-white/10 mt-6 shadow-2xl">
-        <Link href="/discover" className="absolute top-6 left-6 z-20">
+        <Link href="/" className="absolute top-6 left-6 z-20">
             <Button 
                 variant="outline"
                 className="bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10"

@@ -416,5 +416,33 @@
     "limitedTab": "Sınırlı",
     "backToDiscover": "Keşfet'e Dön",
     "message": "Mesaj Gönder"
+  },
+  "Staking": {
+    "title": "ULC Staking",
+    "subtitle": "Ağı güvence altına alarak platform ücretlerinden pay kazanın.",
+    "connectToEarn": "Platform getirisi elde etmek için cüzdanınızı bağlayın.",
+    "yourStaked": "Stake Bakiyeniz",
+    "globalPool": "Küresel Stake Havuzu",
+    "accumulated": "Bir sonraki ödeme için biriken",
+    "totalStaked": "Toplam Stake Edilen",
+    "stakeTokens": "Token Stake Et",
+    "lockDesc": "Staking ödülleri almak için ULC kilitleyin.",
+    "amountToStake": "Stake Edilecek Miktar",
+    "max": "Maks",
+    "lockPeriod": "Kilitleme Süresi",
+    "liquidStaking": "Yok (Likit Staking)",
+    "estWeekly": "Tahmini Haftalık Ödül",
+    "stakeButton": "ULC Stake Et",
+    "unstakeTokens": "Stake Boz",
+    "unstakeDesc": "Stake edilen ULC'lerinizi kullanılabilir bakiyeye geri çekin.",
+    "amountToUnstake": "Çekilecek Miktar",
+    "unstakeNotice": "Stake Bozma Bildirimi",
+    "instantNotice": "Unverse'te stake bozma anında gerçekleşir. Çekilen miktar için ödül kazanımı anında durur.",
+    "unstakeButton": "ULC Stake Boz",
+    "statistics": "Staking İstatistikleri",
+    "distribution": "Staking Dağılımı",
+    "communityStakers": "Topluluk Stake Edenler",
+    "foundationReserve": "Vakıf Rezervi",
+    "rewardInfo": "Staking ödülleri, her USDT aylık aboneliğindeki %5 platform komisyonundan elde edilir. Teşvikler, her ayın 27'sinde, önceki 30 günlük ortalama stake bakiyesine göre hesaplanır."
   }
 }

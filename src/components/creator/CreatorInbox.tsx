@@ -26,8 +26,14 @@ export function CreatorInbox() {
 
   // 1. Fetch Chats for this Creator
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      if (loadingChats) {
+        setLoadingChats(false);
+      }
+      return;
+    }
 
+    setLoadingChats(true);
     const chatsRef = collection(db, 'chats');
     const q = query(
         chatsRef, 
@@ -35,10 +41,16 @@ export function CreatorInbox() {
         orderBy('lastTimestamp', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedChats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
-      setChats(fetchedChats);
-      setLoadingChats(false);
+    const unsubscribe = onSnapshot(q, {
+      next: (snapshot) => {
+        const fetchedChats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+        setChats(fetchedChats);
+        setLoadingChats(false);
+      },
+      error: (err) => {
+        console.error("CreatorInbox Snapshot Error:", err);
+        setLoadingChats(false);
+      }
     });
 
     return () => unsubscribe();

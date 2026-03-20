@@ -416,5 +416,33 @@
     "limitedTab": "Limited",
     "backToDiscover": "Back to Discover",
     "message": "Message"
+  },
+  "Staking": {
+    "title": "ULC Staking",
+    "subtitle": "Earn a portion of all platform fees by securing the network.",
+    "connectToEarn": "Connect your wallet to earn platform yield.",
+    "yourStaked": "Your Staked Balance",
+    "globalPool": "Global Staking Pool",
+    "accumulated": "Accumulated for next payout",
+    "totalStaked": "Total Staked",
+    "stakeTokens": "Stake Tokens",
+    "lockDesc": "Lock ULC to receive staking rewards.",
+    "amountToStake": "Amount to Stake",
+    "max": "Max",
+    "lockPeriod": "Lock Period",
+    "liquidStaking": "None (Liquid Staking)",
+    "estWeekly": "Est. Weekly Reward",
+    "stakeButton": "Stake ULC",
+    "unstakeTokens": "Unstake Tokens",
+    "unstakeDesc": "Withdraw your staked ULC back to available balance.",
+    "amountToUnstake": "Amount to Unstake",
+    "unstakeNotice": "Unstaking Notice",
+    "instantNotice": "Unstaking is instant on Unverse. You will stop earning rewards for the withdrawn amount immediately.",
+    "unstakeButton": "Unstake ULC",
+    "statistics": "Staking Statistics",
+    "distribution": "Staking Distribution",
+    "communityStakers": "Community Stakers",
+    "foundationReserve": "Foundation Reserve",
+    "rewardInfo": "Staking rewards are derived from the 5% platform commission on every USDT monthly subscription. Incentives are calculated on the 27th of each month, based on the average staked balance over the preceding 30 days."
   }
 }

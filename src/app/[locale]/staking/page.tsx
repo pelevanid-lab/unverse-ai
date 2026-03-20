@@ -11,8 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useTranslations } from 'next-intl';
 
 export default function StakingPage() {
+  const t = useTranslations('Staking');
   const { user, isConnected } = useWallet();
   const [config, setConfig] = useState<any>(null);
   const [amount, setAmount] = useState('0');
@@ -31,7 +33,7 @@ export default function StakingPage() {
     setLoading(true);
     try {
       await handleStaking(user, parseFloat(amount));
-      toast({ title: "Stake Successful", description: `${amount} ULC moved to staking.` });
+      toast({ title: t('stakeButton'), description: `${amount} ULC moved to staking.` });
       setAmount('0');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Staking Failed", description: e.message });
@@ -44,7 +46,7 @@ export default function StakingPage() {
     setLoading(true);
     try {
       await handleUnstaking(user, parseFloat(amount));
-      toast({ title: "Unstake Successful", description: `${amount} ULC returned to available.` });
+      toast({ title: t('unstakeButton'), description: `${amount} ULC returned to available.` });
       setAmount('0');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Unstaking Failed", description: e.message });
@@ -55,8 +57,8 @@ export default function StakingPage() {
   if (!isConnected) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
       <TrendingUp className="w-16 h-16 text-primary" />
-      <h1 className="text-3xl font-headline font-bold">Staking Protocol</h1>
-      <p className="text-muted-foreground">Connect your wallet to earn platform yield.</p>
+      <h1 className="text-3xl font-headline font-bold">{t('title')}</h1>
+      <p className="text-muted-foreground">{t('connectToEarn')}</p>
     </div>
   );
 
@@ -67,14 +69,14 @@ export default function StakingPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <header className="text-center md:text-left">
-        <h1 className="text-5xl font-headline font-bold gradient-text">ULC Staking</h1>
-        <p className="text-muted-foreground mt-2">Earn a portion of all platform fees by securing the network.</p>
+        <h1 className="text-5xl font-headline font-bold gradient-text">{t('title')}</h1>
+        <p className="text-muted-foreground mt-2">{t('subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="glass-card border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">Your Staked Balance</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">{t('yourStaked')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-headline">{stakedBalance.toLocaleString()} ULC</div>
@@ -82,16 +84,16 @@ export default function StakingPage() {
         </Card>
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Global Staking Pool</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('globalPool')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-headline text-green-400">~{totalPoolULC.toLocaleString()} ULC</div>
-            <p className="text-[10px] opacity-70">Accumulated for next payout</p>
+            <p className="text-[10px] opacity-70">{t('accumulated')}</p>
           </CardContent>
         </Card>
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total Staked</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('totalStaked')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold font-headline">{(config?.totalStakedULC || 0).toLocaleString()} ULC</div>
@@ -103,15 +105,15 @@ export default function StakingPage() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-primary" /> Stake Tokens
+              <Lock className="w-5 h-5 text-primary" /> {t('stakeTokens')}
             </CardTitle>
-            <CardDescription>Lock ULC to receive staking rewards.</CardDescription>
+            <CardDescription>{t('lockDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
-                <span>Amount to Stake</span>
-                <span>Max: {availableBalance.toFixed(2)}</span>
+                <span>{t('amountToStake')}</span>
+                <span>{t('max')}: {availableBalance.toFixed(2)}</span>
               </div>
               <div className="relative">
                 <Input 
@@ -126,25 +128,25 @@ export default function StakingPage() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-8 text-[10px]"
                   onClick={() => setAmount(availableBalance.toString())}
                 >
-                  MAX
+                  {t('max')}
                 </Button>
               </div>
             </div>
             
             <div className="p-4 bg-muted/20 rounded-xl space-y-3">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Lock Period</span>
-                <span className="font-bold">None (Liquid Staking)</span>
+                <span className="text-muted-foreground">{t('lockPeriod')}</span>
+                <span className="font-bold">{t('liquidStaking')}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Est. Weekly Reward</span>
+                <span className="text-muted-foreground">{t('estWeekly')}</span>
                 <span className="font-bold">{(parseFloat(amount || '0') * 0.124 / 52).toFixed(4)} ULC</span>
               </div>
             </div>
 
             <Button onClick={handleStake} disabled={loading || parseFloat(amount) <= 0} className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold gap-2">
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
-              Stake ULC
+              {t('stakeButton')}
             </Button>
           </CardContent>
         </Card>
@@ -152,15 +154,15 @@ export default function StakingPage() {
         <Card className="glass-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Unlock className="w-5 h-5 text-primary" /> Unstake Tokens
+              <Unlock className="w-5 h-5 text-primary" /> {t('unstakeTokens')}
             </CardTitle>
-            <CardDescription>Withdraw your staked ULC back to available balance.</CardDescription>
+            <CardDescription>{t('unstakeDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
-                <span>Amount to Unstake</span>
-                <span>Max: {stakedBalance.toFixed(2)}</span>
+                <span>{t('amountToUnstake')}</span>
+                <span>{t('max')}: {stakedBalance.toFixed(2)}</span>
               </div>
               <div className="relative">
                 <Input 
@@ -175,7 +177,7 @@ export default function StakingPage() {
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-8 text-[10px]"
                   onClick={() => setAmount(stakedBalance.toString())}
                 >
-                  MAX
+                  {t('max')}
                 </Button>
               </div>
             </div>
@@ -183,35 +185,35 @@ export default function StakingPage() {
             <div className="p-4 bg-muted/20 rounded-xl flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-yellow-400 mt-1" />
               <div className="space-y-1">
-                <p className="text-xs font-bold">Unstaking Notice</p>
-                <p className="text-[10px] text-muted-foreground">Unstaking is instant on Unverse. You will stop earning rewards for the withdrawn amount immediately.</p>
+                <p className="text-xs font-bold">{t('unstakeNotice')}</p>
+                <p className="text-[10px] text-muted-foreground">{t('instantNotice')}</p>
               </div>
             </div>
 
             <Button onClick={handleUnstake} variant="outline" disabled={loading || parseFloat(amount) <= 0} className="w-full h-14 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2">
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
-              Unstake ULC
+              {t('unstakeButton')}
             </Button>
           </CardContent>
         </Card>
       </div>
 
       <section className="space-y-6">
-        <h2 className="text-2xl font-headline font-bold">Staking Statistics</h2>
+        <h2 className="text-2xl font-headline font-bold">{t('statistics')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="glass-card p-6">
-            <h4 className="text-sm font-bold text-muted-foreground mb-4 uppercase">Staking Distribution</h4>
+            <h4 className="text-sm font-bold text-muted-foreground mb-4 uppercase">{t('distribution')}</h4>
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span>Community Stakers</span>
+                  <span>{t('communityStakers')}</span>
                   <span>84%</span>
                 </div>
                 <Progress value={84} />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span>Foundation Reserve</span>
+                  <span>{t('foundationReserve')}</span>
                   <span>16%</span>
                 </div>
                 <Progress value={16} />
@@ -220,8 +222,7 @@ export default function StakingPage() {
           </Card>
           <Card className="glass-card p-6 flex flex-col justify-center">
             <p className="text-sm text-muted-foreground text-center">
-              Staking rewards are derived from the 5% platform commission on every USDT monthly subscription. 
-              The pool dynamically distributes these rewards proportional to each staker's share.
+              {t('rewardInfo')}
             </p>
           </Card>
         </div>
