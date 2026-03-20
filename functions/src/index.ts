@@ -370,11 +370,9 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
         const configSnap = await db.collection("config").doc("system").get();
         const config = configSnap.data();
         
-        // Admin Check (Using address comparison)
+        // Admin Check (Simplified to use isAdmin flag)
         const userSnap = await db.collection("users").doc(adminId).get();
-        const adminWallet = userSnap.data()?.walletAddress;
-        
-        if (!adminWallet || adminWallet.toLowerCase() !== config?.admin_wallet_address?.toLowerCase()) {
+        if (!userSnap.exists || userSnap.data()?.isAdmin !== true) {
             throw new HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
         }
 
