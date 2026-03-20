@@ -34,7 +34,7 @@ export function Navbar() {
   }, [user]);
 
   const navLinks = [
-    { name: 'Discover', href: '/discover' },
+    { name: 'Discover', href: '/' },
     { name: 'Staking', href: '/staking', disabled: true, label: 'Coming Soon' },
     { name: 'Tokenomics', href: '/tokenomics' },
   ];
@@ -70,9 +70,19 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-4">
+          {isConnected && (
+            <Link 
+              href="/mypage" 
+              className={`hidden md:flex items-center gap-1.5 text-sm font-medium ${pathname === '/mypage' ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
+            >
+              <UserIcon className="w-4 h-4" />
+              My Page
+            </Link>
+          )}
+
           <div className="hidden sm:flex items-center bg-muted/50 rounded-full px-3 py-1.5 border border-white/5 gap-2">
             <Coins className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold">{user?.ulcBalance.available.toFixed(2) || '0.00'} ULC</span>
+            <span className="text-xs font-bold">{user?.ulcBalance?.available?.toFixed(2) ?? '0.00'} ULC</span>
           </div>
           
           {isConnected ? (
@@ -133,7 +143,7 @@ export function Navbar() {
               <span className="text-sm font-body font-normal text-muted-foreground">Balance</span>
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-primary" />
-                <span>{user?.ulcBalance.available.toFixed(2) || '0.00'} ULC</span>
+                <span>{user?.ulcBalance?.available?.toFixed(2) ?? '0.00'} ULC</span>
               </div>
             </div>
           </div>

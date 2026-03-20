@@ -106,7 +106,7 @@ export default function LimitedEditionsPage() {
         ) : (
             <div className="text-center py-32 glass-card rounded-[2rem] border-white/5">
                 <p className="text-muted-foreground">You don't own any limited editions yet.</p>
-                <Link href="/discover"><Button variant="link" className="text-primary mt-2">Explore available content</Button></Link>
+                <Link href="/"><Button variant="link" className="text-primary mt-2">Explore available content</Button></Link>
             </div>
         )}
     </div>

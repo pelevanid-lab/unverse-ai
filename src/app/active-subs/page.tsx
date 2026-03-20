@@ -90,7 +90,7 @@ export default function ActiveSubsPage() {
             <Card className="glass-card border-white/5 bg-white/[0.02]">
                 <CardContent className="p-12 text-center space-y-4">
                     <p className="text-muted-foreground text-sm">You haven't subscribed to any creators yet.</p>
-                    <Link href="/discover"><Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Creators</Button></Link>
+                    <Link href="/"><Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Creators</Button></Link>
                 </CardContent>
             </Card>
           ))}
