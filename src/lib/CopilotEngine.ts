@@ -19,16 +19,42 @@ const STYLE_MODIFIERS: Record<PromptStyle, string> = {
 };
 
 /**
- * Builds a prompt where the user's input is the absolute foundation.
+ * Common pose inference mapping.
+ * Translates simple user actions into technical modifiers for the AI.
  */
+const POSE_INFERENCE: Record<string, string> = {
+    "lying": "lying down, relaxed posture, horizontal orientation",
+    "sitting": "sitting down, seated position, centered",
+    "walking": "walking motion, movement, dynamic action",
+    "running": "running, fast motion, dynamic pose",
+    "jumping": "jumping, mid-air, dynamic action",
+    "dancing": "dancing, rhythmic motion, artistic pose",
+    "sleeping": "sleeping, eyes closed, peaceful expression, lying down",
+    "standing": "standing still, upright posture, full body view",
+    "workout": "athletic pose, fitness motion, dynamic lighting",
+    "yoga": "yoga pose, zen posture, stretching",
+    "leaning": "leaning against a wall, casual pose, relaxed",
+    "kneeling": "kneeling position, looking at camera",
+    "arching": "arching back, dramatic pose, high fashion",
+    "squatting": "squatting, street style pose, urban vibe",
+};
+
+/**
+ * Builds a prompt where the user's input is the absolute foundation.
+ * @param lockedOutfit Experimental: Manual clothing override passed from UI.
+ */
+export type StudioMode = 'standard' | 'digitalTwin' | 'aiEdit';
+
 export function buildPrompt(
     userInput: string, 
     style: PromptStyle = 'none', 
     mode: CompositionMode = 'solo',
-    character?: CharacterProfile | null
+    character?: CharacterProfile | null,
+    lockedOutfit?: string,
+    studioMode: StudioMode = 'standard'
 ): string {
     
-    // 1. Karakter Özellikleri (Sadece tutarlılık için en temel bilgiler)
+    // 1. Identity Traits
     let identity = "";
     if (character) {
         identity = `${character.gender}, ${character.hairColor} hair, ${character.eyeColor} eyes, ${character.faceStyle} face`;
@@ -36,26 +62,46 @@ export function buildPrompt(
         identity = "a woman"; // Default if no character
     }
 
-    // 2. Kompozisyon (Solo/Duo)
+    // 2. Outfit Lock (User Choice)
+    const attire = lockedOutfit ? `wearing ${lockedOutfit}` : "";
+
+    // 3. Pose Inference
+    let poseMismatch = "";
+    const lowerInput = userInput.toLowerCase();
+    for (const [key, modifier] of Object.entries(POSE_INFERENCE)) {
+        if (lowerInput.includes(key)) {
+            poseMismatch = modifier;
+            break;
+        }
+    }
+
+    // 4. Composition (Solo/Duo)
     const count = mode === 'solo' ? "one person only, solo" : "two people, together";
 
-    // 3. Stil Işığı
+    // 5. Style Modifiers
     const styleLight = STYLE_MODIFIERS[style];
 
+    // 6. Studio Mode System Constraints
+    let systemConstraint = "";
+    if (studioMode === 'digitalTwin') {
+        systemConstraint = "Meticulously preserve the facial features, hair, and unique identity of the person in the reference photo. The result must be a perfect likeness of the original individual.";
+    } else if (studioMode === 'aiEdit') {
+        systemConstraint = "Keep the person from the reference image exactly as they are. Focus ONLY on modifying the background or objects as requested: " + userInput + ". Absolute identity preservation.";
+    }
+
     // 🚀 FINAL PROMPT CONSTRUCTION
-    // Mantık: [KULLANICI NE DEDİYSE O] + [KİMLİK] + [KALİTE]
-    // AI ilk kelimelere odaklanır. Kullanıcının yazdığını en başa alıyoruz.
-    
-    const finalPrompt = `${userInput}, ${identity}, ${count}, ${styleLight}, ${QUALITY_BASE}`
+    // Layout: [USER INPUT] + [IDENTITY] + [OUTFIT] + [POSE] + [COUNT] + [STYLE] + [QUALITY]
+    const finalPrompt = `${userInput}, ${identity}, ${attire}, ${poseMismatch}, ${count}, ${styleLight}, ${systemConstraint}, ${QUALITY_BASE}`
         .split(',')
         .map(s => s.trim())
         .filter(s => s.length > 0)
         .join(", ");
 
-    console.log("--- PROMPT ENGINE (DIRECT MODE) ---");
-    console.log("USER:", userInput);
+    console.log("--- AI STUDIO 2.0 (COPILOT ENGINE) ---");
+    console.log("INPUT:", userInput);
+    if (lockedOutfit) console.log("OUTFIT LOCK:", lockedOutfit);
     console.log("FINAL:", finalPrompt);
-    console.log("-----------------------");
+    console.log("---------------------------------------");
     
     return finalPrompt;
 }

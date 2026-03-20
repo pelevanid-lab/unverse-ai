@@ -464,9 +464,10 @@ export async function toggleUserFreeze(uid: string, freeze: boolean) {
 
 /**
  * AI Generation Monetization Logic
- * Costs 3 ULC: 70% Treasury (2.1), 30% Burn (0.9)
+ * Supports dynamic costs (Standard: 5, Digital Twin: 20, Edit: 3)
+ * Ratio: 70% Treasury / 30% Burn
  */
-export async function processAiGenerationPayment(userId: string): Promise<string> {
+export async function processAiGenerationPayment(userId: string, cost: number): Promise<string> {
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);
@@ -475,14 +476,14 @@ export async function processAiGenerationPayment(userId: string): Promise<string
         
         const userData = userSnap.data() as UserProfile;
         const balance = userData.ulcBalance?.available || 0;
-        const cost = 3;
+        // The 'cost' parameter is now used directly, removing the shadowed 'const cost = 3;'
+        // The fixed shares are replaced with calculated percentages.
 
         if (balance < cost) {
             throw new Error("INSUFFICIENT_ULC");
         }
-
-        const treasuryShare = 2; // Fixed: 2 ULC to Treasury
-        const burnShare = 1;     // Fixed: 1 ULC Burned
+        const treasuryShare = Number((cost * 0.7).toFixed(2));
+        const burnShare = Number((cost * 0.3).toFixed(2));
 
         // 1. Deduct from user
         transaction.update(userRef, {
@@ -511,12 +512,11 @@ export async function processAiGenerationPayment(userId: string): Promise<string
     });
 }
 
-export async function refundAiGenerationPayment(userId: string, ledgerId: string): Promise<void> {
+export async function refundAiGenerationPayment(userId: string, ledgerId: string, cost: number): Promise<void> {
     await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
-        const cost = 3;
-        const treasuryShare = 2;
-        const burnShare = 1;
+        const treasuryShare = Number((cost * 0.7).toFixed(2));
+        const burnShare = Number((cost * 0.3).toFixed(2));
 
         // 1. Refund user
         transaction.update(userRef, {

@@ -18,6 +18,9 @@ import { buildPrompt, PromptStyle, CompositionMode } from '@/lib/CopilotEngine';
 import { CharacterProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslations } from 'next-intl';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 export function AIStudio() {
     const t = useTranslations('AIStudio');
@@ -25,9 +28,16 @@ export function AIStudio() {
     const { toast } = useToast();
     
     // UI state
+    const [activeTab, setActiveTab] = useState<'standard' | 'digitalTwin' | 'aiEdit'>('standard');
     const [mode, setMode] = useState<'new' | 'consistent'>(user?.savedCharacter ? 'consistent' : 'new');
     const [composition, setComposition] = useState<CompositionMode>('solo');
     const [showCharacterEditor, setShowCharacterEditor] = useState(false);
+    
+    // Advanced AI Controls
+    const [outfitLockEnabled, setOutfitLockEnabled] = useState(false);
+    const [lockedOutfit, setLockedOutfit] = useState('');
+    const [refImage, setRefImage] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     
     // Feedback state
     const [logId, setLogId] = useState<string | null>(null);
@@ -107,6 +117,19 @@ export function AIStudio() {
         }
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setRefImage(reader.result as string);
+            setIsUploading(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleGenerate = async () => {
         if (!prompt.trim() || !user?.uid) return;
 
@@ -131,6 +154,11 @@ export function AIStudio() {
             return;
         }
 
+        // 2. Determine Cost based on active tab
+        let currentCost = 5;
+        if (activeTab === 'digitalTwin') currentCost = 20;
+        if (activeTab === 'aiEdit') currentCost = 3;
+
         const characterToUse = mode === 'consistent' ? (user.savedCharacter as CharacterProfile) : null;
         
         setGenerating(true);
@@ -140,6 +168,7 @@ export function AIStudio() {
         setSatisfactionScore(null);
 
         let finalUserPrompt = prompt.trim();
+        // ... translation logic omitted for brevity in chunk but I must include it or replace it correctly
         try {
             const trRes = await fetch('/api/translate', {
                 method: 'POST',
@@ -157,17 +186,27 @@ export function AIStudio() {
             console.warn("Translation failed, using original prompt:", trErr);
         }
 
-        const finalEnhancedPrompt = buildPrompt(finalUserPrompt, selectedStyle, composition, characterToUse);
-        setEnhancedPromptUsed(finalEnhancedPrompt);
+        const finalPrompt = buildPrompt(
+            finalUserPrompt, 
+            selectedStyle, 
+            composition, 
+            characterToUse,
+            outfitLockEnabled ? lockedOutfit : undefined,
+            activeTab
+        );
+        setEnhancedPromptUsed(finalPrompt);
 
         try {
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    prompt: prompt, 
-                    enhancedPrompt: finalEnhancedPrompt,
-                    userId: user.uid 
+                    prompt: finalUserPrompt, 
+                    enhancedPrompt: finalPrompt,
+                    userId: user.uid,
+                    cost: currentCost,
+                    image: activeTab !== 'standard' ? refImage : undefined,
+                    mask: activeTab === 'aiEdit' ? refImage : undefined // Simplified: using same image as mask reference for now
                 }),
             });
 
@@ -252,84 +291,109 @@ export function AIStudio() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Header with Mode & Composition Selection */}
-            <div className="flex flex-col gap-6 bg-white/5 p-6 rounded-[2rem] border border-white/5">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-                            <Wand2 className="text-primary" /> {t('title')}
-                        </h2>
-                        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-                    </div>
-                    
-                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 self-start md:self-center">
-                        <Button 
-                            variant={mode === 'new' ? 'default' : 'ghost'} 
-                            size="sm"
-                            onClick={() => setMode('new')}
-                            className={cn(
-                                "rounded-lg text-xs font-bold px-4 transition-all",
-                                mode === 'new' && "bg-primary text-white shadow-lg shadow-primary/20"
-                            )}
-                        >
-                            {t('newCharacter')}
-                        </Button>
-                        <Button 
-                            variant={mode === 'consistent' ? 'default' : 'ghost'} 
-                            size="sm"
-                            onClick={() => {
-                                if (!user?.savedCharacter) setShowCharacterEditor(true);
-                                else setMode('consistent');
-                            }}
-                            className={cn(
-                                "rounded-lg text-xs font-bold px-4 flex items-center gap-2 transition-all",
-                                mode === 'consistent' && "bg-primary text-white shadow-lg shadow-primary/20"
-                            )}
-                        >
-                            <Lock size={12} /> {mode === 'consistent' ? t('consistentMode') : t('characterLock')}
-                        </Button>
-                    </div>
-                </div>
+            {/* Main Tabs Selection */}
+            <Tabs defaultValue="standard" value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full">
+                <TabsList className="grid grid-cols-3 bg-black/40 p-1.5 rounded-[2rem] border border-white/5 h-auto mb-8">
+                    <TabsTrigger value="standard" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
+                        <Wand2 size={16} /> {t('tabStandard')}
+                    </TabsTrigger>
+                    <TabsTrigger value="digitalTwin" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
+                        <Sparkles size={16} /> {t('tabDigitalTwin')}
+                    </TabsTrigger>
+                    <TabsTrigger value="aiEdit" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
+                        <RefreshCcw size={16} /> {t('tabAiEdit')}
+                    </TabsTrigger>
+                </TabsList>
 
-                <div className="h-px bg-white/5 w-full" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('composition')}</Label>
-                        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                {/* Header with Mode & Composition Selection */}
+                <div className="flex flex-col gap-6 bg-white/5 p-6 rounded-[2rem] border border-white/5 mb-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                            <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+                                {activeTab === 'standard' && <Wand2 className="text-primary" />}
+                                {activeTab === 'digitalTwin' && <Sparkles className="text-primary" />}
+                                {activeTab === 'aiEdit' && <RefreshCcw className="text-primary" />}
+                                {t(`tab${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`)}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                {activeTab === 'standard' && t('subtitle')}
+                                {activeTab === 'digitalTwin' && t('digitalTwinDesc')}
+                                {activeTab === 'aiEdit' && t('aiEditDesc')}
+                            </p>
+                        </div>
+                        
+                        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 self-start md:self-center">
                             <Button 
-                                variant={composition === 'solo' ? 'default' : 'ghost'} 
+                                variant={mode === 'new' ? 'default' : 'ghost'} 
                                 size="sm"
-                                onClick={() => setComposition('solo')}
+                                onClick={() => setMode('new')}
                                 className={cn(
-                                    "rounded-lg text-[10px] font-bold px-4 py-1 h-8 flex items-center gap-2 transition-all",
-                                    composition === 'solo' && "bg-primary text-white shadow-lg shadow-primary/20"
+                                    "rounded-lg text-xs font-bold px-4 transition-all",
+                                    mode === 'new' && "bg-primary text-white shadow-lg shadow-primary/20"
                                 )}
-                                disabled={generating || !!imageUrl}
                             >
-                                <User size={12} /> {t('soloMode')}
+                                {t('newCharacter')}
                             </Button>
                             <Button 
-                                variant={composition === 'duo' ? 'default' : 'ghost'} 
+                                variant={mode === 'consistent' ? 'default' : 'ghost'} 
                                 size="sm"
-                                onClick={() => setComposition('duo')}
+                                onClick={() => {
+                                    if (!user?.savedCharacter) setShowCharacterEditor(true);
+                                    else setMode('consistent');
+                                }}
                                 className={cn(
-                                    "rounded-lg text-[10px] font-bold px-4 py-1 h-8 flex items-center gap-2 transition-all",
-                                    composition === 'duo' && "bg-primary text-white shadow-lg shadow-primary/20"
+                                    "rounded-lg text-xs font-bold px-4 flex items-center gap-2 transition-all",
+                                    mode === 'consistent' && "bg-primary text-white shadow-lg shadow-primary/20"
                                 )}
-                                disabled={generating || !!imageUrl}
                             >
-                                <Users size={12} /> {t('duoMode')}
+                                <Lock size={12} /> {mode === 'consistent' ? t('consistentMode') : t('characterLock')}
                             </Button>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 self-start md:self-center">
-                        <Coins size={14} className="text-primary" />
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{t('cost')}</span>
+                    <div className="h-px bg-white/5 w-full" />
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('composition')}</Label>
+                            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                                <Button 
+                                    variant={composition === 'solo' ? 'default' : 'ghost'} 
+                                    size="sm"
+                                    onClick={() => setComposition('solo')}
+                                    className={cn(
+                                        "rounded-lg text-[10px] font-bold px-4 py-1 h-8 flex items-center gap-2 transition-all",
+                                        composition === 'solo' && "bg-primary text-white shadow-lg shadow-primary/20"
+                                    )}
+                                    disabled={generating || !!imageUrl}
+                                >
+                                    <User size={12} /> {t('soloMode')}
+                                </Button>
+                                <Button 
+                                    variant={composition === 'duo' ? 'default' : 'ghost'} 
+                                    size="sm"
+                                    onClick={() => setComposition('duo')}
+                                    className={cn(
+                                        "rounded-lg text-[10px] font-bold px-4 py-1 h-8 flex items-center gap-2 transition-all",
+                                        composition === 'duo' && "bg-primary text-white shadow-lg shadow-primary/20"
+                                    )}
+                                    disabled={generating || !!imageUrl}
+                                >
+                                    <Users size={12} /> {t('duoMode')}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 self-start md:self-center">
+                            <Coins size={14} className="text-primary" />
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                                {activeTab === 'standard' && t('cost5')}
+                                {activeTab === 'digitalTwin' && t('cost20')}
+                                {activeTab === 'aiEdit' && t('cost3')}
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
             {/* Character Profile Editor */}
             {showCharacterEditor && (
@@ -389,101 +453,211 @@ export function AIStudio() {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Generation Form */}
-                <Card className="glass-card border-white/10 h-fit">
-                    <CardContent className="p-6 space-y-6">
-                        {mode === 'consistent' && user?.savedCharacter && (
-                            <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
-                                <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
-                                    <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
-                                    <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
-                                    <RefreshCcw size={14} />
-                                </Button>
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <div className="space-y-3">
-                                <Label className="text-xs font-bold uppercase text-muted-foreground">{t('selectStylePreset')}</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {styles.map(style => (
-                                        <Button
-                                            key={style.id}
-                                            variant={selectedStyle === style.id ? 'default' : 'outline'}
-                                            size="sm"
-                                            onClick={() => setSelectedStyle(style.id)}
-                                            className={cn(
-                                                "text-[10px] h-8 rounded-full px-4 border-white/10 transition-all",
-                                                selectedStyle === style.id && "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                            )}
-                                            disabled={generating || !!imageUrl}
-                                        >
-                                            {style.label}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
-                                <Textarea
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder={t('promptPlaceholder')}
-                                    className={`bg-white/5 border-white/10 min-h-[120px] rounded-2xl resize-none text-sm leading-relaxed transition-all ${prompt.length > 0 && !isPromptValid ? 'border-yellow-500/50' : ''}`}
-                                    disabled={generating || !!imageUrl}
-                                />
-                                {prompt.length > 0 && !isPromptValid && !imageUrl && (
-                                    <p className="text-[10px] text-yellow-500 flex items-center gap-1 font-bold animate-pulse">
-                                        <AlertCircle size={10} /> {t('needsMoreDetail')}
-                                    </p>
-                                )}
-                                {isPromptValid && !imageUrl && (
-                                    <p className="text-[10px] text-primary flex items-center gap-1 font-bold">
-                                        <Sparkles size={10} /> {t('copilotMessage', { composition })}
-                                    </p>
-                                )}
-                            </div>
-
-                            {!imageUrl ? (
-                                <Button 
-                                    onClick={handleGenerate} 
-                                    disabled={generating || !prompt.trim() || !isPromptValid}
-                                    className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-2 shadow-xl shadow-primary/20"
-                                >
-                                    {generating ? <Loader2 className="animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                                    {generating ? t('generating') : t('generateBtn')}
-                                </Button>
-                            ) : (
-                                <Button 
-                                    variant="outline" 
-                                    onClick={resetStudio} 
-                                    className="w-full h-12 rounded-xl border-white/10 hover:bg-white/5 font-bold gap-2 text-muted-foreground"
-                                >
-                                    <X className="w-4 h-4" /> {t('startOver')}
-                                </Button>
-                            )}
-                        </div>
-
-                        {generating && (
-                            <div className="py-8 text-center space-y-4">
-                                <div className="relative w-16 h-16 mx-auto">
-                                    <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-                                    <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
-                                </div>
-                                <p className="text-xs text-muted-foreground font-medium animate-pulse uppercase tracking-widest">{t('fluxPainting')}</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Preview & Action Area */}
+                {/* Generation Form Column */}
                 <div className="space-y-6">
+                    <TabsContent value="standard" className="mt-0 space-y-6">
+                        <Card className="glass-card border-white/10 h-fit">
+                            <CardContent className="p-6 space-y-6">
+                                {mode === 'consistent' && user?.savedCharacter && (
+                                    <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
+                                        <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
+                                            <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
+                                            <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
+                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
+                                            <RefreshCcw size={14} />
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {/* Outfit Lock Logic */}
+                                <div className="space-y-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <Label className="text-sm font-bold flex items-center gap-2">
+                                                <Lock size={14} className="text-primary" /> {t('outfitLock')}
+                                            </Label>
+                                            <p className="text-[10px] text-muted-foreground">{t('outfitLockTooltip')}</p>
+                                        </div>
+                                        <Switch checked={outfitLockEnabled} onCheckedChange={setOutfitLockEnabled} />
+                                    </div>
+                                    {outfitLockEnabled && (
+                                        <Input 
+                                            placeholder={t('outfitLockPlaceholder')}
+                                            value={lockedOutfit}
+                                            onChange={(e) => setLockedOutfit(e.target.value)}
+                                            className="bg-black/20 border-white/5 text-xs h-10 rounded-xl"
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('selectStylePreset')}</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {styles.map((style) => (
+                                                <Button
+                                                    key={style.id}
+                                                    variant={selectedStyle === style.id ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    onClick={() => setSelectedStyle(style.id)}
+                                                    className={cn(
+                                                        "rounded-full text-[10px] font-bold px-4 h-8 transition-all",
+                                                        selectedStyle === style.id ? "bg-primary text-white" : "border-white/10 hover:bg-white/5"
+                                                    )}
+                                                >
+                                                    {style.label}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                        <div className="relative">
+                                            <Textarea 
+                                                placeholder={t('promptPlaceholder')}
+                                                value={prompt}
+                                                onChange={(e) => setPrompt(e.target.value)}
+                                                className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl resize-none p-4"
+                                            />
+                                            {prompt.length > 0 && !isPromptValid && (
+                                                <div className="absolute bottom-3 left-4 flex items-center gap-1.5 text-orange-400">
+                                                    <AlertCircle size={12} />
+                                                    <span className="text-[10px] font-bold uppercase">{t('needsMoreDetail')}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                            <Sparkles size={14} className="text-primary" />
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground flex-1">
+                                            {t('copilotMessage', { composition: composition === 'solo' ? t('soloMode') : t('duoMode') })}
+                                        </p>
+                                    </div>
+
+                                    <Button 
+                                        onClick={handleGenerate}
+                                        disabled={!isPromptValid || generating || !!imageUrl}
+                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
+                                    >
+                                        {generating ? <Loader2 className="animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                                        {generating ? t('generating') : t('generateBtn')}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="digitalTwin" className="mt-0 space-y-6">
+                        <Card className="glass-card border-white/10 h-fit">
+                            <CardContent className="p-6 space-y-6">
+                                <div className="space-y-4">
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
+                                    <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-white/10 bg-black/40 overflow-hidden group">
+                                        {refImage ? (
+                                            <>
+                                                <Image src={refImage} alt="Reference" fill className="object-cover" />
+                                                <Button 
+                                                    variant="destructive" size="icon" 
+                                                    className="absolute top-2 right-2 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => setRefImage(null)}
+                                                >
+                                                    <X size={14} />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
+                                                <User size={32} className="text-muted-foreground opacity-20 mb-2" />
+                                                <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabDigitalTwin')}</p>
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                            </label>
+                                        )}
+                                        {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                        <Textarea 
+                                            placeholder={t('promptPlaceholder')}
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
+                                        />
+                                    </div>
+
+                                    <Button 
+                                        onClick={handleGenerate}
+                                        disabled={!refImage || !isPromptValid || generating || !!imageUrl}
+                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
+                                    >
+                                        {generating ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                        {generating ? t('generating') : t('generateBtn')}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="aiEdit" className="mt-0 space-y-6">
+                        <Card className="glass-card border-white/10 h-fit">
+                            <CardContent className="p-6 space-y-6">
+                                <div className="space-y-4">
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
+                                    <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-white/10 bg-black/40 overflow-hidden group">
+                                        {refImage ? (
+                                            <>
+                                                <Image src={refImage} alt="Reference" fill className="object-cover" />
+                                                <Button 
+                                                    variant="destructive" size="icon" 
+                                                    className="absolute top-2 right-2 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => setRefImage(null)}
+                                                >
+                                                    <X size={14} />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
+                                                <RefreshCcw size={32} className="text-muted-foreground opacity-20 mb-2" />
+                                                <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabAiEdit')}</p>
+                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                            </label>
+                                        )}
+                                        {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                        <Textarea 
+                                            placeholder={t('promptPlaceholder')}
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
+                                        />
+                                    </div>
+
+                                    <Button 
+                                        onClick={handleGenerate}
+                                        disabled={!refImage || !isPromptValid || generating || !!imageUrl}
+                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
+                                    >
+                                        {generating ? <Loader2 className="animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
+                                        {generating ? t('generating') : t('generateBtn')}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </div>
+
+                {/* Preview & Action Area Column */}
+                <div className="space-y-6 lg:sticky lg:top-8 h-fit">
                     {imageUrl ? (
                         <div className="space-y-6 animate-in slide-in-from-right-8 duration-500">
                             <Card className="glass-card border-white/10 overflow-hidden shadow-2xl">
@@ -519,27 +693,52 @@ export function AIStudio() {
 
                                     <div className="grid grid-cols-1 gap-3">
                                         <Button 
+                                            variant="outline"
+                                            onClick={() => {
+                                                setImageUrl(null);
+                                                setMediaId(null);
+                                                setLogId(null);
+                                            }}
+                                            className="w-full h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
+                                        >
+                                            <RefreshCcw size={14} /> {t('startOver')}
+                                        </Button>
+
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center mt-4 tracking-widest">{t('selectAction')}</p>
+                                        
+                                        <Button 
                                             onClick={handlePublishDirectly}
                                             disabled={publishing}
                                             className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-3"
                                         >
-                                            {publishing ? <Loader2 className="animate-spin" /> : <Globe className="w-5 h-5" />}
-                                            {publishing ? t('publishingBtn') : t('publishAsPublic')}
+                                            <Globe className="w-5 h-5" />
+                                            {publishing ? t('publishingBtn') : t('saveToContainer')}
                                         </Button>
+                                        
                                         <div className="grid grid-cols-2 gap-2">
                                             <Button 
                                                 variant="outline"
-                                                onClick={handleSendToContainer}
+                                                onClick={() => {
+                                                    // Variation Logic: standard tab but with img2img ref
+                                                    setActiveTab('standard');
+                                                    setPrompt(prompt); // Keep current prompt
+                                                    setRefImage(imageUrl); // Use result as ref
+                                                    setImageUrl(null);
+                                                }}
                                                 className="h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
                                             >
-                                                <Package size={14} /> {t('container')}
+                                                <Sparkles size={14} className="text-primary" /> {t('variationBtn')}
                                             </Button>
                                             <Button 
                                                 variant="outline"
-                                                onClick={handleSetAsMainCharacter}
+                                                onClick={() => {
+                                                    setActiveTab('aiEdit');
+                                                    setRefImage(imageUrl);
+                                                    setImageUrl(null);
+                                                }}
                                                 className="h-12 rounded-2xl border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-bold gap-2 text-xs"
                                             >
-                                                <Lock size={14} /> {t('characterLock')}
+                                                <RefreshCcw size={14} /> {t('editBtn')}
                                             </Button>
                                         </div>
                                     </div>
@@ -557,6 +756,7 @@ export function AIStudio() {
                     )}
                 </div>
             </div>
+            </Tabs>
         </div>
     );
 }

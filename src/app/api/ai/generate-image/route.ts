@@ -9,9 +9,12 @@ import { processAiGenerationPayment, refundAiGenerationPayment } from '@/lib/led
 export async function POST(req: Request) {
   let ledgerId: string | null = null;
   let userIdForRefund: string | null = null;
+  let cost = 5; // Moved cost definition outside try block
 
   try {
-    const { prompt, enhancedPrompt, userId } = await req.json();
+    const json = await req.json();
+    const { prompt, enhancedPrompt, userId, image, mask } = json;
+    cost = json.cost || 5; // Assign cost from json, default to 5
 
     if (!prompt || !userId) {
       return NextResponse.json({ error: 'Prompt and userId are required' }, { status: 400 });
@@ -21,10 +24,10 @@ export async function POST(req: Request) {
 
     // 1. Process Payment (Deduct 3 ULC)
     try {
-        ledgerId = await processAiGenerationPayment(userId);
+        ledgerId = await processAiGenerationPayment(userId, cost);
     } catch (payErr: any) {
         if (payErr.message === 'INSUFFICIENT_ULC') {
-            return NextResponse.json({ error: 'Not enough ULC. AI generation costs 3 ULC.' }, { status: 402 });
+            return NextResponse.json({ error: `Not enough ULC. This action costs ${cost} ULC.` }, { status: 402 });
         }
         throw payErr;
     }
@@ -49,6 +52,8 @@ export async function POST(req: Request) {
         input: {
           prompt: finalPromptForAI,
           aspect_ratio: "1:1",
+          image: image || undefined,
+          mask: mask || undefined,
         },
       }
     ) as string[];
@@ -113,7 +118,7 @@ export async function POST(req: Request) {
     // 4. Refund if something failed after payment
     if (ledgerId && userIdForRefund) {
         console.log("Refunding payment for failed generation:", ledgerId);
-        await refundAiGenerationPayment(userIdForRefund, ledgerId);
+        await refundAiGenerationPayment(userIdForRefund, ledgerId, cost);
     }
     
     if (error.status === 401 || error.message?.includes('401') || error.message?.includes('Unauthenticated')) {

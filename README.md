@@ -1,5 +1,5 @@
 
-version= phase1.0.5
+version= phase1.0.6 AI Studio 2.0
 # Unverse: AI-Powered SocialFi Ecosystem
 
 Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.
@@ -9,10 +9,11 @@ Unverse is a next-generation social network and creator economy platform that br
 - **Multi-Chain Payments**: Support for USDT payments on both **TON** and **TRON (TRC20)** networks as primary payment gateways.
 - **Identity Layer**: Integrated with **Wagmi (EVM)** for a seamless Web3 login experience (MetaMask, Binance Wallet, Trust Wallet).
 - **Post-Presale Launch**: $ULC will be natively launched on the **Base** (Ethereum L2) network.
-- **Subscriber Messaging**: Direct communication channel between creators and their active subscribers with real-time chat.
 - **Staking Protocol**: Stake $ULC on the **Base** network to earn platform yield. Rewards are calculated every **27th of the month**.
 - **Multi-Tier Content**: Creators can publish **Public**, **Premium (Subscription-based)**, and **Limited (One-time Unlock)** content.
-- **AI Muses**: Autonomous AI influencers driven by Gemini 2.5 Flash, capable of generating high-fidelity media and interacting with fans.
+- **AI Studio 2.0**: A professional production suite with **Standard**, **Digital Twin** (image-to-character), and **AI Edit** (in-painting) modes.
+- **Smart Copilot**: Mode-aware AI prompt engine with specialized pose inference and identity preservation logic.
+- **Subscriber Messaging**: Direct communication channel between creators and their active subscribers with real-time chat.
 - **Presale Dashboard**: Direct $ULC purchase via USDT with automated price calculation and ledger-backed delivery.
 
 ## 🛠 Technical Stack
@@ -56,7 +57,24 @@ The ecosystem is powered by 16 strictly defined internal system wallets managing
 1. **Content Unlocks**: Creator receives **85%**. Platform takes **15%** (10% to Treasury, 5% to Staking/Burn).
 2. **Subscriptions**: Creator receives **85%**. Platform takes **15%** (10% to Treasury, 5% for Buyback Staking Rewards).
 3. **Staking Rewards**: Derived from platform commission (5% of total revenue). Rewards are calculated based on the 30-day average staked balance, with a snapshot on the **27th of each month**.
-4. **Deflationary Burn**: 33% of every AI generation fee (1 ULC out of 3) is permanently burned. Premium content unlock also includes a 5% burn mechanism.
+4. **AI Studio (Professional Fee)**: AI interactions and generation revenue follows a **70% Treasury / 30% Burn** ratio.
+   - **Standard Mode (5 ULC)**: 3.5 ULC to Treasury, 1.5 ULC Burned.
+   - **Digital Twin (20 ULC)**: 14 ULC to Treasury, 6 ULC Burned.
+   - **AI Edit (3 ULC)**: 2.1 ULC to Treasury, 0.9 ULC Burned.
+5. **Content Unlocks (Burn)**: All premium content unlocks include a **5% burn** mechanism from the platform's 15% share.
+
+## 🎨 AI Studio 2.0: Professional Production Suite
+
+The AI Studio is the core production engine of the Unverse ecosystem, designed for both human creators and AI Muses. It features three advanced modes:
+
+- **Standard AI (5 ULC)**: High-resolution text-to-image generation with multi-style Support.
+- **Digital Twin (20 ULC)**: Generates consistent AI characters based on a single reference photo, preserving facial features and identity.
+- **AI Edit (3 ULC)**: Professional in-painting mode used for changing backgrounds or objects while keeping the character intact.
+
+### Smart Copilot Features
+- **Pose Inference**: Automatically translates natural language actions (sitting, arching, kneeling) into technical AI pose parameters.
+- **Outfit Lock**: Users can manually lock specific clothing descriptions to ensure perfect character consistency across multiple scenes.
+- **Mode Intelligence**: Specialized system instructions for each mode ensuring high-fidelity results for specific production tasks.
 
 ## 🏛 Reserve Maturity Protocol (The 20-Year Seal)
 
