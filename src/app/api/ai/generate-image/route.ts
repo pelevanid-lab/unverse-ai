@@ -43,20 +43,37 @@ export async function POST(req: Request) {
       auth: rawToken.trim(),
     });
 
-    // 2. Call AI Generation using the ENHANCED prompt if provided, else fallback to original
+    // 2. Call AI Generation using the ENHANCED prompt
     const finalPromptForAI = enhancedPrompt || prompt;
+    
+    let model: any = "black-forest-labs/flux-schnell";
+    let input: any = {
+      prompt: finalPromptForAI,
+      aspect_ratio: "1:1",
+    };
 
-    const output = await replicate.run(
-      "black-forest-labs/flux-schnell",
-      {
-        input: {
-          prompt: finalPromptForAI,
-          aspect_ratio: "1:1",
-          image: image || undefined,
-          mask: mask || undefined,
-        },
-      }
-    ) as string[];
+    // Digital Twin specialized model (Identity Preservation)
+    if (cost === 20 && image) {
+      model = "lucataco/flux-pulid-ca:46914902357738f15b812f862fe57d079983ed758d4a675034c56fd5767c6999";
+      input = {
+        prompt: finalPromptForAI,
+        main_face_image: image,
+        negative_prompt: "bad quality, blurry, distorted face, unrealistic, woman if reference is man, person change",
+        id_weight: 1,
+        num_inference_steps: 20
+      };
+    } else if (cost === 3 && image) {
+      // AI Edit / In-painting specialized model
+      model = "black-forest-labs/flux-fill";
+      input = {
+        prompt: finalPromptForAI,
+        image: image,
+        mask: mask || undefined,
+        guidance: 30
+      };
+    }
+
+    const output = await replicate.run(model, { input }) as string[];
 
     if (!output || !output[0]) {
         throw new Error("AI returned empty output.");

@@ -84,7 +84,11 @@ export function buildPrompt(
     // 6. Studio Mode System Constraints
     let systemConstraint = "";
     if (studioMode === 'digitalTwin') {
-        systemConstraint = "Meticulously preserve the facial features, hair, and unique identity of the person in the reference photo. The result must be a perfect likeness of the original individual.";
+        if (character) {
+            systemConstraint = "Meticulously follow the provided character traits to ensure the person's identity is consistent with the established character profile. Focus on the requested scene and pose while maintaining facial likeness.";
+        } else {
+            systemConstraint = "Meticulously preserve the facial features, hair, and unique identity of the person in the reference photo. The result must be a perfect likeness of the original individual.";
+        }
     } else if (studioMode === 'aiEdit') {
         systemConstraint = "Keep the person from the reference image exactly as they are. Focus ONLY on modifying the background or objects as requested: " + userInput + ". Absolute identity preservation.";
     }
