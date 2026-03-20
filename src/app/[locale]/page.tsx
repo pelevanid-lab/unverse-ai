@@ -77,8 +77,8 @@ export default function DiscoverPage() {
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">Universal Rate</p>
                     <p className="text-sm font-black text-primary">1 ULC = 0.015 USDT</p>
                 </div>
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                    <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain rounded-full" />
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 overflow-hidden p-0.5">
+                    <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-[1.8] rounded-full" style={{ mixBlendMode: 'screen' }} />
                 </div>
             </div>
         </div>

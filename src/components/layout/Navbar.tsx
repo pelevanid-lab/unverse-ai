@@ -48,7 +48,14 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <img src="/logo.png" alt="Unverse Logo" className={`w-8 h-8 object-contain rounded-full shadow-lg shadow-primary/10 ${isAdmin ? 'animate-pulse' : ''}`} />
+              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-black/50 border border-white/5 shadow-lg shadow-primary/20">
+                <img 
+                  src="/logo.png" 
+                  alt="Unverse Logo" 
+                  className={`w-full h-full object-cover scale-[1.6] ${isAdmin ? 'animate-pulse' : ''}`} 
+                  style={{ mixBlendMode: 'screen' }}
+                />
+              </div>
             </Link>
             <div className="flex flex-col">
               <Link href="/" className="group leading-none">
