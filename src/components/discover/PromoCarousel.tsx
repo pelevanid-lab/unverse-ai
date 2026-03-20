@@ -1,21 +1,23 @@
 import { PromoCard } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTranslations } from 'next-intl';
 
 interface PromoCarouselProps {
   promoCards: PromoCard[];
 }
 
 export function PromoCarousel({ promoCards }: PromoCarouselProps) {
+  const t = useTranslations('Discover');
   if (!promoCards || promoCards.length === 0) return null;
 
   return (
     <div className="w-full py-8 space-y-6">
       <div className="flex items-center gap-2 px-2">
         <Sparkles className="w-5 h-5 text-yellow-400" />
-        <h2 className="text-xl font-headline font-bold uppercase tracking-widest text-muted-foreground">Featured Creators</h2>
+        <h2 className="text-xl font-headline font-bold uppercase tracking-widest text-muted-foreground">{t('featuredCreators')}</h2>
       </div>
       
       <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory pt-2 px-2 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -51,7 +53,7 @@ export function PromoCarousel({ promoCards }: PromoCarouselProps) {
                     
                     <Link href={`/profile/${promo.creatorId}`}>
                       <Button size="sm" className="rounded-full bg-white text-black hover:bg-white/90 font-bold gap-2 text-xs h-8 px-4">
-                        {promo.ctaText || 'Explore'} <ArrowRight className="w-3 h-3" />
+                        {promo.ctaText || t('explore')} <ArrowRight className="w-3 h-3" />
                       </Button>
                     </Link>
                   </div>

@@ -1,16 +1,19 @@
 
 "use client"
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { Zap, Wallet, LayoutDashboard, Search, Users, Coins, Settings, TrendingUp, Menu, X, User as UserIcon } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { getSystemConfig } from '@/lib/ledger';
 import { Badge } from '@/components/ui/badge';
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/i18n/routing';
+import { useTranslations, useLocale } from 'next-intl';
 
 export function Navbar() {
+  const t = useTranslations('Navbar');
+  const locale = useLocale();
   const { user, isConnected, connectWallet } = useWallet();
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -34,19 +37,29 @@ export function Navbar() {
   }, [user]);
 
   const navLinks = [
-    { name: 'Discover', href: '/' },
-    { name: 'Staking', href: '/staking', disabled: true, label: 'Coming Soon' },
-    { name: 'Tokenomics', href: '/tokenomics' },
+    { name: t('discover'), href: '/' },
+    { name: t('staking'), href: '/staking', disabled: true, label: t('comingSoon') },
+    { name: t('tokenomics'), href: '/tokenomics' },
   ];
 
   return (
     <nav className="border-b bg-card/50 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2 group">
-            <Zap className={`w-6 h-6 ${isAdmin ? 'text-yellow-400 fill-yellow-400 animate-pulse' : 'text-primary'}`} />
-            <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2 group">
+              <Zap className={`w-6 h-6 ${isAdmin ? 'text-yellow-400 fill-yellow-400 animate-pulse' : 'text-primary'}`} />
+              <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
+            </Link>
+
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/30 font-bold font-headline mt-0.5">
+              <Link href={pathname || '/'} locale="en" className={`hover:text-primary transition-colors ${locale === 'en' ? 'text-primary opacity-100' : 'opacity-70'}`}>EN</Link>
+              <span>/</span>
+              <Link href={pathname || '/'} locale="tr" className={`hover:text-primary transition-colors ${locale === 'tr' ? 'text-primary opacity-100' : 'opacity-70'}`}>TR</Link>
+              <span>/</span>
+              <Link href={pathname || '/'} locale="ru" className={`hover:text-primary transition-colors ${locale === 'ru' ? 'text-primary opacity-100' : 'opacity-70'}`}>RU</Link>
+            </div>
+          </div>
 
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
             {navLinks.map((link) => {
@@ -76,7 +89,7 @@ export function Navbar() {
               className={`hidden md:flex items-center gap-1.5 text-sm font-medium ${pathname === '/mypage' ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
             >
               <UserIcon className="w-4 h-4" />
-              My Page
+              {t('mypage')}
             </Link>
           )}
 
@@ -94,7 +107,7 @@ export function Navbar() {
             </Link>
           ) : (
             <Button onClick={connectWallet} className="bg-primary hover:bg-primary/90 px-6 rounded-full font-bold shadow-lg shadow-primary/20">
-              Connect Wallet
+              {t('connect')}
             </Button>
           )}
 
@@ -133,7 +146,7 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center justify-between"
               >
-                <span className="flex items-center gap-2"><UserIcon className='w-5 h-5'/> My Page</span>
+                <span className="flex items-center gap-2"><UserIcon className='w-5 h-5'/> {t('mypage')}</span>
               </Link>
             )}
 

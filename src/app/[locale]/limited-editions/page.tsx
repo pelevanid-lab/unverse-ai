@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Loader2, ChevronLeft } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';

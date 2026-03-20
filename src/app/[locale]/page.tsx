@@ -10,10 +10,11 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Loader2, Zap, Search, TrendingUp, Sparkles, Megaphone, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function DiscoverPage() {
+  const t = useTranslations('Discover');
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [promoCards, setPromoCards] = useState<PromoCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,8 +67,8 @@ export default function DiscoverPage() {
             <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.3em] text-[10px]">
                 <Sparkles className="w-3 h-3" /> Discover Universe
             </div>
-            <h1 className="text-6xl font-black font-headline tracking-tighter leading-none">The Feed</h1>
-            <p className="text-muted-foreground font-medium max-w-md">Accessing the public layer of the sovereign creator economy.</p>
+            <h1 className="text-6xl font-black font-headline tracking-tighter leading-none">{t('feed')}</h1>
+            <p className="text-muted-foreground font-medium max-w-md">{t('description')}</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -86,7 +87,7 @@ export default function DiscoverPage() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-40 gap-4">
           <Loader2 className="w-12 h-12 animate-spin text-primary" />
-          <p className="text-muted-foreground font-headline animate-pulse">Syncing Sovereign Feed...</p>
+          <p className="text-muted-foreground font-headline animate-pulse">{t('syncing')}</p>
         </div>
       ) : (
         <div className="space-y-16 pb-20">
@@ -100,7 +101,7 @@ export default function DiscoverPage() {
                 />
             ) : (
                 <div className="text-center py-20">
-                    <p className="text-muted-foreground">No public content available yet.</p>
+                    <p className="text-muted-foreground">{t('noContent')}</p>
                 </div>
             )}
         </div>

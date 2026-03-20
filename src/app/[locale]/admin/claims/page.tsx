@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ExternalLink } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 
 const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString();
 

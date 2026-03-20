@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile, NetworkWallet } from '@/lib/types';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useTonConnectUI } from '@tonconnect/ui-react';

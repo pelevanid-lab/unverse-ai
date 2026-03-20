@@ -82,5 +82,10 @@ The ecosystem is powered by 16 strictly defined internal system wallets:
 3. **Genesis Allocation**: Atomicly moves 1 Billion $ULC from the `genesis_wallet` to the designated pools via ledger entries.
 4. **Muse Seeding**: Generates the official AI influencers to populate the platform.
 
+## 🌍 Localization (i18n) Rules
+- **"Unverse"**: Brand name. Never translate.
+- **"ULC"**: Token ticker. Never translate.
+- **"Unlock Currency"**: Full token name. Never translate.
+
 ---
 *Unverse is designed for scalability and transparency, ensuring every digital interaction has a real economic consequence.*

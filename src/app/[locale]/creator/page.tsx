@@ -9,12 +9,14 @@ import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile } from '@/lib/types';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { CreatorTabs } from '@/components/creator/CreatorTabs';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   const router = useRouter();
+  const t = useTranslations('Creator');
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] text-center relative max-w-2xl mx-auto px-4">
        <Button 
@@ -29,10 +31,10 @@ function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => vo
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 mx-auto">
             <DollarSign className="w-8 h-8 text-primary" />
         </div>
-        <CardTitle className="text-3xl font-headline font-bold">Become a Creator</CardTitle>
-        <CardDescription className="mt-2 mb-8 text-base">Start your journey on Unverse, share your content, and earn directly from your supporters through subscriptions and unlocks.</CardDescription>
+        <CardTitle className="text-3xl font-headline font-bold">{t('becomeCreatorTitle')}</CardTitle>
+        <CardDescription className="mt-2 mb-8 text-base">{t('becomeCreatorDesc')}</CardDescription>
         <Button onClick={onBecomeCreator} disabled={loading} size="lg" className='w-full h-14 text-lg font-bold rounded-2xl'>
-            {loading ? 'Activating...' : 'Activate Creator Profile'}
+            {loading ? t('activating') : t('activateProfile')}
         </Button>
        </Card>
     </div>
@@ -40,6 +42,7 @@ function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => vo
 }
 
 export default function CreatorPanel() {
+  const t = useTranslations('Creator');
   const { user, isConnected } = useWallet();
   const router = useRouter();
   const [activationLoading, setActivationLoading] = useState(false);
@@ -51,7 +54,7 @@ export default function CreatorPanel() {
           const userRef = doc(db, "users", user.uid);
           await updateDoc(userRef, {
               isCreator: true,
-              bio: 'Welcome to my Unverse!',
+              bio: t('defaultBio'),
               creatorData: {
                   category: 'General',
                   coverImage: '',
@@ -71,9 +74,9 @@ export default function CreatorPanel() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4">
         <DollarSign className="w-16 h-16 text-primary" />
-        <h1 className="text-3xl font-headline font-bold">Creator Portal</h1>
-        <p className="text-muted-foreground">Please connect your wallet to manage your content.</p>
-        <Link href="/"><Button className="rounded-xl">Back to Home</Button></Link>
+        <h1 className="text-3xl font-headline font-bold">{t('portalTitle')}</h1>
+        <p className="text-muted-foreground">{t('connectToManage')}</p>
+        <Link href="/"><Button className="rounded-xl">{t('backToHome')}</Button></Link>
       </div>
     );
   }
@@ -95,10 +98,10 @@ export default function CreatorPanel() {
                 <ChevronLeft className="w-6 h-6" />
             </Button>
             <div>
-                <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter">Creator Panel</h1>
+                <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter">{t('panelTitle')}</h1>
                 <div className='mt-2'>
                     <Link href="/creator/settings" className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                        <span className="text-sm font-medium">Manage your digital empire</span>
+                        <span className="text-sm font-medium">{t('manageEmpire')}</span>
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </div>
@@ -109,7 +112,7 @@ export default function CreatorPanel() {
             <Link href="/wallet" className='w-full'>
                 <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-primary/10 transition-colors cursor-pointer group min-w-[200px]">
                     <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Total Balance</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('totalBalance')}</p>
                         <p className="text-3xl font-bold font-headline group-hover:text-primary transition-colors">
                             {user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span>
                         </p>
@@ -119,12 +122,12 @@ export default function CreatorPanel() {
             <div className="flex flex-col gap-2">
                 <Link href={`/profile/${user?.uid}`} className="w-full">
                     <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5 font-bold">
-                        <Globe className="w-4 h-4" /> View Profile
+                        <Globe className="w-4 h-4" /> {t('viewProfile')}
                     </Button>
                 </Link>
                 <Link href="/creator/settings" className="w-full">
                     <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6 font-bold">
-                        <Settings className="w-4 h-4" /> Settings
+                        <Settings className="w-4 h-4" /> {t('settings')}
                     </Button>
                 </Link>
             </div>
