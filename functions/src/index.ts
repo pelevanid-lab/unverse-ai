@@ -201,10 +201,15 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
             const configSnap = await transaction.get(db.collection("config").doc("system"));
             const config = configSnap.data();
 
-            // --- 85/15 Split Logic ---
+            // --- 85/15 Split Logic (Dynamic) ---
             const creatorShare = price * 0.85;
-            const treasuryShare = price * 0.10;
-            const stakingShare = price * 0.05;
+            const platformMargin = price * 0.15;
+            
+            const treasuryRatio = config?.premium_commission_treasury_ratio || 0.67;
+            const stakingRatio = config?.premium_commission_staking_ratio || 0.33;
+
+            const treasuryShare = platformMargin * treasuryRatio;
+            const stakingShare = platformMargin * stakingRatio;
 
             const referenceId = `unlock_${postId}_${userId}`;
             const now = Date.now();
@@ -354,11 +359,20 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
  * Creates a new Vesting Schedule for a user.
  * Restricted to the Admin Wallet defined in system config.
  */
+const VESTING_PRESETS: Record<string, { cliffMonths: number; durationMonths: number }> = {
+    reserve: { cliffMonths: 6, durationMonths: 48 },
+    team: { cliffMonths: 12, durationMonths: 48 },
+    creators: { cliffMonths: 0, durationMonths: 24 },
+    presale: { cliffMonths: 1, durationMonths: 12 },
+    liquidity: { cliffMonths: 0, durationMonths: 0 },
+    exchanges: { cliffMonths: 0, durationMonths: 0 }
+};
+
 export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
     
-    const { targetUserId, totalAmount, durationMonths, cliffMonths, description } = request.data;
-    if (!targetUserId || !totalAmount || !durationMonths) {
+    const { targetUserId, totalAmount, durationMonths, cliffMonths, description, poolId } = request.data;
+    if (!targetUserId || !totalAmount || poolId === undefined) {
         throw new HttpsError("invalid-argument", "Missing required vesting parameters.");
     }
 
@@ -366,25 +380,56 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
     const db = admin.firestore();
     const now = Date.now();
 
-    try {
-        const configSnap = await db.collection("config").doc("system").get();
-        const config = configSnap.data();
+    // --- ENFORCEMENT ---
+    let finalCliff = cliffMonths || 0;
+    let finalDuration = durationMonths;
+
+    if (poolId !== "promo") {
+        const preset = VESTING_PRESETS[poolId];
+        if (!preset) throw new HttpsError("invalid-argument", `Invalid pool: ${poolId}`);
         
-        // Admin Check (Simplified to use isAdmin flag)
-        const userSnap = await db.collection("users").doc(adminId).get();
-        if (!userSnap.exists || userSnap.data()?.isAdmin !== true) {
-            throw new HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
-        }
+        // Strict Enforcement: Force the preset values
+        finalCliff = preset.cliffMonths;
+        finalDuration = preset.durationMonths;
+    }
 
-        const durationMs = durationMonths * 30 * 24 * 60 * 60 * 1000;
-        const cliffMs = (cliffMonths || 0) * 30 * 24 * 60 * 60 * 1000;
-
+    try {
+        const configRef = db.collection("config").doc("system");
         const scheduleRef = db.collection("vesting_schedules").doc();
 
         await db.runTransaction(async (transaction) => {
-            const targetUserRef = db.collection("users").doc(targetUserId);
+            const configSnap = await transaction.get(configRef);
+            const configData = configSnap.data();
+            
+            // 1. Admin Check (Enhanced: flag OR wallet address match)
+            const userSnap = await transaction.get(db.collection("users").doc(adminId));
+            const userData = userSnap.data();
+            const isAdmin = userData?.isAdmin === true || 
+                            userData?.walletAddress?.toLowerCase() === configData?.admin_wallet_address?.toLowerCase();
 
-            // 1. Create Schedule
+            if (!isAdmin) {
+                throw new HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
+            }
+
+            // 2. Pool Deduction Logic
+            const pools = configData?.pools || {};
+            const currentPoolBalance = pools[poolId] || 0;
+
+            if (currentPoolBalance < totalAmount) {
+                throw new HttpsError("failed-precondition", `Insufficient balance in ${poolId} pool.`);
+            }
+
+            // --- EXECUTION ---
+            const targetUserRef = db.collection("users").doc(targetUserId);
+            const durationMs = finalDuration * 30 * 24 * 60 * 60 * 1000;
+            const cliffMs = finalCliff * 30 * 24 * 60 * 60 * 1000;
+
+            // Update Pool Balance
+            transaction.update(configRef, {
+                [`pools.${poolId}`]: admin.firestore.FieldValue.increment(-totalAmount)
+            });
+
+            // Create Schedule
             transaction.set(scheduleRef, {
                 userId: targetUserId,
                 totalAmount,
@@ -393,17 +438,19 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
                 cliff: cliffMs,
                 releasedAmount: 0,
                 description: description || "System Vesting",
+                poolId,
                 createdAt: now
             });
 
-            // 2. Lock the tokens in User Profile
+            // Lock the tokens in User Profile
             transaction.update(targetUserRef, {
                 'ulcBalance.locked': admin.firestore.FieldValue.increment(totalAmount)
             });
 
-            // 3. Record Ledger Entry
+            // Record Ledger Entry
             transaction.set(db.collection("ledger").doc(), {
                 type: "vesting_created",
+                fromWallet: poolId,
                 toUserId: targetUserId,
                 amount: totalAmount,
                 currency: "ULC",

@@ -3,10 +3,10 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction, sealEconomyAction } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles } from 'lucide-react';
+import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles, Lock as LockIcon, Shield, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -86,6 +86,17 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
+  const handleSeal = async () => {
+    setLoading('seal');
+    try {
+        await sealEconomyAction();
+        toast({ title: "Economy Sealed Forever" });
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Sealing Failed", description: e.message });
+    }
+    setLoading(false);
+  };
+
 
 
   const handleGenesisAllocation = async () => {
@@ -131,7 +142,9 @@ export default function AdminDashboard() {
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="vesting">
+        <TabsContent value="vesting" className="space-y-6">
+            <UsdtDashboard config={config} users={allUsers} />
+            <PoolBalances config={config} />
             <VestingManager 
                 users={allUsers} 
                 schedules={vestingSchedules} 
@@ -246,12 +259,43 @@ export default function AdminDashboard() {
            <Card className="glass-card border-green-500/50">
              <CardHeader>
                <CardTitle>System Initialization</CardTitle>
-               <CardDescription>Establish the token economy and wallets. This is a one-time operation.</CardDescription>
+               <CardDescription>
+                 {config?.isSealed ? "The token economy is now immutable." : "Establish the token economy and wallets. This is a one-time operation."}
+               </CardDescription>
              </CardHeader>
-             <CardContent>
-                <Button onClick={handleInitialize} disabled={loading === 'init'} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold">
-                  {loading === 'init' ? <Loader2 className="animate-spin"/> : 'Initialize System Economy'}
-                </Button>
+             <CardContent className="space-y-4">
+                {!config?.isSealed ? (
+                  <>
+                    <Button onClick={handleInitialize} disabled={loading === 'init'} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold">
+                      {loading === 'init' ? <Loader2 className="animate-spin"/> : 'Initialize System Economy'}
+                    </Button>
+                    
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <p className="text-[10px] text-red-400 mb-3 uppercase font-bold text-center">
+                          Investor Safeguard (Immutable Lock)
+                        </p>
+                        <Button 
+                          onClick={() => {
+                            if(window.confirm("ARE YOU SURE? This will PERMANENTLY lock the tokenomics (Pools, Cliff, Vesting Presets). This action is IRREVERSIBLE.")) {
+                              handleSeal();
+                            }
+                          }} 
+                          disabled={loading === 'seal'} 
+                          className="w-full h-10 bg-red-600 hover:bg-red-700 text-white font-bold"
+                        >
+                          {loading === 'seal' ? <Loader2 className="animate-spin"/> : 'SEAL ECONOMY (LOCK FOREVER)'}
+                        </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center p-8 bg-green-500/20 rounded-xl border border-green-500/50">
+                    <div className="text-center">
+                        <LockIcon className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                        <h3 className="text-xl font-headline font-bold text-green-400 uppercase tracking-widest">Economy Sealed</h3>
+                        <p className="text-[10px] opacity-70">Tokenomics parameters are now permanently locked in code.</p>
+                    </div>
+                  </div>
+                )}
              </CardContent>
            </Card>
 
@@ -272,14 +316,70 @@ export default function AdminDashboard() {
   );
 }
 
+function PoolBalances({ config }: { config: SystemConfig | null }) {
+    const pools = config?.pools || {};
+    return (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {Object.entries(pools).map(([id, balance]) => (
+                <Card key={id} className="glass-card p-3 border-white/5 bg-white/2">
+                    <p className="text-[10px] uppercase font-bold opacity-50 truncate">{id.replace(/_/g, ' ')}</p>
+                    <p className="text-sm font-headline font-bold text-yellow-400">{(balance / 1000000).toFixed(1)}M</p>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+function UsdtDashboard({ config, users }: { config: SystemConfig | null, users: UserProfile[] }) {
+    const totalCreatorClaims = users.reduce((sum, u) => sum + (u.usdtBalance?.available || 0), 0);
+    
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="glass-card p-4 border-green-500/20 bg-green-500/5">
+                <p className="text-xs font-bold opacity-70 uppercase">Treasury USDT</p>
+                <h3 className="text-2xl font-headline font-bold text-green-400">${(config?.totalTreasuryUSDT || 0).toFixed(2)}</h3>
+            </Card>
+            <Card className="glass-card p-4 border-red-500/20 bg-red-500/5">
+                <p className="text-xs font-bold opacity-70 uppercase">Buyback Pool (USDT)</p>
+                <h3 className="text-2xl font-headline font-bold text-red-400">${(config?.totalBuybackUSDT || 0).toFixed(2)}</h3>
+            </Card>
+            <Card className="glass-card p-4 border-blue-500/20 bg-blue-500/5">
+                <p className="text-xs font-bold opacity-70 uppercase">Creator Claims (USDT)</p>
+                <h3 className="text-2xl font-headline font-bold text-blue-400">${totalCreatorClaims.toFixed(2)}</h3>
+            </Card>
+        </div>
+    );
+}
+
+const VESTING_PRESETS: Record<string, { cliffMonths: number; durationMonths: number }> = {
+    reserve: { cliffMonths: 6, durationMonths: 48 },
+    team: { cliffMonths: 12, durationMonths: 48 },
+    creators: { cliffMonths: 0, durationMonths: 24 },
+    presale: { cliffMonths: 1, durationMonths: 12 },
+    liquidity: { cliffMonths: 0, durationMonths: 0 },
+    exchanges: { cliffMonths: 0, durationMonths: 0 }
+};
+
 function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[], schedules: VestingSchedule[], onRefresh: () => void }) {
     const [targetUserId, setTargetUserId] = useState('');
     const [amount, setAmount] = useState(1000);
     const [duration, setDuration] = useState(12);
     const [cliff, setCliff] = useState(0);
     const [desc, setDesc] = useState('');
+    const [poolId, setPoolId] = useState('reserve');
     const [submitting, setSubmitting] = useState(false);
     const { toast } = useToast();
+
+    // Auto-fill logic
+    useEffect(() => {
+        if (poolId !== 'promo') {
+            const preset = VESTING_PRESETS[poolId];
+            if (preset) {
+                setDuration(preset.durationMonths);
+                setCliff(preset.cliffMonths);
+            }
+        }
+    }, [poolId]);
 
     const handleCreate = async () => {
         if (!targetUserId) return;
@@ -290,7 +390,8 @@ function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[],
                 totalAmount: amount,
                 durationMonths: duration,
                 cliffMonths: cliff,
-                description: desc
+                description: desc,
+                poolId: poolId
             });
             toast({ title: "Vesting Schedule Created" });
             onRefresh();
@@ -323,6 +424,22 @@ function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[],
                             ))}
                         </select>
                     </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold opacity-50 uppercase">Source Pool</label>
+                        <select 
+                            value={poolId} 
+                            onChange={(e) => setPoolId(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"
+                        >
+                            <option value="reserve">Reserve Pool (420M)</option>
+                            <option value="team">Team Vesting (130M)</option>
+                            <option value="creators">Creator Incentives (120M)</option>
+                            <option value="presale">Presale (100M)</option>
+                            <option value="liquidity">Liquidity (60M)</option>
+                            <option value="promo">Promo Pool (50M)</option>
+                            <option value="exchanges">Exchanges (40M)</option>
+                        </select>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-xs font-bold opacity-50 uppercase">Amount (ULC)</label>
@@ -330,12 +447,24 @@ function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[],
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs font-bold opacity-50 uppercase">Duration (Months)</label>
-                            <input type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                            <input 
+                                type="number" 
+                                value={duration} 
+                                disabled={poolId !== 'promo'}
+                                onChange={(e) => setDuration(Number(e.target.value))} 
+                                className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm disabled:opacity-50"
+                            />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-bold opacity-50 uppercase">Cliff (Months)</label>
-                        <input type="number" value={cliff} onChange={(e) => setCliff(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"/>
+                        <input 
+                            type="number" 
+                            value={cliff} 
+                            disabled={poolId !== 'promo'}
+                            onChange={(e) => setCliff(Number(e.target.value))} 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm disabled:opacity-50"
+                        />
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-bold opacity-50 uppercase">Description</label>

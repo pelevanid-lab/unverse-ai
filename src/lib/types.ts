@@ -37,6 +37,10 @@ export interface UserProfile {
         locked: number;
         claimable: number;
     };
+    usdtBalance?: {
+        available: number;
+        claimable: number;
+    };
     totalEarnings?: number;
     totalSpent?: number;
     welcomeBonusClaimed?: boolean;
@@ -105,6 +109,16 @@ export interface SystemConfig {
     admin_wallet_address: string;
     genesis_initialized?: boolean;
     ulc_token_network?: string;
+    premium_commission_staking_ratio?: number;
+    premium_commission_treasury_ratio?: number;
+    subscription_buyback_ratio?: number;
+    subscription_treasury_ratio?: number;
+    pools?: {
+        [key: string]: number; // e.g. "reserve": 420000000
+    };
+    totalTreasuryUSDT?: number;
+    totalBuybackUSDT?: number;
+    isSealed?: boolean;
 }
 
 export type LedgerEntryType = 
@@ -135,6 +149,7 @@ export interface VestingSchedule {
     releasedAmount: number;
     lastClaimedAt?: number;
     description?: string;
+    poolId?: string;
 }
 
 export interface LedgerEntry {

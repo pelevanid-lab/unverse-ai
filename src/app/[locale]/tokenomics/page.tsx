@@ -8,9 +8,8 @@ import { useWallet } from '@/hooks/use-wallet';
 import { AnimatedText } from '@/components/landing/AnimatedText';
 import { Play, ArrowRight, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Coins, Flame, Gem, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { Coins, Flame, Gem, PieChart as PieChartIcon } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const ALLOCATION_DATA = [
   { name: 'Reserve Pool', value: 420, color: 'hsl(var(--primary))' },
@@ -128,21 +127,21 @@ export default function TokenomicsPage() {
              <div className="p-3 bg-red-500/10 rounded-xl"><Flame className="text-red-400" /></div>
              <div>
                <h4 className="font-bold">Burn Mechanism</h4>
-               <p className="text-sm text-muted-foreground">Every AI Chat Fee (0.5 ULC) and a portion of content unlocks are permanently burned.</p>
+               <p className="text-sm text-muted-foreground">Every AI Generation fee and a portion of content unlocks are permanently burned.</p>
              </div>
            </div>
            <div className="flex items-start gap-4">
              <div className="p-3 bg-green-500/10 rounded-xl"><Gem className="text-green-400" /></div>
              <div>
                <h4 className="font-bold">Staking Yield</h4>
-               <p className="text-sm text-muted-foreground">Stakers earn 2.5% of all platform premium unlocks.</p>
+               <p className="text-sm text-muted-foreground">Stakers earn 33% of all platform margin collected from premium unlocks.</p>
              </div>
            </div>
            <div className="flex items-start gap-4">
              <div className="p-3 bg-blue-500/10 rounded-xl"><Coins className="text-blue-400" /></div>
              <div>
                <h4 className="font-bold">Creator Revenue</h4>
-               <p className="text-sm text-muted-foreground">Creators keep 95% of unlock fees and 90% of USDT subscriptions.</p>
+               <p className="text-sm text-muted-foreground">Creators keep 85% of all unlock fees and USDT subscriptions.</p>
              </div>
            </div>
         </Card>

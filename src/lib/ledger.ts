@@ -71,10 +71,16 @@ export async function recordUsdtSubscription(
     const batch = writeBatch(db);
     const subscriptionPrice = creator.creatorData.subscriptionPriceMonthly;
     
-    const platformRatio = 0.15;
-    const treasuryShare = subscriptionPrice * 0.10;
-    const buybackShare = subscriptionPrice * 0.05;
-    const creatorEarning = subscriptionPrice - (treasuryShare + buybackShare);
+    const creatorRatio = 0.85;
+    const platformMarginRatio = 0.15;
+    
+    const treasuryRatio = config.subscription_treasury_ratio || 0.67;
+    const buybackRatio = config.subscription_buyback_ratio || 0.33;
+
+    const platformMargin = subscriptionPrice * platformMarginRatio;
+    const treasuryShare = platformMargin * treasuryRatio;
+    const buybackShare = platformMargin * buybackRatio;
+    const creatorEarning = subscriptionPrice * creatorRatio;
 
     const now = Date.now();
     const duration = 30 * 24 * 60 * 60 * 1000;
@@ -131,6 +137,20 @@ export async function recordUsdtSubscription(
         amount: creatorEarning,
         currency: 'USDT',
         referenceId: paymentRef.id,
+    });
+
+    // 3. Update Creator USDT Balance
+    const creatorRef = doc(db, 'users', creator.uid);
+    batch.update(creatorRef, {
+        'usdtBalance.available': increment(creatorEarning),
+        totalEarnings: increment(creatorEarning)
+    });
+
+    // 4. Update Global USDT Stats
+    const statsRef = doc(db, 'config', 'system');
+    batch.update(statsRef, {
+        totalTreasuryUSDT: increment(treasuryShare),
+        totalBuybackUSDT: increment(buybackShare)
     });
 
     batch.set(doc(collection(db, "ledger")), {
@@ -255,6 +275,7 @@ export async function createVestingScheduleAction(data: {
     durationMonths: number;
     cliffMonths?: number;
     description?: string;
+    poolId: string;
 }): Promise<any> {
     const createFunc = httpsCallable(functions, 'createVestingSchedule');
     const result = await createFunc(data);
@@ -281,8 +302,15 @@ export async function getPostMediaAction(postId: string): Promise<{ url: string 
 
 export async function initializeSystemConfig() {
     const configRef = doc(db, 'config', 'system');
+    const configSnap = await getDoc(configRef);
+    
+    if (configSnap.exists() && configSnap.data()?.isSealed) {
+        throw new Error("TOKENOMICS_LOCKED: The economy is sealed and cannot be re-initialized.");
+    }
+
     const initialConfig = {
         genesis_initialized: true,
+        isSealed: false,
         platform_subscription_fee_split: 0.1,
         admin_wallet_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
         treasury_wallets: {
@@ -290,11 +318,27 @@ export async function initializeSystemConfig() {
             TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
         },
         wallets: {
-            promo_pool: { address: "SYSTEM_PROMO", currency: "ULC", balance: 1000000 }
-        }
+            promo_pool: { address: "SYSTEM_PROMO", currency: "ULC", balance: 50000000 }
+        },
+        pools: {
+            reserve: 420000000,
+            team: 130000000,
+            creators: 120000000,
+            presale: 100000000,
+            liquidity: 60000000,
+            promo: 50000000,
+            exchanges: 40000000
+        },
+        totalTreasuryUSDT: 0,
+        totalBuybackUSDT: 0
     };
     await setDoc(configRef, initialConfig);
     return initialConfig as SystemConfig;
+}
+
+export async function sealEconomyAction() {
+    const configRef = doc(db, 'config', 'system');
+    await updateDoc(configRef, { isSealed: true });
 }
 
 export async function triggerGenesisAllocation(user: UserProfile) {
