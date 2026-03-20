@@ -35,6 +35,7 @@ export interface UserProfile {
     ulcBalance?: {
         available: number;
         locked: number;
+        staked: number; // Dedicated for Staking
         claimable: number;
     };
     usdtBalance?: {
@@ -100,8 +101,8 @@ export interface SystemConfig {
         TRON: string;
         TON: string;
     };
-    platform_subscription_fee_split: number;
-    wallets: {
+    platform_subscription_fee_split?: number;
+    wallets?: {
         promo_pool: {
             address: string;
         }
@@ -117,8 +118,16 @@ export interface SystemConfig {
         [key: string]: number; // e.g. "reserve": 420000000
     };
     totalTreasuryUSDT?: number;
-    totalBuybackUSDT?: number;
+    totalBuybackBurnUSDT?: number; // Legacy
+    totalBuybackStakingUSDT?: number; // For staking rewards
+    totalStakedULC?: number;
+    totalPresaleSold?: number;
     isSealed?: boolean;
+}
+
+export interface SystemStats {
+    totalTreasuryULC: number;
+    totalBurnedULC: number;
 }
 
 export type LedgerEntryType = 
@@ -133,11 +142,14 @@ export type LedgerEntryType =
     | 'ulc_purchase'
     | 'ulc_purchase_payment'
     | 'staking_reward'
+    | 'staking_deposit'
+    | 'staking_withdraw'
     | 'treasury_fee'
     | 'buyback_burn_fee'
-    | 'ai_generation_payment'
+    | 'buyback_staking_fee'
     | 'ai_generation_refund'
-    | 'vesting_claim';
+    | 'vesting_claim'
+    | 'presale_purchase';
 
 export interface VestingSchedule {
     id: string;
@@ -266,6 +278,8 @@ export interface Chat {
     lastMessage: string;
     lastTimestamp: number;
     creatorId: string;
+    creatorName?: string;
+    creatorAvatar?: string;
     subscriberId: string;
     subscriberName: string;
     subscriberAvatar: string;

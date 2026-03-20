@@ -12,7 +12,7 @@
     "connect": "Connect Wallet",
     "mypage": "My Page",
     "discover": "Discover",
-    "tokenomics": "Tokenomics",
+    "tokenomics": "Pre-Sale",
     "staking": "Staking",
     "comingSoon": "Coming Soon"
   },
@@ -38,7 +38,8 @@
     "subscriptions": "Subscriptions",
     "activeAccess": "Active Access",
     "paymentWallets": "Payment Wallets",
-    "connection": "Connection"
+    "connection": "Connection",
+    "messages": "Messages"
   },
   "Wallet": {
     "yourBalance": "Your Balance",
@@ -150,6 +151,13 @@
     "typeMessage": "Type your message...",
     "selectSupporter": "Select a supporter",
     "selectSupporterDesc": "Click on a conversation to start chatting with your supporters."
+  },
+  "UserInbox": {
+    "creators": "Creators",
+    "noActive": "No active conversations yet.",
+    "typeMessage": "Type your message...",
+    "selectCreator": "Select a Creator",
+    "selectCreatorDesc": "Choose a conversation to chat with a creator you support."
   },
   "EditMedia": {
     "captionGenerated": "Caption Generated",
@@ -406,6 +414,7 @@
     "publicTab": "Public",
     "premiumTab": "Premium",
     "limitedTab": "Limited",
-    "backToDiscover": "Back to Discover"
+    "backToDiscover": "Back to Discover",
+    "message": "Message"
   }
 }

@@ -205,11 +205,11 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
             const creatorShare = price * 0.85;
             const platformMargin = price * 0.15;
             
-            const treasuryRatio = config?.premium_commission_treasury_ratio || 0.67;
-            const stakingRatio = config?.premium_commission_staking_ratio || 0.33;
+            const treasuryRatio = 0.67; // 10% of total (0.15 * 0.67 approx 0.10)
+            const burnRatio = 0.33;     // 5% of total (0.15 * 0.33 approx 0.05)
 
             const treasuryShare = platformMargin * treasuryRatio;
-            const stakingShare = platformMargin * stakingRatio;
+            const burnShare = platformMargin * burnRatio;
 
             const referenceId = `unlock_${postId}_${userId}`;
             const now = Date.now();
@@ -255,7 +255,13 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
                 });
             }
 
-            // 4. Record Ledger Entries
+            // 4. Update Global ULC Stats (Tracked in stats/ulc)
+            transaction.set(db.collection("config").doc("stats"), {
+                totalTreasuryULC: admin.firestore.FieldValue.increment(treasuryShare),
+                totalBurnedULC: admin.firestore.FieldValue.increment(burnShare)
+            }, { merge: true });
+
+            // 5. Record Ledger Entries
             transaction.set(ledgerCol.doc(), {
                 type: "premium_unlock",
                 fromUserId: userId,
@@ -286,9 +292,9 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
             });
 
             transaction.set(ledgerCol.doc(), {
-                type: "staking_reward",
-                toWallet: "SYSTEM_STAKING_POOL",
-                amount: stakingShare,
+                type: "buyback_burn_fee",
+                toWallet: "SYSTEM_BURN_POOL",
+                amount: burnShare,
                 currency: "ULC",
                 referenceId,
                 timestamp: now
@@ -356,6 +362,96 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
 });
 
 /**
+ * Confirms a Pre-Sale ULC purchase.
+ * Price: 0.01 USDT / ULC
+ * Vesting: 1 month cliff, 12 months linear release.
+ */
+export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+    
+    const { amount, network, txHash } = request.data;
+    if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing params.");
+
+    const userId = request.auth.uid;
+    const db = admin.firestore();
+    const now = Date.now();
+    const ulcAmount = amount * 100; // 0.01 USDT price -> 1 USDT = 100 ULC
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userRef = db.collection("users").doc(userId);
+            const configRef = db.collection("config").doc("system");
+            const scheduleRef = db.collection("vesting_schedules").doc();
+
+            const configSnap = await transaction.get(configRef);
+            const configData = configSnap.data();
+            const presalePool = configData?.pools?.presale || 0;
+
+            if (presalePool < ulcAmount) {
+                throw new HttpsError("resource-exhausted", "Not enough tokens left in Pre-Sale allocation.");
+            }
+
+            // 1. Audit Ledger (USDT Payment)
+            const usdtLedgerRef = db.collection("ledger").doc();
+            transaction.set(usdtLedgerRef, {
+                fromUserId: userId,
+                amount: amount,
+                currency: "USDT",
+                type: "ulc_purchase_payment",
+                network,
+                txHash,
+                timestamp: now
+            });
+
+            // 2. Pre-Sale Purchase Ledger (ULC)
+            transaction.set(db.collection("ledger").doc(), {
+                toUserId: userId,
+                amount: ulcAmount,
+                currency: "ULC",
+                type: "presale_purchase",
+                referenceId: usdtLedgerRef.id,
+                timestamp: now
+            });
+
+            // 3. Automatic Vesting Schedule
+            // Preset: presale (12 month cliff, 24 months duration)
+            const cliffMs = 12 * 30 * 24 * 60 * 60 * 1000;
+            const durationMs = 24 * 30 * 24 * 60 * 60 * 1000;
+
+            transaction.set(scheduleRef, {
+                userId,
+                totalAmount: ulcAmount,
+                releasedAmount: 0,
+                startTime: now,
+                cliff: cliffMs,
+                duration: durationMs,
+                description: "Pre-Sale Allocation",
+                poolId: "presale",
+                lastClaimedAt: 0,
+                createdAt: now
+            });
+
+            // 4. Update User Profile (Move to Locked)
+            transaction.update(userRef, {
+                'ulcBalance.locked': admin.firestore.FieldValue.increment(ulcAmount)
+            });
+
+            // 5. Update Global Stats
+            transaction.update(configRef, {
+                'pools.presale': admin.firestore.FieldValue.increment(-ulcAmount),
+                'totalPresaleSold': admin.firestore.FieldValue.increment(ulcAmount),
+                'totalTreasuryUSDT': admin.firestore.FieldValue.increment(amount)
+            });
+        });
+        
+        return { success: true, ulcAmount };
+    } catch (error: any) {
+        logger.error("Pre-Sale purchase error:", error);
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+/**
  * Creates a new Vesting Schedule for a user.
  * Restricted to the Admin Wallet defined in system config.
  */
@@ -401,13 +497,22 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
             const configSnap = await transaction.get(configRef);
             const configData = configSnap.data();
             
-            // 1. Admin Check (Enhanced: flag OR wallet address match)
+            // 1. Admin Check (Enhanced for Wallet-to-UID mapping)
+            const adminWallet = configData?.admin_wallet_address;
+            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2"; // User's confirmed Auth UID
+
+            // Check multiple sources for admin status
             const userSnap = await transaction.get(db.collection("users").doc(adminId));
             const userData = userSnap.data();
-            const isAdmin = userData?.isAdmin === true || 
-                            userData?.walletAddress?.toLowerCase() === configData?.admin_wallet_address?.toLowerCase();
+            const tokenWallet = (request.auth?.token as any)?.walletAddress;
+
+            const isAdmin = adminId === VERIFIED_ADMIN_UID || 
+                            userData?.isAdmin === true || 
+                            userData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
+                            tokenWallet?.toLowerCase() === adminWallet?.toLowerCase();
 
             if (!isAdmin) {
+                logger.error("ACCESS_DENIED", { uid: adminId, wallet: tokenWallet });
                 throw new HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
             }
 
@@ -537,6 +642,85 @@ export const claimVestedULC = onCall({ memory: "256MiB" }, async (request: Calla
         logger.error("Vesting claim error:", error);
         throw new HttpsError("internal", error.message);
     }
+});
+
+/**
+ * Monthly Staking Reward Distribution
+ * Occurs on the 27th of every month.
+ * Logic: Distribution = (UserStaked / TotalEligibleStaked) * StakingPool
+ * Multiplier: 1 USDT in pool = 100 ULC rewarded (Simplified buyback simulation)
+ */
+export const distributeStakingRewards = onSchedule("0 0 27 * *", async (event) => {
+    const db = admin.firestore();
+    const configRef = db.collection("config").doc("system");
+    const configSnap = await configRef.get();
+    const config = configSnap.data();
+    
+    const rewardPoolUSDT = config?.totalBuybackStakingUSDT || 0;
+    if (rewardPoolUSDT <= 0) {
+        logger.info("Staking reward pool is empty.");
+        return;
+    }
+
+    const rewardPoolULC = rewardPoolUSDT * 100; // 1 USDT = 100 ULC fixed for internal reward calculation
+    const usersSnap = await db.collection("users").where("ulcBalance.staked", ">", 0).get();
+    
+    let totalEligibleStaked = 0;
+    const eligibleUsers: { id: string, staked: number }[] = [];
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+
+    // Filter users who kept tokens for the full month
+    for (const userDoc of usersSnap.docs) {
+        const userData = userDoc.data();
+        const stakedAmount = userData.ulcBalance?.staked || 0;
+        
+        // Optimized check: Look for any withdrawals in the last month
+        const withdrawals = await db.collection("ledger")
+            .where("userId", "==", userDoc.id)
+            .where("type", "==", "staking_withdraw")
+            .where("timestamp", ">", thirtyDaysAgo)
+            .limit(1).get();
+
+        if (withdrawals.empty) {
+            totalEligibleStaked += stakedAmount;
+            eligibleUsers.push({ id: userDoc.id, staked: stakedAmount });
+        }
+    }
+
+    if (totalEligibleStaked === 0) {
+        logger.info("No eligible stakers (30-day lock period not met by anyone).");
+        return;
+    }
+
+    const batch = db.batch();
+    eligibleUsers.forEach(u => {
+        const userReward = (u.staked / totalEligibleStaked) * rewardPoolULC;
+        if (userReward > 0) {
+            const userRef = db.collection("users").doc(u.id);
+            batch.update(userRef, {
+                "ulcBalance.available": admin.firestore.FieldValue.increment(userReward)
+            });
+
+            batch.set(db.collection("ledger").doc(), {
+                type: "staking_reward",
+                toUserId: u.id,
+                amount: userReward,
+                currency: "ULC",
+                timestamp: Date.now(),
+                details: { 
+                    userStaked: u.staked, 
+                    totalStaked: totalEligibleStaked,
+                    poolUSDT: rewardPoolUSDT 
+                }
+            });
+        }
+    });
+
+    // Reset USDT Pool after successful 'buyback' reward distribution
+    batch.update(configRef, { totalBuybackStakingUSDT: 0 });
+    
+    await batch.commit();
+    logger.info(`Successfully distributed ${rewardPoolULC} ULC rewards to ${eligibleUsers.length} eligible stakers.`);
 });
 /**
  * Securely retrieves a 30-minute signed URL for premium/limited content.

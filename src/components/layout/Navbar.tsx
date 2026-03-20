@@ -38,7 +38,7 @@ export function Navbar() {
 
   const navLinks = [
     { name: t('discover'), href: '/' },
-    { name: t('staking'), href: '/staking', disabled: true, label: t('comingSoon') },
+    { name: t('staking'), href: '/staking' },
     { name: t('tokenomics'), href: '/tokenomics' },
   ];
 
@@ -72,22 +72,15 @@ export function Navbar() {
           </div>
 
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-            {navLinks.map((link) => {
-              const isLink = !link.disabled;
-              const Component = isLink ? Link : 'div';
-              return (
-                <Component 
-                  key={link.name} 
-                  href={link.href} 
-                  className={`flex items-center gap-1.5 ${pathname === link.href ? 'text-primary' : 'text-muted-foreground'} ${link.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-primary transition-colors'}`}
-                >
-                  {link.name}
-                  {link.label && (
-                    <Badge className="scale-75 origin-left bg-gray-500/20 text-gray-400 border-none px-1.5 py-0 h-4">{link.label}</Badge>
-                  )}
-                </Component>
-              )
-            })}
+            {navLinks.map((link) => (
+              <Link 
+                key={link.name} 
+                href={link.href} 
+                className={`flex items-center gap-1.5 ${pathname === link.href ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
+              >
+                {link.name}
+              </Link>
+            ))}
             {isAdmin && <Link href="/admin" className={`text-yellow-400 hover:text-yellow-300 transition-colors font-bold ${pathname === '/admin' ? 'underline' : ''}`}>Admin</Link>}
           </div>
         </div>
@@ -131,23 +124,18 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="lg:hidden bg-card/95 backdrop-blur-2xl border-b border-white/10 absolute w-full animate-in slide-in-from-top-4 duration-300">
           <div className="p-6 flex flex-col gap-6 font-headline font-bold text-lg">
-            {navLinks.map((link) => {
-              const isLink = !link.disabled;
-              const Component = isLink ? Link : 'div';
-              return (
-                <Component 
-                  key={link.name} 
-                  href={link.href} 
-                  onClick={() => isLink && setMobileMenuOpen(false)}
-                  className="flex items-center justify-between"
-                >
-                  <span className={`flex items-center gap-2 ${link.disabled ? 'opacity-50' : ''}`}>
-                    {link.name}
-                  </span>
-                  {link.label && <Badge className="bg-gray-500/20 text-gray-400 border-none">{link.label}</Badge>}
-                </Component>
-              )
-            })}
+            {navLinks.map((link) => (
+              <Link 
+                key={link.name} 
+                href={link.href} 
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between"
+              >
+                <span className="flex items-center gap-2">
+                  {link.name}
+                </span>
+              </Link>
+            ))}
             
             {/* My Page Link for connected users */}
             {isConnected && (

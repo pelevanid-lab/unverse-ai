@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet, Settings, Clock } from 'lucide-react';
+import { Coins, Crown, ArrowUpRight, ArrowDownLeft, Sparkles, LogOut, CheckCircle, Bot, ChevronRight, Wallet, Settings, Clock, MessageSquare } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -185,6 +185,21 @@ export default function MyPage() {
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-400 transition-colors" />
+                    </CardContent>
+                </Card>
+            </Link>
+
+            <Link href="/messages" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">
+                    <CardContent className="p-6 flex items-center justify-between">
+                        <div className='flex items-center gap-4'>
+                            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"><MessageSquare className="w-6 h-6 text-primary" /></div>
+                            <div>
+                                <p className="font-bold">{t('messages')}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('activeAccess')}</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardContent>
                 </Card>
             </Link>

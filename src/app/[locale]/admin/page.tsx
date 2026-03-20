@@ -40,8 +40,17 @@ export default function AdminDashboard() {
       }
     });
 
-    return () => unsubConfig();
+    const unsubStats = onSnapshot(doc(db, 'config', 'stats'), (snap) => {
+      if (snap.exists()) {
+        const stats = snap.data();
+        setStats(stats);
+      }
+    });
+
+    return () => { unsubConfig(); unsubStats(); };
   }, [walletAddress]);
+
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
     if (!authorized) return;
@@ -134,16 +143,70 @@ export default function AdminDashboard() {
       </header>
 
       <Tabs defaultValue="claims" className="space-y-6">
-        <TabsList className="bg-muted/30 p-1 rounded-2xl h-14">
+        <TabsList className="bg-muted/50 p-1 mb-8">
           <TabsTrigger value="claims">Claims</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="staking">Staking</TabsTrigger>
           <TabsTrigger value="vesting">Vesting</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
+        <TabsContent value="staking">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Staking Logic & Pool Control</CardTitle>
+              <CardDescription>Monitor staking volume and reward pool accumulation.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                 <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-sm font-bold text-blue-400 uppercase">Total Staked ULC</p>
+                    <p className="text-3xl font-headline font-bold">{(config?.totalStakedULC || 0).toLocaleString()} ULC</p>
+                 </div>
+                 <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                    <p className="text-sm font-bold text-purple-400 uppercase">Reward Pool Conversion</p>
+                    <p className="text-3xl font-headline font-bold">~{((config?.totalBuybackStakingUSDT || 0) * 100).toLocaleString()} ULC</p>
+                    <p className="text-xs opacity-70">Estimated from ${(config?.totalBuybackStakingUSDT || 0).toFixed(2)} USDT</p>
+                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold font-headline">Recent Staking Activity</h3>
+                <div className="rounded-md border border-white/10 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-white/5">
+                        <TableHead>User</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recentLedger.filter(l => l.type === 'staking_deposit' || l.type === 'staking_withdraw' || l.type === 'staking_reward').slice(0, 10).map((l) => (
+                        <TableRow key={l.id} className="hover:bg-white/5 transition-colors">
+                          <TableCell className="font-mono text-xs">{l.userId?.slice(0, 10)}...</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={l.type === 'staking_deposit' ? 'text-blue-400 border-blue-400/50' : l.type === 'staking_withdraw' ? 'text-red-400 border-red-400/50' : 'text-green-400 border-green-400/50'}>
+                              {l.type.replace('staking_', '').toUpperCase()}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-bold">{l.amount.toLocaleString()} {l.currency}</TableCell>
+                          <TableCell className="text-xs opacity-70">{new Date(l.timestamp).toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="vesting" className="space-y-6">
             <UsdtDashboard config={config} users={allUsers} />
+            <UlcDashboard stats={stats} />
             <PoolBalances config={config} />
             <VestingManager 
                 users={allUsers} 
@@ -339,13 +402,33 @@ function UsdtDashboard({ config, users }: { config: SystemConfig | null, users: 
                 <p className="text-xs font-bold opacity-70 uppercase">Treasury USDT</p>
                 <h3 className="text-2xl font-headline font-bold text-green-400">${(config?.totalTreasuryUSDT || 0).toFixed(2)}</h3>
             </Card>
-            <Card className="glass-card p-4 border-red-500/20 bg-red-500/5">
-                <p className="text-xs font-bold opacity-70 uppercase">Buyback Pool (USDT)</p>
-                <h3 className="text-2xl font-headline font-bold text-red-400">${(config?.totalBuybackUSDT || 0).toFixed(2)}</h3>
+            <Card className="glass-card">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase text-blue-400">Staking Reward (USDT)</CardTitle>
+                <Coins className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold font-headline text-blue-500">${(config?.totalBuybackStakingUSDT || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+              </CardContent>
             </Card>
             <Card className="glass-card p-4 border-blue-500/20 bg-blue-500/5">
                 <p className="text-xs font-bold opacity-70 uppercase">Creator Claims (USDT)</p>
                 <h3 className="text-2xl font-headline font-bold text-blue-400">${totalCreatorClaims.toFixed(2)}</h3>
+            </Card>
+        </div>
+    );
+}
+
+function UlcDashboard({ stats }: { stats: any }) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="glass-card p-4 border-yellow-500/20 bg-yellow-500/5">
+                <p className="text-xs font-bold opacity-70 uppercase">Treasury ULC</p>
+                <h3 className="text-2xl font-headline font-bold text-yellow-500">{(stats?.totalTreasuryULC || 0).toLocaleString()} ULC</h3>
+            </Card>
+            <Card className="glass-card p-4 border-red-500/20 bg-red-500/5">
+                <p className="text-xs font-bold opacity-70 uppercase text-red-400">Total Burned ULC</p>
+                <h3 className="text-2xl font-headline font-bold text-red-500">{(stats?.totalBurnedULC || 0).toLocaleString()} ULC</h3>
             </Card>
         </div>
     );

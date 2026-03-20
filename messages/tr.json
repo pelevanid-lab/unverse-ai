@@ -12,7 +12,7 @@
     "connect": "Cüzdan Bağla",
     "mypage": "Sayfam",
     "discover": "Keşfet",
-    "tokenomics": "Ekonomi",
+    "tokenomics": "Ön Satış",
     "staking": "Staking",
     "comingSoon": "Yakında"
   },
@@ -38,7 +38,8 @@
     "subscriptions": "Abonelikler",
     "activeAccess": "Aktif Erişim",
     "paymentWallets": "Ödeme Cüzdanları",
-    "connection": "Bağlantı"
+    "connection": "Bağlantı",
+    "messages": "Mesajlar"
   },
   "Wallet": {
     "yourBalance": "Bakiyeniz",
@@ -150,6 +151,13 @@
     "typeMessage": "Mesajınızı yazın...",
     "selectSupporter": "Bir destekçi seçin",
     "selectSupporterDesc": "Destekçilerinizle sohbete başlamak için bir görüşmeye tıklayın."
+  },
+  "UserInbox": {
+    "creators": "Yaratıcılar",
+    "noActive": "Henüz aktif bir görüşme yok.",
+    "typeMessage": "Mesajınızı yazın...",
+    "selectCreator": "Bir Yaratıcı Seçin",
+    "selectCreatorDesc": "Desteklediğiniz bir yaratıcıyla sohbet etmek için bir görüşme seçin."
   },
   "EditMedia": {
     "captionGenerated": "Açıklama Oluşturuldu",
@@ -406,6 +414,7 @@
     "publicTab": "Herkese Açık",
     "premiumTab": "Premium",
     "limitedTab": "Sınırlı",
-    "backToDiscover": "Keşfet'e Dön"
+    "backToDiscover": "Keşfet'e Dön",
+    "message": "Mesaj Gönder"
   }
 }

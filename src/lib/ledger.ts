@@ -148,9 +148,13 @@ export async function recordUsdtSubscription(
 
     // 4. Update Global USDT Stats
     const statsRef = doc(db, 'config', 'system');
+    
+    // Rule: 10% Treasury, 5% Buyback Staking Reward
+    const buybackStakingShare = buybackShare; // Entire 5% goes to staking
+
     batch.update(statsRef, {
         totalTreasuryUSDT: increment(treasuryShare),
-        totalBuybackUSDT: increment(buybackShare)
+        totalBuybackStakingUSDT: increment(buybackStakingShare)
     });
 
     batch.set(doc(collection(db, "ledger")), {
@@ -163,7 +167,7 @@ export async function recordUsdtSubscription(
     });
 
     batch.set(doc(collection(db, "ledger")), {
-        type: 'buyback_burn_fee',
+        type: 'buyback_staking_fee',
         timestamp: now,
         amount: buybackShare,
         currency: 'USDT',
@@ -302,24 +306,27 @@ export async function getPostMediaAction(postId: string): Promise<{ url: string 
 
 export async function initializeSystemConfig() {
     const configRef = doc(db, 'config', 'system');
-    const configSnap = await getDoc(configRef);
+    const statsRef = doc(db, 'config', 'stats');
     
+    const configSnap = await getDoc(configRef);
     if (configSnap.exists() && configSnap.data()?.isSealed) {
-        throw new Error("TOKENOMICS_LOCKED: The economy is sealed and cannot be re-initialized.");
+        throw new Error("TOKENOMICS_LOCKED");
     }
 
     const initialConfig = {
         genesis_initialized: true,
         isSealed: false,
-        platform_subscription_fee_split: 0.1,
+        last_initialized_at: Date.now(),
         admin_wallet_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
         treasury_wallets: {
             TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
             TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
         },
-        wallets: {
-            promo_pool: { address: "SYSTEM_PROMO", currency: "ULC", balance: 50000000 }
-        },
+        platform_subscription_fee_split: 0.15,
+        subscription_treasury_ratio: 0.67,
+        subscription_buyback_ratio: 0.33,
+        premium_commission_staking_ratio: 0.33,
+        premium_commission_treasury_ratio: 0.67,
         pools: {
             reserve: 420000000,
             team: 130000000,
@@ -330,10 +337,97 @@ export async function initializeSystemConfig() {
             exchanges: 40000000
         },
         totalTreasuryUSDT: 0,
-        totalBuybackUSDT: 0
+        totalBuybackStakingUSDT: 0,
+        totalStakedULC: 0,
+        totalPresaleSold: 0
     };
-    await setDoc(configRef, initialConfig);
+
+    const initialStats = {
+        totalTreasuryULC: 0,
+        totalBurnedULC: 0
+    };
+
+    const batch = writeBatch(db);
+    batch.set(configRef, initialConfig);
+    batch.set(statsRef, initialStats, { merge: true });
+    
+    await batch.commit();
+    systemConfigCache = null; 
     return initialConfig as SystemConfig;
+}
+
+export async function handleStaking(user: UserProfile, amount: number) {
+    if (amount <= 0) throw new Error("Amount must be positive");
+    
+    await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+        const available = userData.ulcBalance?.available || 0;
+        
+        if (available < amount) throw new Error("INSUFFICIENT_BALANCE");
+
+        // 1. Move Balance
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(-amount),
+            'ulcBalance.staked': increment(amount)
+        });
+
+        // 2. Update Global Stats
+        const configRef = doc(db, 'config', 'system');
+        transaction.update(configRef, {
+            totalStakedULC: increment(amount)
+        });
+
+        // 3. Ledger Entry
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'staking_deposit',
+            userId: user.uid,
+            amount: amount,
+            currency: 'ULC',
+            timestamp: Date.now()
+        });
+    });
+}
+
+export async function handleUnstaking(user: UserProfile, amount: number) {
+    if (amount <= 0) throw new Error("Amount must be positive");
+    
+    await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+        const staked = userData.ulcBalance?.staked || 0;
+        
+        if (staked < amount) throw new Error("INSUFFICIENT_STAKED_BALANCE");
+
+        // 1. Move Balance
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(amount),
+            'ulcBalance.staked': increment(-amount)
+        });
+
+        // 2. Update Global Stats
+        const configRef = doc(db, 'config', 'system');
+        transaction.update(configRef, {
+            totalStakedULC: increment(-amount)
+        });
+
+        // 3. Ledger Entry
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'staking_withdraw',
+            userId: user.uid,
+            amount: amount,
+            currency: 'ULC',
+            timestamp: Date.now()
+        });
+    });
 }
 
 export async function sealEconomyAction() {
@@ -387,8 +481,8 @@ export async function processAiGenerationPayment(userId: string): Promise<string
             throw new Error("INSUFFICIENT_ULC");
         }
 
-        const treasuryShare = cost * 0.7; // 2.1
-        const burnShare = cost * 0.3;     // 0.9
+        const treasuryShare = 2; // Fixed: 2 ULC to Treasury
+        const burnShare = 1;     // Fixed: 1 ULC Burned
 
         // 1. Deduct from user
         transaction.update(userRef, {
@@ -421,8 +515,8 @@ export async function refundAiGenerationPayment(userId: string, ledgerId: string
     await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const cost = 3;
-        const treasuryShare = cost * 0.7;
-        const burnShare = cost * 0.3;
+        const treasuryShare = 2;
+        const burnShare = 1;
 
         // 1. Refund user
         transaction.update(userRef, {

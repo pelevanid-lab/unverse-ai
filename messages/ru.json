@@ -12,7 +12,7 @@
     "connect": "Подключить",
     "mypage": "Моя Страница",
     "discover": "Обзор",
-    "tokenomics": "Токеномика",
+    "tokenomics": "Предпродажа",
     "staking": "Стейкинг",
     "comingSoon": "Скоро"
   },
@@ -38,7 +38,8 @@
     "subscriptions": "Подписки",
     "activeAccess": "Активный Доступ",
     "paymentWallets": "Платежные Кошельки",
-    "connection": "Подключение"
+    "connection": "Подключение",
+    "messages": "Сообщения"
   },
   "Wallet": {
     "yourBalance": "Ваш Баланс",
@@ -150,6 +151,13 @@
     "typeMessage": "Введите ваше сообщение...",
     "selectSupporter": "Выберите подписчика",
     "selectSupporterDesc": "Выберите диалог, чтобы начать общение с подписчиками."
+  },
+  "UserInbox": {
+    "creators": "Авторы",
+    "noActive": "Пока нет активных бесед.",
+    "typeMessage": "Введите ваше сообщение...",
+    "selectCreator": "Выберите Автора",
+    "selectCreatorDesc": "Выберите диалог, чтобы начать общение с автором, которого вы поддерживаете."
   },
   "EditMedia": {
     "captionGenerated": "Описание Сгенерировано",
@@ -406,6 +414,7 @@
     "publicTab": "Публичный",
     "premiumTab": "Премиум",
     "limitedTab": "Ограниченный",
-    "backToDiscover": "Вернуться к обзору"
+    "backToDiscover": "Вернуться к обзору",
+    "message": "Сообщение"
   }
 }

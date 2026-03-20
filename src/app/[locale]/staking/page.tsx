@@ -5,23 +5,34 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Coins, Lock, Unlock, TrendingUp, ShieldCheck, Sparkles, Loader2, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { handleStaking, handleUnstaking } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function StakingPage() {
   const { user, isConnected } = useWallet();
-  const [amount, setAmount] = useState('100');
+  const [config, setConfig] = useState<any>(null);
+  const [amount, setAmount] = useState('0');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'config', 'system'), (snap) => {
+      if (snap.exists()) setConfig(snap.data());
+    });
+    return () => unsub();
+  }, []);
 
   const handleStake = async () => {
     if (!user) return;
     setLoading(true);
     try {
       await handleStaking(user, parseFloat(amount));
-      toast({ title: "Stake Successful", description: `${amount} ULC locked in staking pool.` });
+      toast({ title: "Stake Successful", description: `${amount} ULC moved to staking.` });
+      setAmount('0');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Staking Failed", description: e.message });
     }
@@ -33,7 +44,8 @@ export default function StakingPage() {
     setLoading(true);
     try {
       await handleUnstaking(user, parseFloat(amount));
-      toast({ title: "Unstake Successful", description: `${amount} ULC returned to available balance.` });
+      toast({ title: "Unstake Successful", description: `${amount} ULC returned to available.` });
+      setAmount('0');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Unstaking Failed", description: e.message });
     }
@@ -48,8 +60,9 @@ export default function StakingPage() {
     </div>
   );
 
-  const stakedBalance = user?.ulcBalance.locked || 0;
-  const availableBalance = user?.ulcBalance.available || 0;
+  const stakedBalance = user?.ulcBalance?.staked || 0;
+  const availableBalance = user?.ulcBalance?.available || 0;
+  const totalPoolULC = (config?.totalBuybackStakingUSDT || 0) * 100;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
@@ -61,26 +74,27 @@ export default function StakingPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="glass-card border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">Staked Balance</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">Your Staked Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-headline">{stakedBalance.toFixed(2)} ULC</div>
+            <div className="text-3xl font-bold font-headline">{stakedBalance.toLocaleString()} ULC</div>
           </CardContent>
         </Card>
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Est. APR</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Global Staking Pool</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-headline text-green-400">12.4%</div>
+            <div className="text-3xl font-bold font-headline text-green-400">~{totalPoolULC.toLocaleString()} ULC</div>
+            <p className="text-[10px] opacity-70">Accumulated for next payout</p>
           </CardContent>
         </Card>
         <Card className="glass-card border-white/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total Yield Earned</CardTitle>
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total Staked</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold font-headline">0.00 ULC</div>
+            <div className="text-3xl font-bold font-headline">{(config?.totalStakedULC || 0).toLocaleString()} ULC</div>
           </CardContent>
         </Card>
       </div>
@@ -206,7 +220,7 @@ export default function StakingPage() {
           </Card>
           <Card className="glass-card p-6 flex flex-col justify-center">
             <p className="text-sm text-muted-foreground text-center">
-              Staking rewards are derived from the 2.5% platform commission on every premium content unlock. 
+              Staking rewards are derived from the 5% platform commission on every USDT monthly subscription. 
               The pool dynamically distributes these rewards proportional to each staker's share.
             </p>
           </Card>
