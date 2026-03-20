@@ -3,7 +3,7 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, seedMuses, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
+import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles } from 'lucide-react';
@@ -83,16 +83,7 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  const handleSeedMuses = async () => {
-    setLoading('seed');
-    try {
-      await seedMuses();
-      toast({ title: "Muses Seeded" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Seeding Failed" });
-    }
-    setLoading(false);
-  };
+
 
   const handleGenesisAllocation = async () => {
     if (!user) return;
@@ -261,9 +252,6 @@ export default function AdminDashboard() {
                 <Button onClick={handleGenesisAllocation} disabled={!!loading} className="w-full h-12 bg-yellow-400 text-black font-bold gap-2">
                    {loading === 'genesis' ? <Loader2 className="animate-spin"/> : <><Sparkles className="w-4 h-4"/> Claim Admin Allocation (50k ULC)</>}
                 </Button>
-               <Button onClick={handleSeedMuses} disabled={!!loading} variant="outline" className="w-full h-12 gap-2">
-                {loading === 'seed' ? <Loader2 className="animate-spin"/> : <><Upload className="w-4 h-4"/> Seed AI Muses</>}
-               </Button>
              </CardContent>
            </Card>
         </TabsContent>

@@ -9,8 +9,10 @@ import { ContentPost, LedgerEntry } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Lock, Clock } from 'lucide-react';
 import { ViewPostModal } from './ViewPostModal';
+import { useTranslations } from 'next-intl';
 
 export function PublishContentsTab() {
+  const t = useTranslations('Published');
   const { user } = useWallet();
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +74,8 @@ export function PublishContentsTab() {
     <>
       <Card className="glass-card border-white/10">
         <CardHeader>
-          <CardTitle>Published Content</CardTitle>
-          <p className="text-muted-foreground text-sm">Your published posts.</p>
+          <CardTitle>{t('title')}</CardTitle>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -82,7 +84,7 @@ export function PublishContentsTab() {
             </div>
           ) : posts.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>You haven't published any content yet.</p>
+              <p>{t('emptyState')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -105,12 +107,12 @@ export function PublishContentsTab() {
                     )}
                  
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                     <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+                    <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
                         <div className="flex items-center gap-2">
                             {post.contentType === 'premium' && <Lock size={14} className="text-primary" />}
                             {post.contentType === 'limited' && <Clock size={14} className="text-yellow-400" />}
                             {(post.contentType !== 'public') && (
-                                <span className="text-[10px] font-bold">{post.unlockCount || 0} Unlocks</span>
+                                <span className="text-[10px] font-bold">{post.unlockCount || 0} {t('unlocks')}</span>
                             )}
                         </div>
                     </div>

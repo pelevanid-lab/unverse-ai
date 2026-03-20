@@ -17,8 +17,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { buildPrompt, PromptStyle, CompositionMode } from '@/lib/CopilotEngine';
 import { CharacterProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTranslations } from 'next-intl';
 
 export function AIStudio() {
+    const t = useTranslations('AIStudio');
     const { user } = useWallet();
     const { toast } = useToast();
     
@@ -60,7 +62,7 @@ export function AIStudio() {
             await updateDoc(doc(db, 'ai_generation_logs', logId), {
                 satisfactionScore: score
             });
-            toast({ title: "Feedback Received", description: "Thanks! We'll use this to improve our models." });
+            toast({ title: t('feedbackReceived'), description: t('feedbackReceivedDesc') });
         } catch (e) {
             console.error("Score update failed:", e);
         }
@@ -77,11 +79,11 @@ export function AIStudio() {
                     createdAt: Date.now()
                 }
             });
-            toast({ title: "Character Saved", description: "This character will now be used for consistent generations." });
+            toast({ title: t('characterSaved'), description: t('characterSavedDesc') });
             setShowCharacterEditor(false);
             setMode('consistent');
         } catch (e) {
-            toast({ variant: 'destructive', title: "Save Failed" });
+            toast({ variant: 'destructive', title: t('saveFailed') });
         }
     };
 
@@ -99,9 +101,9 @@ export function AIStudio() {
             await updateDoc(userRef, {
                 savedCharacter: updatedProfile
             });
-            toast({ title: "Main Character Set!", description: "AI will now use this reference for future images." });
+            toast({ title: t('mainCharacterSet'), description: t('mainCharacterSetDesc') });
         } catch (e) {
-            toast({ variant: 'destructive', title: "Update Failed" });
+            toast({ variant: 'destructive', title: t('updateFailed') });
         }
     };
 
@@ -114,8 +116,8 @@ export function AIStudio() {
         if (wordCount < 3 && charCount < 20) {
             toast({ 
                 variant: "destructive", 
-                title: "Prompt too short", 
-                description: "Please provide more detail. Minimum 3 words or 20 characters required." 
+                title: t('promptTooShort'), 
+                description: t('promptTooShortDesc') 
             });
             return;
         }
@@ -123,21 +125,40 @@ export function AIStudio() {
         if ((user.ulcBalance?.available || 0) < 3) {
             toast({ 
                 variant: "destructive", 
-                title: "Insufficient ULC", 
-                description: "AI generation costs 3 ULC. Please top up your wallet." 
+                title: t('insufficientULC'), 
+                description: t('insufficientULCDesc') 
             });
             return;
         }
 
         const characterToUse = mode === 'consistent' ? (user.savedCharacter as CharacterProfile) : null;
-        const finalEnhancedPrompt = buildPrompt(prompt, selectedStyle, composition, characterToUse);
-        setEnhancedPromptUsed(finalEnhancedPrompt);
-
+        
         setGenerating(true);
         setImageUrl(null);
         setMediaId(null);
         setLogId(null);
         setSatisfactionScore(null);
+
+        let finalUserPrompt = prompt.trim();
+        try {
+            const trRes = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: finalUserPrompt, targetLang: 'en' })
+            });
+            if (trRes.ok) {
+                const data = await trRes.json();
+                if (data.translatedText) {
+                    finalUserPrompt = data.translatedText;
+                    console.log("Copilot translated prompt to:", finalUserPrompt);
+                }
+            }
+        } catch (trErr) {
+            console.warn("Translation failed, using original prompt:", trErr);
+        }
+
+        const finalEnhancedPrompt = buildPrompt(finalUserPrompt, selectedStyle, composition, characterToUse);
+        setEnhancedPromptUsed(finalEnhancedPrompt);
 
         try {
             const response = await fetch('/api/ai/generate-image', {
@@ -152,7 +173,7 @@ export function AIStudio() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'AI generation failed');
+                throw new Error(errorData.error || t('generationFailed'));
             }
 
             const { mediaUrl, mediaId: newMediaId, logId: newLogId } = await response.json();
@@ -162,14 +183,14 @@ export function AIStudio() {
 
         } catch (error: any) {
             console.error("AI Generation failed:", error);
-            toast({ variant: "destructive", title: "AI Generation Error", description: error.message });
+            toast({ variant: "destructive", title: t('generationError'), description: error.message });
         } finally {
             setGenerating(false);
         }
     };
 
     const handleSendToContainer = () => {
-        toast({ title: 'Saved to Container', description: 'Your AI image is now in your draft container.' });
+        toast({ title: t('savedToContainer'), description: t('savedToContainerDesc') });
         resetStudio();
     };
 
@@ -198,11 +219,11 @@ export function AIStudio() {
 
             await deleteDoc(doc(db, 'creator_media', mediaId));
 
-            toast({ title: 'Success!', description: 'Your AI masterpiece has been published publicly.' });
+            toast({ title: t('publishSuccess'), description: t('publishSuccessDesc') });
             resetStudio();
         } catch (error) {
             console.error("Error publishing AI image:", error);
-            toast({ variant: 'destructive', title: 'Publishing Error', description: 'Failed to publish.'});
+            toast({ variant: 'destructive', title: t('publishingError'), description: t('publishingErrorDesc')});
         } finally {
             setPublishing(false);
         }
@@ -220,11 +241,11 @@ export function AIStudio() {
     };
 
     const styles: { id: PromptStyle, label: string }[] = [
-        { id: 'none', label: 'Natural' },
-        { id: 'cool', label: 'Cool' },
-        { id: 'flirty', label: 'Flirty' },
-        { id: 'premium', label: 'Premium' },
-        { id: 'moody', label: 'Moody' },
+        { id: 'none', label: t('natural') },
+        { id: 'cool', label: t('cool') },
+        { id: 'flirty', label: t('flirty') },
+        { id: 'premium', label: t('stylePremium') },
+        { id: 'moody', label: t('moody') },
     ];
 
     const isPromptValid = prompt.trim().split(/\s+/).length >= 3 || prompt.length >= 20;
@@ -236,14 +257,14 @@ export function AIStudio() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-                            <Wand2 className="text-primary" /> AI Image Studio
+                            <Wand2 className="text-primary" /> {t('title')}
                         </h2>
-                        <p className="text-sm text-muted-foreground">Generate consistent high-quality character content.</p>
+                        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
                     </div>
                     
                     <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 self-start md:self-center">
                         <Button 
-                            variant={mode === 'new' ? 'primary' : 'ghost'} 
+                            variant={mode === 'new' ? 'default' : 'ghost'} 
                             size="sm"
                             onClick={() => setMode('new')}
                             className={cn(
@@ -251,10 +272,10 @@ export function AIStudio() {
                                 mode === 'new' && "bg-primary text-white shadow-lg shadow-primary/20"
                             )}
                         >
-                            New Character
+                            {t('newCharacter')}
                         </Button>
                         <Button 
-                            variant={mode === 'consistent' ? 'primary' : 'ghost'} 
+                            variant={mode === 'consistent' ? 'default' : 'ghost'} 
                             size="sm"
                             onClick={() => {
                                 if (!user?.savedCharacter) setShowCharacterEditor(true);
@@ -265,7 +286,7 @@ export function AIStudio() {
                                 mode === 'consistent' && "bg-primary text-white shadow-lg shadow-primary/20"
                             )}
                         >
-                            <Lock size={12} /> {mode === 'consistent' ? 'Consistent Mode' : 'Character Lock'}
+                            <Lock size={12} /> {mode === 'consistent' ? t('consistentMode') : t('characterLock')}
                         </Button>
                     </div>
                 </div>
@@ -274,10 +295,10 @@ export function AIStudio() {
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                        <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Composition</Label>
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('composition')}</Label>
                         <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
                             <Button 
-                                variant={composition === 'solo' ? 'primary' : 'ghost'} 
+                                variant={composition === 'solo' ? 'default' : 'ghost'} 
                                 size="sm"
                                 onClick={() => setComposition('solo')}
                                 className={cn(
@@ -286,10 +307,10 @@ export function AIStudio() {
                                 )}
                                 disabled={generating || !!imageUrl}
                             >
-                                <User size={12} /> Solo Mode
+                                <User size={12} /> {t('soloMode')}
                             </Button>
                             <Button 
-                                variant={composition === 'duo' ? 'primary' : 'ghost'} 
+                                variant={composition === 'duo' ? 'default' : 'ghost'} 
                                 size="sm"
                                 onClick={() => setComposition('duo')}
                                 className={cn(
@@ -298,14 +319,14 @@ export function AIStudio() {
                                 )}
                                 disabled={generating || !!imageUrl}
                             >
-                                <Users size={12} /> Duo Mode
+                                <Users size={12} /> {t('duoMode')}
                             </Button>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 self-start md:self-center">
                         <Coins size={14} className="text-primary" />
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-widest">3 ULC / Generation</span>
+                        <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{t('cost')}</span>
                     </div>
                 </div>
             </div>
@@ -315,53 +336,53 @@ export function AIStudio() {
                 <Card className="border-primary/30 bg-primary/5 animate-in slide-in-from-top-4 rounded-[2rem]">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-5 h-5 text-primary" /> Setup Main Character
+                            <User className="w-5 h-5 text-primary" /> {t('setupMainCharacter')}
                         </CardTitle>
-                        <CardDescription>Define the physical traits for your virtual persona.</CardDescription>
+                        <CardDescription>{t('setupMainCharacterDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Gender</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
                                 <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
                                     <SelectTrigger className="bg-black/20 border-white/5"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="female">Female</SelectItem>
-                                        <SelectItem value="male">Male</SelectItem>
+                                        <SelectItem value="female">{t('female')}</SelectItem>
+                                        <SelectItem value="male">{t('male')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Hair Color</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
                                 <Input 
                                     value={charProfile.hairColor} 
                                     onChange={e => setCharProfile(p => ({ ...p, hairColor: e.target.value }))}
-                                    placeholder="e.g. Blonde"
+                                    placeholder={t('hairColorPlaceholder')}
                                     className="bg-black/20 border-white/5"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Eye Color</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('eyeColor')}</Label>
                                 <Input 
                                     value={charProfile.eyeColor} 
                                     onChange={e => setCharProfile(p => ({ ...p, eyeColor: e.target.value }))}
-                                    placeholder="e.g. Blue"
+                                    placeholder={t('eyeColorPlaceholder')}
                                     className="bg-black/20 border-white/5"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Face Style</Label>
+                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('faceStyle')}</Label>
                                 <Input 
                                     value={charProfile.faceStyle} 
                                     onChange={e => setCharProfile(p => ({ ...p, faceStyle: e.target.value }))}
-                                    placeholder="e.g. Sharp"
+                                    placeholder={t('faceStylePlaceholder')}
                                     className="bg-black/20 border-white/5"
                                 />
                             </div>
                         </div>
                         <div className="flex gap-2 justify-end">
-                            <Button variant="ghost" onClick={() => setShowCharacterEditor(false)} className="rounded-xl">Cancel</Button>
-                            <Button onClick={handleSaveCharacterProfile} className="bg-primary rounded-xl font-bold px-8">Save Profile</Button>
+                            <Button variant="ghost" onClick={() => setShowCharacterEditor(false)} className="rounded-xl">{t('cancel')}</Button>
+                            <Button onClick={handleSaveCharacterProfile} className="bg-primary rounded-xl font-bold px-8">{t('saveProfile')}</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -377,8 +398,8 @@ export function AIStudio() {
                                     <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-[10px] font-bold text-primary uppercase">Consistent Persona Active</p>
-                                    <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || 'Virtual Model'}</p>
+                                    <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
+                                    <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
                                 </div>
                                 <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
                                     <RefreshCcw size={14} />
@@ -388,12 +409,12 @@ export function AIStudio() {
 
                         <div className="space-y-4">
                             <div className="space-y-3">
-                                <Label className="text-xs font-bold uppercase text-muted-foreground">Select Style Preset</Label>
+                                <Label className="text-xs font-bold uppercase text-muted-foreground">{t('selectStylePreset')}</Label>
                                 <div className="flex flex-wrap gap-2">
                                     {styles.map(style => (
                                         <Button
                                             key={style.id}
-                                            variant={selectedStyle === style.id ? 'primary' : 'outline'}
+                                            variant={selectedStyle === style.id ? 'default' : 'outline'}
                                             size="sm"
                                             onClick={() => setSelectedStyle(style.id)}
                                             className={cn(
@@ -409,22 +430,22 @@ export function AIStudio() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase text-muted-foreground">Prompt Your Vision</Label>
+                                <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
                                 <Textarea
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="Describe your content (e.g. red dress, sunset, balcony). Min 3 words or 20 characters."
+                                    placeholder={t('promptPlaceholder')}
                                     className={`bg-white/5 border-white/10 min-h-[120px] rounded-2xl resize-none text-sm leading-relaxed transition-all ${prompt.length > 0 && !isPromptValid ? 'border-yellow-500/50' : ''}`}
                                     disabled={generating || !!imageUrl}
                                 />
                                 {prompt.length > 0 && !isPromptValid && !imageUrl && (
                                     <p className="text-[10px] text-yellow-500 flex items-center gap-1 font-bold animate-pulse">
-                                        <AlertCircle size={10} /> Needs more detail (min 3 words or 20 chars)
+                                        <AlertCircle size={10} /> {t('needsMoreDetail')}
                                     </p>
                                 )}
                                 {isPromptValid && !imageUrl && (
                                     <p className="text-[10px] text-primary flex items-center gap-1 font-bold">
-                                        <Sparkles size={10} /> Copilot will translate this into a rich {composition} scene
+                                        <Sparkles size={10} /> {t('copilotMessage', { composition })}
                                     </p>
                                 )}
                             </div>
@@ -436,7 +457,7 @@ export function AIStudio() {
                                     className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-2 shadow-xl shadow-primary/20"
                                 >
                                     {generating ? <Loader2 className="animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                                    {generating ? 'Generating...' : `Generate (3 ULC)`}
+                                    {generating ? t('generating') : t('generateBtn')}
                                 </Button>
                             ) : (
                                 <Button 
@@ -444,7 +465,7 @@ export function AIStudio() {
                                     onClick={resetStudio} 
                                     className="w-full h-12 rounded-xl border-white/10 hover:bg-white/5 font-bold gap-2 text-muted-foreground"
                                 >
-                                    <X className="w-4 h-4" /> Start Over
+                                    <X className="w-4 h-4" /> {t('startOver')}
                                 </Button>
                             )}
                         </div>
@@ -455,7 +476,7 @@ export function AIStudio() {
                                     <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
                                     <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
                                 </div>
-                                <p className="text-xs text-muted-foreground font-medium animate-pulse uppercase tracking-widest">Flux is painting your imagination...</p>
+                                <p className="text-xs text-muted-foreground font-medium animate-pulse uppercase tracking-widest">{t('fluxPainting')}</p>
                             </div>
                         )}
                     </CardContent>
@@ -469,14 +490,14 @@ export function AIStudio() {
                                 <div className="relative aspect-square w-full group">
                                     <Image src={imageUrl} alt="Generated AI" fill className="object-cover" />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                        <p className="text-white font-bold text-sm uppercase tracking-tighter">Resulting Masterpiece</p>
+                                        <p className="text-white font-bold text-sm uppercase tracking-tighter">{t('resultingMasterpiece')}</p>
                                     </div>
                                 </div>
                                 
                                 <CardContent className="p-6 space-y-4">
                                     {/* Satisfaction Feedback Section */}
                                     <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">How satisfied are you?</p>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">{t('satisfaction')}</p>
                                         <div className="flex justify-center gap-2">
                                             {[1, 2, 3, 4, 5].map((score) => (
                                                 <Button
@@ -503,7 +524,7 @@ export function AIStudio() {
                                             className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-3"
                                         >
                                             {publishing ? <Loader2 className="animate-spin" /> : <Globe className="w-5 h-5" />}
-                                            {publishing ? 'Publishing...' : 'Publish as Public'}
+                                            {publishing ? t('publishingBtn') : t('publishAsPublic')}
                                         </Button>
                                         <div className="grid grid-cols-2 gap-2">
                                             <Button 
@@ -511,14 +532,14 @@ export function AIStudio() {
                                                 onClick={handleSendToContainer}
                                                 className="h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
                                             >
-                                                <Package size={14} /> Container
+                                                <Package size={14} /> {t('container')}
                                             </Button>
                                             <Button 
                                                 variant="outline"
                                                 onClick={handleSetAsMainCharacter}
                                                 className="h-12 rounded-2xl border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-bold gap-2 text-xs"
                                             >
-                                                <Lock size={14} /> Character Lock
+                                                <Lock size={14} /> {t('characterLock')}
                                             </Button>
                                         </div>
                                     </div>
@@ -530,8 +551,8 @@ export function AIStudio() {
                             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
                                 <Wand2 className="w-8 h-8 text-muted-foreground opacity-20" />
                             </div>
-                            <h3 className="text-muted-foreground font-headline font-bold text-xl opacity-40 uppercase">Canvas is Empty</h3>
-                            <p className="text-muted-foreground/40 text-sm mt-2 max-w-xs">Once generated, you can choose to publish your AI art or lock this character for consistent results.</p>
+                            <h3 className="text-muted-foreground font-headline font-bold text-xl opacity-40 uppercase">{t('canvasEmpty')}</h3>
+                            <p className="text-muted-foreground/40 text-sm mt-2 max-w-xs">{t('canvasEmptyDesc')}</p>
                         </div>
                     )}
                 </div>

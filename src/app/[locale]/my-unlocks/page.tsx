@@ -11,6 +11,7 @@ import { collection, query, where, getDocs, documentId } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { ContentPost } from '@/lib/types';
 import { PostGrid } from '@/components/profile/PostGrid';
+import { useTranslations } from 'next-intl';
 
 // Helper function to split an array into chunks for Firestore's `in` query limitation (max 30 per query).
 const chunkArray = <T,>(arr: T[], size: number): T[][] =>
@@ -19,6 +20,7 @@ const chunkArray = <T,>(arr: T[], size: number): T[][] =>
   );
 
 export default function MyUnlocksPage() {
+  const t = useTranslations('MyUnlocks');
   const { user, isConnected } = useWallet();
   const [unlockedPosts, setUnlockedPosts] = useState<ContentPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,9 +80,9 @@ export default function MyUnlocksPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
         <div className="p-6 bg-primary/10 rounded-full"><Sparkles className="w-12 h-12 text-primary" /></div>
-        <h1 className="text-3xl font-headline font-bold">Access Your Content</h1>
-        <p className="text-muted-foreground max-w-sm">Connect your wallet to view your premium unlocks.</p>
-        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">Connect Now</Button></Link>
+        <h1 className="text-3xl font-headline font-bold">{t('accessContentTitle')}</h1>
+        <p className="text-muted-foreground max-w-sm">{t('accessContentDesc')}</p>
+        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">{t('connectNow')}</Button></Link>
       </div>
     );
   }
@@ -91,10 +93,10 @@ export default function MyUnlocksPage() {
     <div className="space-y-8 pb-12">
         <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <h1 className="text-3xl font-headline font-bold flex items-center gap-2">
-                <Sparkles className="w-8 h-8 text-primary" /> Premium Unlocks
+                <Sparkles className="w-8 h-8 text-primary" /> {t('title')}
             </h1>
             <Link href="/mypage">
-                <Button variant="outline">Back to Dashboard</Button>
+                <Button variant="outline">{t('backToDashboard')}</Button>
             </Link>
         </div>
 
@@ -110,8 +112,8 @@ export default function MyUnlocksPage() {
         ) : (
             <Card className="glass-card border-white/5 bg-white/[0.02]">
                 <CardContent className="p-12 text-center space-y-4">
-                    <p className="text-muted-foreground text-sm">You haven't unlocked any premium content yet.</p>
-                    <Link href="/"><Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Creators</Button></Link>
+                    <p className="text-muted-foreground text-sm">{t('emptyState')}</p>
+                    <Link href="/"><Button variant="outline" className="rounded-xl px-8 border-white/10">{t('exploreCreators')}</Button></Link>
                 </CardContent>
             </Card>
         )}

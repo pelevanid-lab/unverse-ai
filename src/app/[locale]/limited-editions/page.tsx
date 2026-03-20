@@ -12,6 +12,7 @@ import { db } from '@/lib/firebase';
 import { ContentPost } from '@/lib/types';
 import { PostGrid } from '@/components/profile/PostGrid';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 const chunkArray = <T,>(arr: T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
@@ -19,6 +20,7 @@ const chunkArray = <T,>(arr: T[], size: number): T[][] =>
   );
 
 export default function LimitedEditionsPage() {
+  const t = useTranslations('LimitedEditions');
   const { user, isConnected } = useWallet();
   const router = useRouter();
   const [limitedPosts, setLimitedPosts] = useState<ContentPost[]>([]);
@@ -72,9 +74,9 @@ export default function LimitedEditionsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
         <div className="p-6 bg-yellow-500/10 rounded-full"><Clock className="w-12 h-12 text-yellow-400" /></div>
-        <h1 className="text-3xl font-headline font-bold">Limited Editions</h1>
-        <p className="text-muted-foreground max-w-sm">Connect your wallet to view your owned limited content.</p>
-        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">Connect Now</Button></Link>
+        <h1 className="text-3xl font-headline font-bold">{t('title')}</h1>
+        <p className="text-muted-foreground max-w-sm">{t('accessContentDesc')}</p>
+        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">{t('connectNow')}</Button></Link>
       </div>
     );
   }
@@ -83,14 +85,14 @@ export default function LimitedEditionsPage() {
     <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6">
         <div className="flex items-center justify-between pb-6 border-b border-white/10">
             <div className='flex items-center gap-4'>
-                <Button variant="ghost" size="icon" onClick={() => router.push('/mypage')} className="h-10 w-10 rounded-full bg-white/5">
-                    <ChevronLeft className="w-6 h-6" />
-                </Button>
+                <Link href="/mypage">
+                    <Button variant="outline">{t('backToDashboard')}</Button>
+                </Link>
                 <div>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-2">
-                        <Clock className="w-8 h-8 text-yellow-400" /> Limited Editions
+                        <Clock className="w-8 h-8 text-yellow-400" /> {t('title')}
                     </h1>
-                    <p className='text-sm text-muted-foreground'>Your restricted supply collection.</p>
+                    <p className='text-sm text-muted-foreground'>{t('subtitle')}</p>
                 </div>
             </div>
         </div>
@@ -105,8 +107,8 @@ export default function LimitedEditionsPage() {
              />
         ) : (
             <div className="text-center py-32 glass-card rounded-[2rem] border-white/5">
-                <p className="text-muted-foreground">You don't own any limited editions yet.</p>
-                <Link href="/"><Button variant="link" className="text-primary mt-2">Explore available content</Button></Link>
+                <p className="text-muted-foreground">{t('emptyState')}</p>
+                <Link href="/"><Button variant="link" className="text-primary mt-2">{t('exploreCreators')}</Button></Link>
             </div>
         )}
     </div>

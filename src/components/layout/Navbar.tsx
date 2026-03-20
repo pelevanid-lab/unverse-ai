@@ -46,18 +46,21 @@ export function Navbar() {
     <nav className="border-b bg-card/50 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <Zap className={`w-6 h-6 ${isAdmin ? 'text-yellow-400 fill-yellow-400 animate-pulse' : 'text-primary'}`} />
-              <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
+              <img src="/logo.png" alt="Unverse Logo" className={`w-7 h-7 object-contain ${isAdmin ? 'animate-pulse' : ''}`} />
             </Link>
-
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/30 font-bold font-headline mt-0.5">
-              <Link href={pathname || '/'} locale="en" className={`hover:text-primary transition-colors ${locale === 'en' ? 'text-primary opacity-100' : 'opacity-70'}`}>EN</Link>
-              <span>/</span>
-              <Link href={pathname || '/'} locale="tr" className={`hover:text-primary transition-colors ${locale === 'tr' ? 'text-primary opacity-100' : 'opacity-70'}`}>TR</Link>
-              <span>/</span>
-              <Link href={pathname || '/'} locale="ru" className={`hover:text-primary transition-colors ${locale === 'ru' ? 'text-primary opacity-100' : 'opacity-70'}`}>RU</Link>
+            <div className="flex flex-col">
+              <Link href="/" className="group leading-none">
+                <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
+              </Link>
+              <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/50 font-bold font-headline mt-0.5">
+                <Link href={pathname || '/'} locale="en" className={`hover:text-primary transition-colors ${locale === 'en' ? 'text-primary opacity-100' : 'opacity-70'}`}>EN</Link>
+                <span className="opacity-50">/</span>
+                <Link href={pathname || '/'} locale="tr" className={`hover:text-primary transition-colors ${locale === 'tr' ? 'text-primary opacity-100' : 'opacity-70'}`}>TR</Link>
+                <span className="opacity-50">/</span>
+                <Link href={pathname || '/'} locale="ru" className={`hover:text-primary transition-colors ${locale === 'ru' ? 'text-primary opacity-100' : 'opacity-70'}`}>RU</Link>
+              </div>
             </div>
           </div>
 

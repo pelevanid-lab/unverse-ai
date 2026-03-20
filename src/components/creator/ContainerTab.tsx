@@ -12,8 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Loader2, Video, Calendar } from 'lucide-react';
 import { EditMediaModal } from './EditMediaModal';
+import { useTranslations } from 'next-intl';
 
 export function ContainerTab() {
+  const t = useTranslations('Container');
   const { user } = useWallet();
   const { toast } = useToast();
   const [mediaItems, setMediaItems] = useState<CreatorMedia[]>([]);
@@ -32,7 +34,7 @@ export function ContainerTab() {
         setUserProfile(docSnap.data() as UserProfile);
       } else {
         console.error("User profile not found in 'users' collection!");
-        toast({ variant: "destructive", title: "Error", description: "Could not load your user profile." });
+        toast({ variant: "destructive", title: t('errorTitle'), description: t('profileLoadError') });
       }
     });
 
@@ -72,7 +74,7 @@ export function ContainerTab() {
     const mediaType = allowedImageTypes.includes(file.type) ? 'image' : allowedVideoTypes.includes(file.type) ? 'video' : null;
 
     if (!mediaType) {
-      toast({ variant: 'destructive', title: 'Unsupported File Type', description: 'Please upload JPG, PNG, WEBP, MP4, MOV or WEBM files.' });
+      toast({ variant: 'destructive', title: t('unsupportedFileType'), description: t('unsupportedFileTypeDesc') });
       return;
     }
 
@@ -85,7 +87,7 @@ export function ContainerTab() {
         (snapshot) => {},
         (error) => {
           console.error("Upload failed:", error);
-          toast({ variant: 'destructive', title: 'Upload Failed' });
+          toast({ variant: 'destructive', title: t('uploadFailed') });
           setUploading(false);
         },
         () => {
@@ -100,14 +102,14 @@ export function ContainerTab() {
               status: 'draft',
               createdAt: serverTimestamp(),
             });
-            toast({ title: 'Upload Complete', description: 'Your media is now in the container.' });
+            toast({ title: t('uploadComplete'), description: t('uploadCompleteDesc') });
             setUploading(false);
           });
         }
       );
     } catch (error) {
       console.error('Error uploading file:', error);
-      toast({ variant: 'destructive', title: 'Upload Error' });
+      toast({ variant: 'destructive', title: t('uploadError') });
       setUploading(false);
     }
   };
@@ -116,12 +118,12 @@ export function ContainerTab() {
     <Card className="glass-card border-white/10">
       <CardHeader className="flex-row items-center justify-between">
         <div>
-          <CardTitle>Container</CardTitle>
-          <p className="text-muted-foreground text-sm">Prepare your media for publishing.</p>
+          <CardTitle>{t('title')}</CardTitle>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
         <Button onClick={handleUploadClick} disabled={uploading || !userProfile?.isCreator}>
           {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-          Upload Media
+          {t('uploadMedia')}
         </Button>
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" />
       </CardHeader>
@@ -132,8 +134,8 @@ export function ContainerTab() {
           </div>
         ) : mediaItems.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <p>Your container is empty.</p>
-            <p>Upload photos and videos to get started.</p>
+            <p>{t('emptyStateTitle')}</p>
+            <p>{t('emptyStateDesc')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -148,7 +150,7 @@ export function ContainerTab() {
                 {item.mediaType === 'video' && <Video className="absolute top-2 left-2 h-5 w-5 text-white" />}
                 {item.status === 'scheduled' && <Calendar className="absolute top-2 right-2 h-5 w-5 text-white bg-primary/80 p-1 rounded-full" />}
                  <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                    <p className='text-xs font-bold truncate'>{item.caption || 'Untitled'}</p>
+                    <p className='text-xs font-bold truncate'>{item.caption || t('untitled')}</p>
                 </div>
               </div>
             ))}

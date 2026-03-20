@@ -15,26 +15,30 @@ import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock 
 import { PostGrid } from '@/components/profile/PostGrid';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { checkSubscription } from '@/lib/access';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 
 function LockedStateUI({ creatorName, onSubscribe }: { creatorName: string, onSubscribe: () => void }) {
+    const t = useTranslations('PublicProfile');
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-6 glass-card rounded-[2.5rem] border-white/5 bg-white/[0.02] animate-in fade-in zoom-in duration-300">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                 <Lock className="w-10 h-10 text-primary" />
             </div>
             <div className="space-y-2">
-                <h2 className="text-3xl font-headline font-bold">Subscribers only</h2>
-                <p className="text-muted-foreground max-w-sm mx-auto">Subscribe to {creatorName} to unlock this exclusive section and view premium content.</p>
+                <h2 className="text-3xl font-headline font-bold">{t('subscribersOnly')}</h2>
+                <p className="text-muted-foreground max-w-sm mx-auto">{t('subscribeDesc', { creatorName })}</p>
             </div>
             <Button onClick={onSubscribe} size="lg" className="rounded-2xl px-10 h-14 text-lg font-bold shadow-xl shadow-primary/20">
-                <Crown className="w-5 h-5 mr-2" /> Subscribe
+                <Crown className="w-5 h-5 mr-2" /> {t('subscribe')}
             </Button>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-50">Premium and Limited content are available to subscribers</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold opacity-50">{t('premiumLimitedNote')}</p>
         </div>
     );
 }
 
 export default function PublicProfilePage() {
+  const t = useTranslations('PublicProfile');
   const { uid } = useParams();
   const { user: currentUser } = useWallet();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -127,12 +131,14 @@ export default function PublicProfilePage() {
   return (
     <div className="relative pb-12 px-4 max-w-5xl mx-auto">
       <header className="relative pt-32 pb-12 px-8 rounded-[2.5rem] overflow-hidden glass-card border-white/10 mt-6 shadow-2xl">
-        <Button 
-            variant="ghost" size="icon" onClick={() => router.back()} 
-            className="absolute top-6 left-6 z-20 h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10"
-        >
-            <ChevronLeft className="w-6 h-6" />
-        </Button>
+        <Link href="/discover" className="absolute top-6 left-6 z-20">
+            <Button 
+                variant="outline"
+                className="bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10"
+            >
+                {t('backToDiscover')}
+            </Button>
+        </Link>
 
         {coverImage && <img src={coverImage} alt="Cover" className="absolute inset-0 w-full h-full object-cover -z-10" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent -z-10" />
@@ -153,7 +159,7 @@ export default function PublicProfilePage() {
             </div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
                 <Badge variant="outline" className="gap-2 px-4 py-1.5 rounded-full bg-white/5 border-white/10 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    <Calendar className="w-4 h-4" /> Joined {createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A'}
+                    <Calendar className="w-4 h-4" /> {t('joined', { date: createdAt ? new Date(createdAt).toLocaleDateString() : 'N/A' })}
                 </Badge>
             </div>
           </div>
@@ -162,13 +168,13 @@ export default function PublicProfilePage() {
             {isSubscribed && !isSelf ? (
               <div className="flex flex-col gap-2">
                 <Button disabled className="bg-green-500/10 text-green-400 border border-green-500/20 gap-2 h-16 rounded-2xl w-full text-lg font-bold">
-                  <Crown className="w-6 h-6" /> Active Subscriber
+                  <Crown className="w-6 h-6" /> {t('activeSubscriber')}
                 </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
                 <Button onClick={handleSubscribeClick} disabled={isSelf || !isCreator} className="bg-primary hover:bg-primary/90 gap-3 h-16 rounded-2xl w-full text-xl font-bold shadow-2xl shadow-primary/30">
-                  <Crown className="w-6 h-6" /> Subscribe ({subscriptionPriceMonthly ?? 0} USDT)
+                  <Crown className="w-6 h-6" /> {t('subscribePrice', { price: subscriptionPriceMonthly ?? 0 })}
                 </Button>
               </div>
             )}
@@ -180,13 +186,13 @@ export default function PublicProfilePage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-16 bg-muted/20 p-1.5 rounded-[2rem] border border-white/5 mb-10">
                 <TabsTrigger value="public" className="rounded-2xl text-base font-headline font-bold gap-2 data-[state=active]:bg-white/10">
-                    <Globe className="w-4 h-4" /> Public
+                    <Globe className="w-4 h-4" /> {t('publicTab')}
                 </TabsTrigger>
                 <TabsTrigger value="premium" className="rounded-2xl text-base font-headline font-bold gap-2 data-[state=active]:bg-primary">
-                    <Lock className="w-4 h-4" /> Premium
+                    <Lock className="w-4 h-4" /> {t('premiumTab')}
                 </TabsTrigger>
                 <TabsTrigger value="limited" className="rounded-2xl text-base font-headline font-bold gap-2 data-[state=active]:bg-yellow-500/80 data-[state=active]:text-black">
-                    <Clock className="w-4 h-4" /> Limited
+                    <Clock className="w-4 h-4" /> {t('limitedTab')}
                 </TabsTrigger>
             </TabsList>
 

@@ -16,8 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ChevronLeft, ShieldCheck, Zap } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 
 export default function SubscribePage() {
+    const t = useTranslations('Subscribe');
     const { uid } = useParams();
     const router = useRouter();
     const { user: currentUser } = useWallet();
@@ -36,16 +39,16 @@ export default function SubscribePage() {
             if (docSnap.exists() && docSnap.data().isCreator) {
                 setCreatorProfile(docSnap.data() as UserProfile);
             } else {
-                toast({ variant: 'destructive', title: 'Creator not found' });
+                toast({ variant: 'destructive', title: t('creatorNotFound') });
                 router.push('/discover');
             }
         });
         return () => unsub();
-    }, [uid, router, toast]);
+    }, [uid, router, toast, t]);
 
     const handleSubscribe = async () => {
         if (!currentUser || !creatorProfile || !systemConfig) {
-            toast({ variant: "destructive", title: "Authentication Required", description: "Please connect your wallet first." });
+            toast({ variant: "destructive", title: t('authRequired'), description: t('connectWalletDesc') });
             return;
         }
 
@@ -53,7 +56,7 @@ export default function SubscribePage() {
         const treasuryWallet = systemConfig.treasury_wallets[selectedNetwork];
 
         if (!treasuryWallet || treasuryWallet.includes("REPLACE")) {
-            toast({ variant: "destructive", title: "Config Error", description: `Treasury wallet for ${selectedNetwork} is not configured yet.` });
+            toast({ variant: "destructive", title: t('configError'), description: t('treasuryNotConfigured', { network: selectedNetwork }) });
             return;
         }
 
@@ -95,15 +98,15 @@ export default function SubscribePage() {
             // Success: Record the subscription in Firestore
             await recordUsdtSubscription(currentUser, creatorProfile, systemConfig, selectedNetwork, txHash);
             
-            toast({ title: "Subscription Active!", description: `You are now subscribed to ${creatorProfile.username}.` });
+            toast({ title: t('activeSuccess'), description: t('subscribedTo', { username: creatorProfile.username }) });
             router.push(`/profile/${uid}`);
 
         } catch (e: any) {
             console.error("Subscription failed:", e);
             toast({ 
                 variant: 'destructive', 
-                title: "Payment Failed", 
-                description: e.message || "An error occurred during the transaction." 
+                title: t('paymentFailed'), 
+                description: e.message || t('defaultTransactionError')
             });
         } finally {
             setIsProcessing(false);
@@ -114,7 +117,7 @@ export default function SubscribePage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <Loader2 className="animate-spin w-10 h-10 text-primary" />
-                <p className="text-muted-foreground font-headline">Fetching Creator Profile...</p>
+                <p className="text-muted-foreground font-headline">{t('fetchingProfile')}</p>
             </div>
         );
     }
@@ -125,10 +128,10 @@ export default function SubscribePage() {
     return (
         <div className="max-w-2xl mx-auto px-4 py-12">
             <header className="flex items-center gap-4 mb-8">
-                 <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 rounded-full bg-white/5">
-                    <ChevronLeft className="w-6 h-6" />
-                </Button>
-                <h1 className="text-2xl font-headline font-bold">Subscribe to Creator</h1>
+                 <Link href={`/profile/${uid}`}>
+                    <Button variant="outline">{t('backToProfile')}</Button>
+                </Link>
+                <h1 className="text-2xl font-headline font-bold">{t('title')}</h1>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
@@ -148,7 +151,7 @@ export default function SubscribePage() {
                         <ShieldCheck className="text-primary w-8 h-8 opacity-10" />
                     </div>
                     <CardHeader>
-                        <CardTitle className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Monthly Membership</CardTitle>
+                        <CardTitle className="text-sm uppercase tracking-[0.2em] text-muted-foreground">{t('monthlyMembership')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-8">
                         <div className="flex items-baseline gap-2">
@@ -157,7 +160,7 @@ export default function SubscribePage() {
                         </div>
 
                         <div className="space-y-4">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Choose Payment Network</Label>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('chooseNetwork')}</Label>
                             <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4">
                                 <div className="flex-1">
                                     <RadioGroupItem value="TON" id="s-ton" className="sr-only" />
@@ -178,9 +181,9 @@ export default function SubscribePage() {
 
                         <Button onClick={handleSubscribe} disabled={isProcessing} className="w-full h-16 text-xl font-black rounded-[1.5rem] shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90">
                             {isProcessing ? <Loader2 className="animate-spin mr-3 w-6 h-6" /> : <Zap className="mr-3 w-5 h-5 fill-current" />}
-                            SUBSCRIBE NOW
+                            {t('subscribeNow')}
                         </Button>
-                        <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-widest opacity-60">Verified On-Chain Transaction</p>
+                        <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-widest opacity-60">{t('onChainVerified')}</p>
                     </CardContent>
                 </Card>
             </div>

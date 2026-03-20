@@ -15,7 +15,7 @@ import { Link } from '@/i18n/routing';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useTonConnectUI } from '@tonconnect/ui-react';
-
+import { useTranslations } from 'next-intl';
 
 // Specific component for a single network wallet (TRON, TON, etc.)
 function NetworkWalletManager({ 
@@ -29,6 +29,7 @@ function NetworkWalletManager({
     onConnect: (network: 'TRON' | 'TON', address: string) => Promise<void>,
     setSelectedNetwork: (network: 'TRON' | 'TON') => void
 }) {
+    const t = useTranslations('PaymentWallets');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const [tonConnectUI] = useTonConnectUI();
@@ -38,7 +39,7 @@ function NetworkWalletManager({
         if (network === 'TRON') {
             const provider = (window as any).tronWeb;
             if (!provider || !provider.ready) {
-                toast({ variant: "destructive", title: "TronLink Not Found", description: "Please install the TronLink extension, unlock it, and refresh." });
+                toast({ variant: "destructive", title: t('tronNotFound'), description: t('tronNotFoundDesc') });
                 return;
             }
             setIsLoading(true);
@@ -46,14 +47,14 @@ function NetworkWalletManager({
                 const res = await provider.request({ method: 'tron_requestAccounts' });
                 // Check if the user rejected the request
                 if (res.code === 4001) {
-                    throw new Error("Connection request was rejected by the user.");
+                    throw new Error(t('connectionRejected'));
                 }
                 const address = provider.defaultAddress.base58;
-                if (!address) throw new Error("Wallet address could not be retrieved.");
+                if (!address) throw new Error(t('addressRetrievalFailed'));
                 await onConnect(network, address);
                 setSelectedNetwork('TRON'); // Update UI immediately
             } catch (error: any) {
-                toast({ variant: "destructive", title: `${network} Connection Failed`, description: error.message });
+                toast({ variant: "destructive", title: t('connectionFailed', {network}), description: error.message });
             } finally {
                 setIsLoading(false);
             }
@@ -67,12 +68,12 @@ function NetworkWalletManager({
                      onConnect('TON', address).then(() => {
                         setSelectedNetwork('TON'); // Update UI immediately
                      }).catch((error: any) => {
-                         toast({ variant: "destructive", title: "TON Wallet Assignment Failed", description: error.message });
+                         toast({ variant: "destructive", title: t('tonAssignmentFailed'), description: error.message });
                      }).finally(() => {
                          setIsLoading(false);
                      });
                  } else {
-                     toast({ variant: "default", title: "TON Connection Canceled" });
+                     toast({ variant: "default", title: t('tonConnectionCanceled') });
                      setIsLoading(false);
                  }
              });
@@ -89,9 +90,9 @@ function NetworkWalletManager({
             await updateDoc(userRef, {
                 [`paymentWallets.${network}`]: null,
             });
-            toast({ title: `${network} Wallet Disconnected` });
+            toast({ title: t('walletDisconnected', {network}) });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Disconnection Failed", description: error.message });
+            toast({ variant: "destructive", title: t('disconnectionFailed'), description: error.message });
         } finally {
             setIsLoading(false);
         }
@@ -101,25 +102,25 @@ function NetworkWalletManager({
         <Card className="glass-card border-white/10">
             <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                    <span>{network} Payment Wallet</span>
-                    {user.preferredPaymentNetwork === network && <div className="flex items-center gap-1 text-xs text-yellow-400"><Star size={14}/> Preferred</div>}
+                    <span>{t('paymentWalletTitle', {network})}</span>
+                    {user.preferredPaymentNetwork === network && <div className="flex items-center gap-1 text-xs text-yellow-400"><Star size={14}/> {t('preferred')}</div>}
                 </CardTitle>
-                <CardDescription>Connect your {network} wallet for on-chain payments.</CardDescription>
+                <CardDescription>{t('paymentWalletDesc', {network})}</CardDescription>
             </CardHeader>
             <CardContent>
                 {walletInfo && walletInfo.verified ? (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg font-mono text-sm">
                            {walletInfo.address.slice(0, 6)}...{walletInfo.address.slice(-4)}
-                           <span className='flex items-center gap-1 text-green-400 text-xs'><CheckCircle size={14}/> Connected</span>
+                           <span className='flex items-center gap-1 text-green-400 text-xs'><CheckCircle size={14}/> {t('connected')}</span>
                         </div>
                         <Button variant="outline" className='border-destructive/50 text-destructive' onClick={handleDisconnect} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin h-4 w-4"/> : 'Disconnect'}
+                            {isLoading ? <Loader2 className="animate-spin h-4 w-4"/> : t('disconnect')}
                         </Button>
                     </div>
                 ) : (
                     <Button onClick={handleConnectClick} disabled={isLoading} className="bg-primary hover:bg-primary/90">
-                        {isLoading ? <Loader2 className="animate-spin"/> : `Connect ${network} Wallet`}
+                        {isLoading ? <Loader2 className="animate-spin"/> : t('connectWallet', {network})}
                     </Button>
                 )}
             </CardContent>
@@ -128,6 +129,7 @@ function NetworkWalletManager({
 }
 
 export default function PaymentWalletsPage() {
+    const t = useTranslations('PaymentWallets');
     const router = useRouter();
     const { user, isConnected } = useWallet();
     const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON' | null>(null);
@@ -151,8 +153,8 @@ export default function PaymentWalletsPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                  <Wallet className="w-12 h-12 text-primary" />
-                 <h1 className="text-3xl font-headline font-bold">Payment Wallets</h1>
-                 <p className="text-muted-foreground">Please connect your main identity wallet first.</p>
+                 <h1 className="text-3xl font-headline font-bold">{t('pageTitle')}</h1>
+                 <p className="text-muted-foreground">{t('connectIdentityDesc')}</p>
             </div>
         )
     }
@@ -167,21 +169,21 @@ export default function PaymentWalletsPage() {
         }
 
         await updateDoc(userRef, updates);
-        toast({ title: `${network} Wallet Connected`, description: `Address: ${address.slice(0,6)}...` });
+        toast({ title: t('walletConnected', {network}), description: `${t('addressStr')} ${address.slice(0,6)}...` });
     };
 
     const handleSavePreferences = async () => {
         if (!selectedNetwork) {
-            toast({variant: "destructive", title: "No network selected"});
+            toast({variant: "destructive", title: t('noNetworkSelected')});
             return;
         }
         setIsSaving(true);
         try {
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, { preferredPaymentNetwork: selectedNetwork });
-            toast({ title: "Preferences Saved", description: `${selectedNetwork} is now your default payment network.` });
+            toast({ title: t('preferencesSaved'), description: t('defaultNetworkSet', {network: selectedNetwork}) });
         } catch (error: any) {
-             toast({ variant: "destructive", title: "Save Failed", description: error.message });
+             toast({ variant: "destructive", title: t('saveFailed'), description: error.message });
         } finally {
             setIsSaving(false);
         }
@@ -190,12 +192,12 @@ export default function PaymentWalletsPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-12">
             <header className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/mypage')} className="h-10 w-10 rounded-full bg-white/5">
-                  <ChevronLeft className="w-6 h-6" />
-                </Button>
+                <Link href="/mypage">
+                    <Button variant="outline">{t('backToDashboard')}</Button>
+                </Link>
                 <div>
-                    <h1 className="text-4xl font-headline font-bold gradient-text">Payment Wallets</h1>
-                    <p className="text-muted-foreground">Manage your wallets for purchases and subscriptions.</p>
+                    <h1 className="text-4xl font-headline font-bold gradient-text">{t('pageTitle')}</h1>
+                    <p className="text-muted-foreground">{t('pageSubtitle')}</p>
                 </div>
             </header>
 
@@ -206,8 +208,8 @@ export default function PaymentWalletsPage() {
 
             <Card className="glass-card border-white/10">
                 <CardHeader>
-                    <CardTitle>Preferences</CardTitle>
-                    <CardDescription>Select your default network for making payments.</CardDescription>
+                    <CardTitle>{t('preferencesTitle')}</CardTitle>
+                    <CardDescription>{t('preferencesDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <RadioGroup value={selectedNetwork || ""} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')}>
@@ -226,7 +228,7 @@ export default function PaymentWalletsPage() {
                         className="w-full sm:w-auto mt-2"
                     >
                         {isSaving ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : null}
-                        Save Preference
+                        {t('savePreference')}
                     </Button>
                 </CardContent>
             </Card>

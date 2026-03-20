@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, Star, ChevronLeft, ShieldAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 
 function isValidTronAddress(address: string): boolean {
     return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address);
@@ -26,6 +28,7 @@ function isValidTonAddress(address: string): boolean {
 }
 
 export default function CollectionWalletsPage() {
+    const t = useTranslations('CollectionWallets');
     const router = useRouter();
     const { user, isConnected } = useWallet();
     const { toast } = useToast();
@@ -54,8 +57,8 @@ export default function CollectionWalletsPage() {
         if (!validationPasses) {
             toast({ 
                 variant: "destructive", 
-                title: "Invalid Address", 
-                description: `The ${selectedNetwork} address format is incorrect. Please check again.` 
+                title: t('invalidAddress'), 
+                description: t('invalidAddressDesc', { network: selectedNetwork })
             });
             return;
         }
@@ -70,11 +73,11 @@ export default function CollectionWalletsPage() {
                 ...(!userProfile?.creatorData?.preferredPayoutNetwork && { 'creatorData.preferredPayoutNetwork': selectedNetwork }),
             });
 
-            toast({ title: "Address Saved", description: `Your ${selectedNetwork} USDT address has been updated.` });
+            toast({ title: t('addressSaved'), description: t('addressSavedDesc', { network: selectedNetwork }) });
             setWalletAddress('');
         } catch (error) {
             console.error("Failed to save address:", error);
-            toast({ variant: "destructive", title: "Save Failed", description: "Could not save your address." });
+            toast({ variant: "destructive", title: t('saveFailed'), description: t('saveFailedDesc') });
         } finally {
             setIsSaving(false);
         }
@@ -85,9 +88,9 @@ export default function CollectionWalletsPage() {
         try {
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, { 'creatorData.preferredPayoutNetwork': network });
-            toast({ title: "Default Updated", description: `${network} is now your default payout network.` });
+            toast({ title: t('defaultUpdated'), description: t('defaultUpdatedDesc', {network}) });
         } catch (error) {
-            toast({ variant: "destructive", title: "Update Failed", description: "Could not set the default network." });
+            toast({ variant: "destructive", title: t('updateFailed'), description: t('updateFailedDesc') });
         }
     };
 
@@ -95,7 +98,7 @@ export default function CollectionWalletsPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
                 <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                <h1 className="text-3xl font-headline font-bold">Loading...</h1>
+                <h1 className="text-3xl font-headline font-bold">{t('loading')}</h1>
             </div>
         );
     }
@@ -106,57 +109,55 @@ export default function CollectionWalletsPage() {
     return (
         <div className="max-w-2xl mx-auto space-y-8 pb-12">
             <header className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/wallet')} className="h-10 w-10 rounded-full bg-white/5">
-                  <ChevronLeft className="w-6 h-6" />
-                </Button>
+                <Link href="/creator">
+                    <Button variant="outline">{t('backToDashboard')}</Button>
+                </Link>
                 <div>
-                    <h1 className="text-4xl font-headline font-bold gradient-text">Collection Addresses</h1>
-                    <p className="text-muted-foreground">Manage where you receive your USDT earnings.</p>
+                    <h1 className="text-4xl font-headline font-bold gradient-text">{t('title')}</h1>
+                    <p className="text-muted-foreground">{t('subtitle')}</p>
                 </div>
             </header>
 
             <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-start gap-4">
                 <ShieldAlert className="w-6 h-6 text-orange-400 shrink-0" />
                 <div className="text-sm">
-                    <p className="font-bold text-orange-400">Important</p>
+                    <p className="font-bold text-orange-400">{t('important')}</p>
                     <p className="text-muted-foreground leading-relaxed">
-                        These are not connected wallets; they are <b>static USDT withdrawal addresses</b>. 
-                        Please ensure you provide addresses you own on the respective networks. 
-                        Earnings will be sent to these addresses upon claim approval.
+                        {t('importantDesc')}
                     </p>
                 </div>
             </div>
 
             <Card className="glass-card border-white/10">
                 <CardHeader>
-                    <CardTitle>Your Saved USDT Addresses</CardTitle>
-                    <CardDescription>Earnings will be transferred to these destinations.</CardDescription>
+                    <CardTitle>{t('savedAddressesTitle')}</CardTitle>
+                    <CardDescription>{t('savedAddressesDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {(!payoutWallets || Object.keys(payoutWallets).length === 0) && (
-                        <p className="text-sm text-center text-muted-foreground py-4 italic">No payout addresses added yet.</p>
+                        <p className="text-sm text-center text-muted-foreground py-4 italic">{t('noAddresses')}</p>
                     )}
                     <div className="grid grid-cols-1 gap-3">
                         {payoutWallets?.TRON && (
                             <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-white/5">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">TRON (USDT - TRC20)</p>
+                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t('tron')}</p>
                                     <p className="font-mono text-sm truncate max-w-[200px] sm:max-w-none">{payoutWallets.TRON.address}</p>
                                 </div>
                                 {preferredNetwork === 'TRON' ?
-                                    <span className='flex items-center text-xs text-yellow-400 font-bold gap-1 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20'><Star size={14} className="fill-yellow-400" /> Default</span> :
-                                    <Button size='sm' variant='outline' className="rounded-full border-white/10" onClick={() => handleSetDefault('TRON')}>Set Default</Button>}
+                                    <span className='flex items-center text-xs text-yellow-400 font-bold gap-1 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20'><Star size={14} className="fill-yellow-400" /> {t('default')}</span> :
+                                    <Button size='sm' variant='outline' className="rounded-full border-white/10" onClick={() => handleSetDefault('TRON')}>{t('setDefault')}</Button>}
                             </div>
                         )}
                         {payoutWallets?.TON && (
                             <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-white/5">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">TON (USDT)</p>
+                                    <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t('ton')}</p>
                                     <p className='font-mono text-sm truncate max-w-[200px] sm:max-w-none'>{payoutWallets.TON.address}</p>
                                 </div>
                                 {preferredNetwork === 'TON' ?
-                                    <span className='flex items-center text-xs text-yellow-400 font-bold gap-1 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20'><Star size={14} className="fill-yellow-400" /> Default</span> :
-                                    <Button size='sm' variant='outline' className="rounded-full border-white/10" onClick={() => handleSetDefault('TON')}>Set Default</Button>}
+                                    <span className='flex items-center text-xs text-yellow-400 font-bold gap-1 bg-yellow-400/10 px-3 py-1.5 rounded-full border border-yellow-400/20'><Star size={14} className="fill-yellow-400" /> {t('default')}</span> :
+                                    <Button size='sm' variant='outline' className="rounded-full border-white/10" onClick={() => handleSetDefault('TON')}>{t('setDefault')}</Button>}
                             </div>
                         )}
                     </div>
@@ -165,12 +166,12 @@ export default function CollectionWalletsPage() {
 
             <Card className="glass-card border-white/10">
                 <CardHeader>
-                    <CardTitle>Add or Update Address</CardTitle>
-                    <CardDescription>Provide a valid USDT address to receive payments.</CardDescription>
+                    <CardTitle>{t('addUpdateTitle')}</CardTitle>
+                    <CardDescription>{t('addUpdateDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-3">
-                        <Label className="text-sm font-medium">1. Select Network</Label>
+                        <Label className="text-sm font-medium">{t('step1')}</Label>
                         <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4">
                             <div className="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5 cursor-pointer">
                                 <RadioGroupItem value="TRON" id="p-tron" />
@@ -184,7 +185,7 @@ export default function CollectionWalletsPage() {
                     </div>
                     <div className="space-y-3">
                          <Label className="text-sm font-medium">
-                            2. {selectedNetwork} (USDT) Destination Address
+                            {t('step2', {network: selectedNetwork})}
                          </Label>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <Input
@@ -192,17 +193,17 @@ export default function CollectionWalletsPage() {
                                 onChange={(e) => setWalletAddress(e.target.value)}
                                 placeholder={
                                     selectedNetwork === 'TRON'
-                                        ? "Enter your TRON USDT (TRC20) address (T...)"
-                                        : "Enter your TON USDT address (EQ... / UQ...)"
+                                        ? t('placeholderTron')
+                                        : t('placeholderTon')
                                 }
                                 className="font-mono h-11"
                             />
                             <Button onClick={handleSaveWallet} disabled={isSaving || !walletAddress} className="h-11 sm:w-32 font-bold shadow-lg shadow-primary/20">
                                 {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-                                Save
+                                {t('save')}
                             </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground italic">Double check your address. Transfers are irreversible.</p>
+                        <p className="text-[10px] text-muted-foreground italic">{t('doubleCheck')}</p>
                     </div>
                 </CardContent>
             </Card>

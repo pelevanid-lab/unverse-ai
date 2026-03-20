@@ -11,8 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Send, MessageSquare } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export function CreatorInbox() {
+  const t = useTranslations('CreatorInbox');
   const { user } = useWallet();
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -108,11 +110,11 @@ export function CreatorInbox() {
       {/* Sidebar: Chat List */}
       <div className="md:col-span-4 border-r border-white/5 flex flex-col bg-white/[0.02]">
         <div className="p-4 border-b border-white/5">
-            <h3 className="font-headline font-bold text-lg px-2">Supporters</h3>
+            <h3 className="font-headline font-bold text-lg px-2">{t('supporters')}</h3>
         </div>
         <ScrollArea className="flex-1">
             {chats.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">No active conversations yet.</div>
+                <div className="p-8 text-center text-muted-foreground text-sm">{t('noActive')}</div>
             ) : (
                 <div className="p-2 space-y-1">
                     {chats.map(chat => (
@@ -168,7 +170,7 @@ export function CreatorInbox() {
                     <Input 
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type your message..."
+                        placeholder={t('typeMessage')}
                         className="bg-background/50 border-white/10 h-12 rounded-xl"
                     />
                     <Button type="submit" disabled={!newMessage.trim() || sending} className="h-12 w-12 rounded-xl">
@@ -181,8 +183,8 @@ export function CreatorInbox() {
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                     <MessageSquare className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Select a supporter</h3>
-                <p className="text-sm text-muted-foreground mt-2 max-w-xs">Click on a conversation to start chatting with your supporters.</p>
+                <h3 className="text-xl font-bold">{t('selectSupporter')}</h3>
+                <p className="text-sm text-muted-foreground mt-2 max-w-xs">{t('selectSupporterDesc')}</p>
             </div>
         )}
       </div>

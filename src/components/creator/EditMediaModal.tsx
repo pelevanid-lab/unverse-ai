@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { generateCaption } from '@/lib/CopilotEngine';
+import { useTranslations } from 'next-intl';
 
 interface EditMediaModalProps {
   media: CreatorMedia;
@@ -31,6 +32,7 @@ interface EditMediaModalProps {
 }
 
 export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: EditMediaModalProps) {
+  const t = useTranslations('EditMedia');
   const { user } = useWallet();
   const { toast } = useToast();
   const [caption, setCaption] = useState(media.caption || '');
@@ -45,12 +47,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
   const handleGenerateCaption = () => {
     const generated = generateCaption(media.prompt || "", contentType);
     setCaption(generated);
-    toast({ title: "Caption Generated", description: "Deterministic engine created a template for you." });
+    toast({ title: t('captionGenerated'), description: t('captionGeneratedDesc') });
   };
 
   const handlePublish = async () => {
     if (!user) {
-      toast({ variant: "destructive", title: "Authentication Error", description: "Please ensure your wallet is connected." });
+      toast({ variant: "destructive", title: t('authError'), description: t('authErrorDesc') });
       return;
     }
 
@@ -87,12 +89,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
       await addDoc(collection(db, 'posts'), postData);
       await deleteDoc(doc(db, 'creator_media', media.id));
       
-      toast({ title: 'Post Published!', description: 'Your content is now live.' });
+      toast({ title: t('publishSuccess'), description: t('publishSuccessDesc') });
       onPublished();
       onClose();
     } catch (error) {
       console.error("Publishing failed:", error);
-      toast({ variant: 'destructive', title: 'Publishing Failed' });
+      toast({ variant: 'destructive', title: t('publishFailedTitle') });
     } finally {
       setLoadingAction(null);
     }
@@ -100,7 +102,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
   const handleScheduleOrUpdate = async () => {
     if (!scheduledFor) {
-      toast({ variant: 'destructive', title: 'Please select a date and hour for scheduling.' });
+      toast({ variant: 'destructive', title: t('scheduleMissingDate') });
       return;
     }
     setLoadingAction('schedule');
@@ -121,11 +123,11 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
             } 
         })
       });
-      toast({ title: 'Post Scheduled Successfully!', description: `Your post is scheduled for ${format(finalScheduleTime, "PPP 'at' HH:00")}.` });
+      toast({ title: t('scheduleSuccess'), description: t('scheduleSuccessDesc', { time: format(finalScheduleTime, "PPP 'at' HH:00") }) });
       onClose();
     } catch (error) {
       console.error("Scheduling/updating failed:", error);
-      toast({ variant: 'destructive', title: 'Action Failed' });
+      toast({ variant: 'destructive', title: t('actionFailed') });
     } finally {
       setLoadingAction(null);
     }
@@ -137,11 +139,11 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
       const fileRef = ref(storage, media.mediaUrl);
       await deleteObject(fileRef);
       await deleteDoc(doc(db, 'creator_media', media.id));
-      toast({ title: 'Media Deleted' });
+      toast({ title: t('deleteTitle') });
       onClose();
     } catch (error) {
       console.error("Delete failed:", error);
-      toast({ variant: 'destructive', title: 'Delete Failed' });
+      toast({ variant: 'destructive', title: t('deleteFailed') });
     } finally {
       setLoadingAction(null);
     }
@@ -155,8 +157,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
            <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-black/50 hover:bg-black/80 text-white">
               <X className="h-4 w-4" />
           </Button>
-          <DialogTitle className="sr-only">Edit Content</DialogTitle>
-          <DialogDescription className="sr-only">Configure your content type and pricing.</DialogDescription>
+          <DialogTitle className="sr-only">{t('editContent')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('configureContent')}</DialogDescription>
 
           <div className="grid grid-cols-1 md:grid-cols-12 h-full overflow-hidden">
               <div className="md:col-span-7 flex items-center justify-center bg-black/80 overflow-hidden">
@@ -171,29 +173,29 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                       
                       <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <Label htmlFor="caption" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Caption</Label>
+                            <Label htmlFor="caption" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{t('caption')}</Label>
                             <Button 
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={handleGenerateCaption}
                                 className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
                             >
-                                <Wand2 size={12} /> Copilot: Generate Caption
+                                <Wand2 size={12} /> {t('generateCaption')}
                             </Button>
                           </div>
-                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="What's on your mind?" className="bg-input/50 resize-none h-24" maxLength={280} />
+                          <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t('captionPlaceholder')} className="bg-input/50 resize-none h-24" maxLength={280} />
                       </div>
 
                       <div className="space-y-3">
-                        <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Content Type</Label>
+                        <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{t('contentType')}</Label>
                         <RadioGroup value={contentType} onValueChange={(v) => setContentType(v as PostContentType)} className="grid grid-cols-1 gap-2">
                             <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                                 <RadioGroupItem value="public" id="public" />
                                 <Label htmlFor="public" className="flex-1 cursor-pointer flex items-center gap-2">
                                     <Globe className="w-4 h-4 text-green-400" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold">Public</span>
-                                        <span className="text-[10px] opacity-60">Visible to everyone</span>
+                                        <span className="font-bold">{t('public')}</span>
+                                        <span className="text-[10px] opacity-60">{t('publicDesc')}</span>
                                     </div>
                                 </Label>
                             </div>
@@ -202,8 +204,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                                 <Label htmlFor="premium" className="flex-1 cursor-pointer flex items-center gap-2">
                                     <Lock className="w-4 h-4 text-primary" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold">Premium</span>
-                                        <span className="text-[10px] opacity-60">Subscriber-only & Unlocks</span>
+                                        <span className="font-bold">{t('premium')}</span>
+                                        <span className="text-[10px] opacity-60">{t('premiumDesc')}</span>
                                     </div>
                                 </Label>
                             </div>
@@ -212,8 +214,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                                 <Label htmlFor="limited" className="flex-1 cursor-pointer flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-yellow-400" />
                                     <div className="flex flex-col">
-                                        <span className="font-bold">Limited</span>
-                                        <span className="text-[10px] opacity-60">Restricted supply edition</span>
+                                        <span className="font-bold">{t('limited')}</span>
+                                        <span className="text-[10px] opacity-60">{t('limitedDesc')}</span>
                                     </div>
                                 </Label>
                             </div>
@@ -223,22 +225,22 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                       {contentType !== 'public' && (
                           <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                               <div className="space-y-2">
-                                <Label htmlFor="price" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Price (ULC)</Label>
+                                <Label htmlFor="price" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{t('priceULC')}</Label>
                                 <Input id="price" type="number" value={priceULC} onChange={(e) => setPriceULC(Number(e.target.value))} className="bg-input/50 h-11 font-bold" />
                               </div>
 
                               {contentType === 'limited' && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="supply" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>Total Supply</Label>
+                                    <Label htmlFor="supply" className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{t('totalSupply')}</Label>
                                     <Input id="supply" type="number" value={totalSupply} onChange={(e) => setTotalSupply(Number(e.target.value))} className="bg-input/50 h-11 font-bold" />
-                                    <p className='text-[10px] text-muted-foreground'>Only this many people can unlock this content.</p>
+                                    <p className='text-[10px] text-muted-foreground'>{t('supplyDesc')}</p>
                                 </div>
                               )}
                           </div>
                       )}
 
                        <div className="space-y-3 pt-2">
-                          <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{isScheduled ? 'Update Schedule' : 'Schedule for Later'}</Label>
+                          <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{isScheduled ? t('updateSchedule') : t('scheduleForLater')}</Label>
                           <div className="flex gap-2">
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -250,7 +252,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {scheduledFor ? format(scheduledFor, "MMM d") : <span>Date</span>}
+                                        {scheduledFor ? format(scheduledFor, "MMM d") : <span>{t('date')}</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0 border-white/10">
@@ -277,7 +279,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                                 }}
                             >    
                                 <SelectTrigger className="w-24 h-11 bg-input/30">
-                                    <SelectValue placeholder="Hour" />
+                                    <SelectValue placeholder={t('hour')} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {Array.from({ length: 24 }, (_, i) => (
@@ -292,12 +294,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                   </div>
                   <div className="flex flex-col space-y-3 mt-8">
                       <Button onClick={handlePublish} disabled={!!loadingAction} className='h-14 w-full text-lg font-bold gap-2 rounded-2xl bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20'>
-                          {loadingAction === 'publish' ? <Loader2 className="animate-spin" /> : <><Upload size={20}/>Publish Now</>}
+                          {loadingAction === 'publish' ? <Loader2 className="animate-spin" /> : <><Upload size={20}/>{t('publishNow')}</>}
                       </Button>
                       
                       <div className="flex gap-2">
                         <Button variant="outline" onClick={handleScheduleOrUpdate} disabled={!!loadingAction || !scheduledFor} className='flex-1 h-12 gap-2 rounded-xl'>
-                            {loadingAction === 'schedule' ? <Loader2 className="animate-spin h-4 w-4"/> : <><CalendarIcon size={16}/>{isScheduled ? 'Update' : 'Schedule'}</>}
+                            {loadingAction === 'schedule' ? <Loader2 className="animate-spin h-4 w-4"/> : <><CalendarIcon size={16}/>{isScheduled ? t('update') : t('schedule')}</>}
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -307,12 +309,12 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                             </AlertDialogTrigger>
                             <AlertDialogContent className="rounded-[2rem]">
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete from container?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently remove the media file.</AlertDialogDescription>
+                                    <AlertDialogTitle>{t('deleteAlertTitle')}</AlertDialogTitle>
+                                    <AlertDialogDescription>{t('deleteAlertDesc')}</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl">Delete</AlertDialogAction>
+                                    <AlertDialogCancel className="rounded-xl">{t('cancel')}</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl">{t('delete')}</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>

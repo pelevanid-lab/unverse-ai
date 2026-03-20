@@ -10,11 +10,13 @@ import { Link } from '@/i18n/routing';
 import { useState, useEffect } from 'react';
 import { collection, query, where, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { User } from '@/lib/types';
+import { UserProfile } from '@/lib/types';
+import { useTranslations } from 'next-intl';
 
 export default function ActiveSubsPage() {
+  const t = useTranslations('ActiveSubs');
   const { user, isConnected } = useWallet();
-  const [activeSubs, setActiveSubs] = useState<User[]>([]);
+  const [activeSubs, setActiveSubs] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function ActiveSubsPage() {
         const creatorsQuery = query(collection(db, 'users'), where('uid', 'in', creatorUids));
         const creatorSnaps = await getDocs(creatorsQuery);
         
-        const subsData = creatorSnaps.docs.map(d => ({ ...d.data() } as User));
+        const subsData = creatorSnaps.docs.map(d => ({ ...d.data() } as UserProfile));
         setActiveSubs(subsData);
 
       } catch (error) {
@@ -52,9 +54,9 @@ export default function ActiveSubsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-center">
         <div className="p-6 bg-primary/10 rounded-full"><Sparkles className="w-12 h-12 text-primary" /></div>
-        <h1 className="text-3xl font-headline font-bold">Access Your Content</h1>
-        <p className="text-muted-foreground max-w-sm">Connect your wallet to view your active subscriptions.</p>
-        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">Connect Now</Button></Link>
+        <h1 className="text-3xl font-headline font-bold">{t('accessContentTitle')}</h1>
+        <p className="text-muted-foreground max-w-sm">{t('accessContentDesc')}</p>
+        <Link href="/"><Button className="bg-primary hover:bg-primary/90 mt-4 rounded-xl px-8 py-6">{t('connectNow')}</Button></Link>
       </div>
     );
   }
@@ -63,10 +65,10 @@ export default function ActiveSubsPage() {
     <div className="space-y-8 pb-12">
         <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <h1 className="text-3xl font-headline font-bold flex items-center gap-2">
-                <Crown className="w-8 h-8 text-yellow-400" /> Active Subscriptions
+                <Crown className="w-8 h-8 text-yellow-400" /> {t('title')}
             </h1>
             <Link href="/mypage">
-                <Button variant="outline">Back to Dashboard</Button>
+                <Button variant="outline">{t('backToDashboard')}</Button>
             </Link>
         </div>
 
@@ -81,7 +83,7 @@ export default function ActiveSubsPage() {
                     <div className="flex-1">
                       <p className="font-bold">{sub.username}</p>
                     </div>
-                    <Link href={`/profile/${sub.uid}`}><Button variant="ghost" size="sm">Visit Profile</Button></Link>
+                    <Link href={`/profile/${sub.uid}`}><Button variant="ghost" size="sm">{t('visitProfile')}</Button></Link>
                   </CardContent>
                 </Card>
               ))}
@@ -89,8 +91,8 @@ export default function ActiveSubsPage() {
           ) : (
             <Card className="glass-card border-white/5 bg-white/[0.02]">
                 <CardContent className="p-12 text-center space-y-4">
-                    <p className="text-muted-foreground text-sm">You haven't subscribed to any creators yet.</p>
-                    <Link href="/"><Button variant="outline" className="rounded-xl px-8 border-white/10">Explore Creators</Button></Link>
+                    <p className="text-muted-foreground text-sm">{t('emptyState')}</p>
+                    <Link href="/"><Button variant="outline" className="rounded-xl px-8 border-white/10">{t('exploreCreators')}</Button></Link>
                 </CardContent>
             </Card>
           ))}

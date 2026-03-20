@@ -15,8 +15,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Upload, Sparkles, Megaphone, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useTranslations } from 'next-intl';
 
 export function PromoCardTab() {
+  const t = useTranslations('PromoCard');
   const { user } = useWallet();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -53,14 +55,14 @@ export function PromoCardTab() {
             setLoading(false);
         });
     } catch (err) {
-        toast({ variant: 'destructive', title: 'Upload Failed' });
+        toast({ variant: 'destructive', title: t('uploadFailed') });
         setLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!user?.uid || !promo.imageUrl || !promo.title) {
-        toast({ variant: 'destructive', title: 'Missing Info', description: 'Image and Title are required.' });
+        toast({ variant: 'destructive', title: t('missingInfo'), description: t('missingInfoDesc') });
         return;
     }
 
@@ -79,9 +81,9 @@ export function PromoCardTab() {
         };
 
         await updateDoc(userRef, { promoCard: fullPromo });
-        toast({ title: 'Promo Card Saved!', description: 'It will now appear in the Discover feed.' });
+        toast({ title: t('saveSuccess'), description: t('saveSuccessDesc') });
     } catch (err) {
-        toast({ variant: 'destructive', title: 'Save Failed' });
+        toast({ variant: 'destructive', title: t('saveFailed') });
     } finally {
         setLoading(false);
     }
@@ -92,24 +94,24 @@ export function PromoCardTab() {
         {/* Editor */}
         <Card className="glass-card border-white/10">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Megaphone className="w-5 h-5 text-primary" /> Create Promo Card</CardTitle>
-                <CardDescription>This card will be featured in the global Discover feed to attract new subscribers.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Megaphone className="w-5 h-5 text-primary" /> {t('title')}</CardTitle>
+                <CardDescription>{t('subtitle')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-4">
-                    <Label>Promo Image</Label>
+                    <Label>{t('promoImage')}</Label>
                     <div className="relative aspect-[16/9] rounded-2xl border-2 border-dashed border-white/10 overflow-hidden group">
                         {promo.imageUrl ? (
                             <>
                                 <img src={promo.imageUrl} className="w-full h-full object-cover" alt="Promo" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Button variant="secondary" size="sm" onClick={() => setPromo(p => ({ ...p, imageUrl: '' }))}><Trash2 className="w-4 h-4 mr-2"/> Replace</Button>
+                                    <Button variant="secondary" size="sm" onClick={() => setPromo(p => ({ ...p, imageUrl: '' }))}><Trash2 className="w-4 h-4 mr-2"/> {t('replace')}</Button>
                                 </div>
                             </>
                         ) : (
                             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
                                 <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                                <span className="text-xs font-bold text-muted-foreground">UPLOAD RECTANGULAR IMAGE (16:9)</span>
+                                <span className="text-xs font-bold text-muted-foreground">{t('uploadInstruction')}</span>
                                 <input type="file" className="hidden" accept="image/*" onChange={handleUpload} />
                             </label>
                         )}
@@ -119,29 +121,29 @@ export function PromoCardTab() {
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Card Title</Label>
-                        <Input value={promo.title} onChange={e => setPromo(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Join my inner circle" className="bg-white/5" maxLength={40} />
+                        <Label>{t('cardTitle')}</Label>
+                        <Input value={promo.title} onChange={e => setPromo(p => ({ ...p, title: e.target.value }))} placeholder={t('titlePlaceholder')} className="bg-white/5" maxLength={40} />
                     </div>
                     <div className="space-y-2">
-                        <Label>Short Description</Label>
-                        <Textarea value={promo.description} onChange={e => setPromo(p => ({ ...p, description: e.target.value }))} placeholder="Tell people why they should follow you..." className="bg-white/5 resize-none h-20" maxLength={100} />
+                        <Label>{t('shortDesc')}</Label>
+                        <Textarea value={promo.description} onChange={e => setPromo(p => ({ ...p, description: e.target.value }))} placeholder={t('descPlaceholder')} className="bg-white/5 resize-none h-20" maxLength={100} />
                     </div>
                     <div className="space-y-2">
-                        <Label>Button Text</Label>
+                        <Label>{t('buttonText')}</Label>
                         <Input value={promo.ctaText} onChange={e => setPromo(p => ({ ...p, ctaText: e.target.value }))} placeholder="Subscribe" className="bg-white/5" />
                     </div>
                 </div>
 
                 <Button onClick={handleSave} disabled={loading} className="w-full h-12 font-bold shadow-xl shadow-primary/20 rounded-xl">
                     {loading ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                    Save & Feature Card
+                    {t('saveButton')}
                 </Button>
             </CardContent>
         </Card>
 
         {/* Preview */}
         <div className="space-y-4">
-            <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Live Preview</Label>
+            <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">{t('livePreview')}</Label>
             <div className="w-full max-w-sm mx-auto aspect-[4/5] relative rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl group">
                  <div className="absolute inset-0 bg-muted animate-pulse" />
                  {promo.imageUrl && <img src={promo.imageUrl} className="absolute inset-0 w-full h-full object-cover" alt="Preview" />}
@@ -156,14 +158,14 @@ export function PromoCardTab() {
                  </div>
 
                  <div className="absolute bottom-0 left-0 right-0 p-6 space-y-3">
-                    <h3 className="text-2xl font-headline font-bold text-white leading-tight">{promo.title || "Your Title Here"}</h3>
-                    <p className="text-sm text-white/70 line-clamp-2">{promo.description || "Your description will appear here..."}</p>
+                    <h3 className="text-2xl font-headline font-bold text-white leading-tight">{promo.title || t('previewDefaultTitle')}</h3>
+                    <p className="text-sm text-white/70 line-clamp-2">{promo.description || t('previewDesc')}</p>
                     <Button className="w-full h-12 rounded-xl font-bold bg-white text-black hover:bg-white/90">
                         {promo.ctaText || "Subscribe"}
                     </Button>
                  </div>
             </div>
-            <p className="text-center text-[10px] text-muted-foreground italic">This is how your card will look in the carousel.</p>
+            <p className="text-center text-[10px] text-muted-foreground italic">{t('carouselNote')}</p>
         </div>
     </div>
   );
