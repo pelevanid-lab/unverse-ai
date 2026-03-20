@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, ShieldCheck, Flame, Coins, Lock, BarChart3, ChevronLeft } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Flame, Coins, Lock, BarChart3, ChevronLeft, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
@@ -87,6 +87,55 @@ export default function InvestorTokenomics() {
                         <p className="text-muted-foreground leading-relaxed">{t('p5Desc')}</p>
                     </div>
                 </div>
+            </section>
+            
+            {/* Reserve Maturity Protocol */}
+            <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <ShieldCheck className="text-primary w-8 h-8" />
+                    <h2 className="text-3xl font-headline font-bold">{t('reserveProtocolTitle')}</h2>
+                </div>
+                
+                <Card className="glass-card border-primary/30 bg-gradient-to-br from-primary/10 via-transparent to-transparent p-8 relative overflow-hidden group">
+                    <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Lock className="w-48 h-48" />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+                        <div className="md:col-span-2 space-y-4">
+                            <p className="text-muted-foreground leading-relaxed">
+                                {t('reserveProtocolDesc')}
+                            </p>
+                            <div className="flex flex-wrap gap-4 pt-2">
+                                <Badge className="bg-primary/20 text-primary border-primary/20 px-4 py-1 text-sm">
+                                    {t('cliffVestingLabel')}
+                                </Badge>
+                                <Badge variant="outline" className="opacity-70">
+                                    420M ULC Total
+                                </Badge>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-4 border-l border-white/10 md:pl-8">
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                                <p className="text-[10px] font-bold uppercase text-primary/70">Allocation Ratios</p>
+                                <div className="space-y-1 text-xs">
+                                    <div className="flex justify-between font-bold"><span>Team</span><span>30%</span></div>
+                                    <div className="flex justify-between font-bold"><span>Liquidity</span><span>20%</span></div>
+                                    <div className="flex justify-between font-bold"><span>Promo</span><span>10%</span></div>
+                                    <div className="flex justify-between font-bold text-primary"><span>DAO Reserve</span><span>40%</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-4">
+                        <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground italic leading-relaxed">
+                            {t('daoNote')}
+                        </p>
+                    </div>
+                </Card>
             </section>
 
             {/* Circulating Supply Chart */}

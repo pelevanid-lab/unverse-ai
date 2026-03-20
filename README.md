@@ -1,5 +1,5 @@
 
-version= phase1.0.4
+version= phase1.0.5
 # Unverse: AI-Powered SocialFi Ecosystem
 
 Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.
@@ -35,7 +35,7 @@ Every economic event (purchases, tips, unlocks, claims) is recorded in the `/led
 ### The 16-Wallet System
 The ecosystem is powered by 16 strictly defined internal system wallets managing the total 1 Billion $ULC supply:
 1. **genesis_wallet**: The source account for the total supply.
-2. **reserve_pool**: Locked supply (420M ULC) for future growth.
+2. **reserve_pool**: Locked supply (420M ULC) governed by the **Reserve Maturity Protocol** (24-month cliff + 240-month release).
 3. **presale_pool**: Allocation for initial token sales.
 4. **presale_vesting_pool**: Holds tokens for presale buyers under vesting.
 5. **promo_pool**: Used for welcome bonuses and airdrops.
@@ -57,6 +57,18 @@ The ecosystem is powered by 16 strictly defined internal system wallets managing
 2. **Subscriptions**: Creator receives **85%**. Platform takes **15%** (10% to Treasury, 5% for Buyback Staking Rewards).
 3. **Staking Rewards**: Derived from platform commission (5% of total revenue). Rewards are calculated based on the 30-day average staked balance, with a snapshot on the **27th of each month**.
 4. **Deflationary Burn**: 33% of every AI generation fee (1 ULC out of 3) is permanently burned. Premium content unlock also includes a 5% burn mechanism.
+
+## 🏛 Reserve Maturity Protocol (The 20-Year Seal)
+
+To ensure maximum long-term stability and prevent inflationary shocks, the **420,000,000 ULC** Reserve Pool is governed by a secondary smart contract protocol "The Seal":
+
+-   **Cliff Period**: 24 months starting from the **Base Mainnet Launch**.
+-   **Release Period**: 240 months (20 years) linear release.
+-   **Distribution Ratio (10 Parts)**:
+    -   **Team (3/10)**: 126M ULC released over 20 years for core dev retention.
+    -   **Promo (1/10)**: 42M ULC released over 20 years for future airdrops/marketing.
+    -   **Liquidity (2/10)**: 84M ULC released over 20 years for DEX/CEX market making.
+    -   **DAO Reserve (4/10)**: 168M ULC released over 20 years. **Starting from Year 10**, the use of this specific 40% will be decided entirely by **$ULC Stakers** via DAO Governance.
 
 ## 📂 Project Structure
 

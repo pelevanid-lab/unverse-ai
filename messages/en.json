@@ -470,7 +470,11 @@
     "quoteTitle": "\"Revenue-Backed Scarcity\"",
     "quoteDesc": "By combining a fixed supply with revenue-driven buybacks and staking rewards, $ULC is designed to scale directly with the growth of the Unverse AI platform users.",
     "projectionTitle": "Circulating Supply Projection (48 Months)",
-    "month": "Month"
+    "month": "Month",
+    "reserveProtocolTitle": "Reserve Maturity Protocol",
+    "reserveProtocolDesc": "The 420,000,000 ULC Reserve Pool is the cornerstone of Unverse's decade-long sustainability. To ensure total transparency and prevent inflationary shocks, the pool is governed by a strict release schedule.",
+    "cliffVestingLabel": "24-Month Cliff / 240-Month Release",
+    "daoNote": "40% of the released reserve (168M ULC) is dedicated to DAO Governance. Stakers will decide its allocation starting from Year 10."
   },
   "CreatorTokenomics": {
     "back": "Back",

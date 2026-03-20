@@ -470,7 +470,11 @@
     "quoteTitle": "\"Gelir Destekli Kıtlık\"",
     "quoteDesc": "Sabit arzı, gelir odaklı geri alımlar ve staking ödülleriyle birleştiren ULC, Unverse AI platformunun büyümesiyle doğrudan ölçeklenecek şekilde tasarlanmıştır.",
     "projectionTitle": "Dolaşımdaki Arz Projeksiyonu (48 Ay)",
-    "month": "Ay"
+    "month": "Ay",
+    "reserveProtocolTitle": "Rezerv Olgunluk Protokolü",
+    "reserveProtocolDesc": "420.000.000 ULC'lik Rezerv Havuzu, Unverse'in on yıllarca sürecek sürdürülebilirliğinin temel taşıdır. Tam şeffaflık sağlamak ve enflasyonist şokları önlemek için havuz, katı bir serbest bırakma takvimi ile yönetilir.",
+    "cliffVestingLabel": "24 Ay Kilit / 240 Ay Taksit",
+    "daoNote": "Serbest bırakılan rezervin %40'ı (168M ULC) DAO Yönetimine ayrılmıştır. 10. yıldan itibaren stakerlar bu payın kullanımına karar verecektir."
   },
   "CreatorTokenomics": {
     "back": "Geri",
