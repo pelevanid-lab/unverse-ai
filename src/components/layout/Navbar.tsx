@@ -48,7 +48,7 @@ export function Navbar() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <img src="/logo.png" alt="Unverse Logo" className={`w-7 h-7 object-contain ${isAdmin ? 'animate-pulse' : ''}`} />
+              <img src="/logo.png" alt="Unverse Logo" className={`w-8 h-8 object-contain rounded-full shadow-lg shadow-primary/10 ${isAdmin ? 'animate-pulse' : ''}`} />
             </Link>
             <div className="flex flex-col">
               <Link href="/" className="group leading-none">

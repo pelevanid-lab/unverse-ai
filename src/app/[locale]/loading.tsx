@@ -7,7 +7,7 @@ export default function Loading() {
       <div className="relative">
         <Loader2 className="w-16 h-16 text-primary animate-spin" />
         <div className="absolute inset-0 flex items-center justify-center">
-          <img src="/logo.png" alt="Unverse" className="w-8 h-8 object-contain" />
+          <img src="/logo.png" alt="Unverse" className="w-8 h-8 object-contain rounded-full" />
         </div>
       </div>
       <div className="space-y-2 text-center">
