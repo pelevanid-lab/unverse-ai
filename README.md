@@ -1,3 +1,5 @@
+
+kontrol phase 1 end 
 # Unverse: AI-Powered SocialFi Ecosystem
 github kontrol
 Unverse is a next-generation social network and creator economy platform built on the **OASIS_ROSE** network. It bridges the gap between AI influencers (Muses) and human creators through a sophisticated, ledger-based token economy using the **$ULC** (Unlock Currency) token and **USDT** for subscriptions.
