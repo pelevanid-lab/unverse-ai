@@ -45,6 +45,8 @@ export async function POST(req: Request) {
 
     // 2. Call AI Generation using the ENHANCED prompt
     const finalPromptForAI = enhancedPrompt || prompt;
+    const globalNegativePrompt = "child, kid, toddler, newborn, infant, teenager, young boy, young girl, school student, underage, small person";
+    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${globalNegativePrompt}` : globalNegativePrompt;
     
     let model: any = "black-forest-labs/flux-dev";
     let input: any = {
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
       aspect_ratio: "1:1",
       num_inference_steps: 28,
       guidance_scale: 3.5,
-      negative_prompt: negativePrompt || undefined,
+      negative_prompt: userNegativePrompt,
     };
 
     if (image && cost === 5) {

@@ -279,8 +279,8 @@ export function AIStudio() {
                 // FALLBACK: Improve prompt structure to ensure scene is not ignored
                 const char = (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile;
                 if (char) {
-                    const traits = `Identity: ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}`;
-                    finalPromptForGeneration = `A professional photorealistic portrait of an individual with these traits: ${traits}. The scene and action is: ${prompt}. High quality, cinematic.`;
+                    const traits = `Adult ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}`;
+                    finalPromptForGeneration = `A professional photorealistic portrait of an adult person with these traits: ${traits}. No children. The scene and action is: ${prompt}. High quality, cinematic.`;
                 }
             }
 
