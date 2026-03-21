@@ -43,8 +43,23 @@ export async function POST(req: Request) {
       auth: rawToken.trim(),
     });
 
-    // 2. Call AI Generation using the ENHANCED prompt
-    let finalPromptForAI = enhancedPrompt || prompt;
+    // 2. FAIL-SAFE PROMPT MERGING (User Instruction 2)
+    // We never rely solely on Gemini. We MERGE the core intent.
+    const userScene = prompt;
+    const userOutfit = (prompt.toLowerCase().includes("bikini") || (enhancedPrompt?.toLowerCase().includes("bikini"))) ? "bikini" : ""; 
+    
+    // Construct the "Security Anchor"
+    const securityAnchor = `FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. SCENE: ${userScene}.`;
+    
+    let basePrompt = enhancedPrompt || prompt;
+    
+    // If Gemini returned a uselessly short prompt, discard it and use a high-quality fallback
+    if (enhancedPrompt && enhancedPrompt.length < 25) {
+        console.warn("Gemini Truncation Detected. Using Fallback.");
+        basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${prompt}`;
+    }
+
+    let finalPromptForAI = `${securityAnchor} ${basePrompt}`;
     
     // Dynamic Negative Prompt based on requested profile & scene
     let negativeFils = "child, kid, toddler, teenager, underage, portrait, close-up, cropped, headshot, macro, room, indoors, studio, apartment, office, domestic, ceiling, wall";
@@ -57,9 +72,9 @@ export async function POST(req: Request) {
 
     const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${negativeFils}` : negativeFils;
     
-    // Solo Subject & Full Body Enforcement
+    // Solo Subject Enforcement
     if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
-        finalPromptForAI = `FULL BODY SHOT, WIDE ANGLE VIEW, 1 adult person, ${finalPromptForAI}`;
+        finalPromptForAI = `1 adult person, ${finalPromptForAI}`;
     }
 
     let model: any = "black-forest-labs/flux-dev";
