@@ -67,17 +67,17 @@ export async function POST(req: Request) {
 
     // Digital Twin specialized model (Identity Preservation)
     if (cost === 20 && image) {
-      model = "lucataco/flux-pulid-ca:46914902357738f15b812f862fe57d079983ed758d4a675034c56fd5767c6999";
+      model = "zsxkib/flux-pulid:833fb9ac519ea623da8ddbf16ce13d4aba69f962";
       input = {
         prompt: finalPromptForAI,
         main_face_image: image,
         negative_prompt: (negativePrompt ? negativePrompt + ", " : "") + "bad quality, blurry, distorted face, unrealistic, woman if reference is man, person change",
         id_weight: 1,
-        num_inference_steps: 20
+        num_steps: 20
       };
     } else if ((cost === 8 || cost === 4) && image) {
       // AI Edit / In-painting specialized model
-      model = "black-forest-labs/flux-fill";
+      model = "black-forest-labs/flux-fill-dev:03e289f530df51d014f48e675a9ffa2141bc003259bf5f25d75b957e920a41ca";
       input = {
         prompt: finalPromptForAI,
         image: image,
