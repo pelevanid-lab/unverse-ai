@@ -24,9 +24,12 @@ export async function POST(req: Request) {
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
     const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer.
-Your job is to take a short, simple user scenario (which might be in Turkish or English) and expand it into a 50-word english prompt.
+Your job is to take a short, simple user scenario and expand it into a 50-word english prompt.
 
-CRITICAL: The User Scenario is the FOUNDATION of the image. You MUST build the environment, background, and action exactly as described by the user. DO NOT default to indoor/studio settings unless specifically asked.
+CRITICAL RULES:
+1. Scenario Isolation: The current User Scenario is ABSOLUTE. Do NOT add objects (like guitars, cars, pets) from the memory context unless explicitly requested now. Memory is for style/quality persistence ONLY.
+2. Background Fidelity: If the user says "beach", ONLY show a beach. Do not add indoor elements or studios.
+3. Adult Persona: Always ensure the subject looks like an adult (20-40 years old). Absolutely NO children or teenagers.
 
 User Scenario: "${prompt}"
 
@@ -38,10 +41,9 @@ Subject Attributes:
 
 Rules:
 1. Translate to English.
-2. The user scenario is the PRIMARY FOCUS. If the user says "beach", the entire background must be a detailed beach.
+2. The user scenario is the PRIMARY FOCUS. 
 3. Character attributes are "locked in" for the subject.
-4. Add professional camera and lighting details suitable for the requested scenario.
-5. Output ONLY the raw prompt text.`;
+4. Output ONLY the raw prompt text.`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 

@@ -88,12 +88,14 @@ export function AIStudio() {
         characterPromptBase: ''
     });
 
-    // ... sync logic ...
+    // ONLY sync character profile from user when switching TO consistent mode or on initial mount if saved character exists
     useEffect(() => {
-        if (user?.savedCharacter) {
+        if (mode === 'consistent' && user?.savedCharacter) {
             setCharProfile(user.savedCharacter);
         }
-    }, [user?.savedCharacter]);
+    }, [mode, user?.savedCharacter]);
+    
+    // Remove the previous reactive sync that was overwriting manual changes in 'new' mode
 
     // Generation State
     const [prompt, setPrompt] = useState('');
