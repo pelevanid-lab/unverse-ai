@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     }
 
     // Call the direct Gemini REST API
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     if (!geminiResponse.ok) {
       const errorData = await geminiResponse.text();
       console.error("Gemini API Error:", errorData);
-      throw new Error("Failed to generate caption from Gemini.");
+      throw new Error(`Gemini API Hatası: ${errorData}`);
     }
 
     const geminiData = await geminiResponse.json();
