@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { generateCaption } from '@/lib/CopilotEngine';
 import { useTranslations } from 'next-intl';
 
 interface EditMediaModalProps {
@@ -43,11 +42,39 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
   const [scheduledFor, setScheduledFor] = useState<Date | undefined>(
     media.status === 'scheduled' && media.scheduledFor ? new Date(media.scheduledFor) : undefined
   );
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
 
-  const handleGenerateCaption = () => {
-    const generated = generateCaption(media.prompt || "", contentType);
-    setCaption(generated);
-    toast({ title: t('captionGenerated'), description: t('captionGeneratedDesc') });
+  const handleGenerateCaption = async () => {
+    if (!media.mediaUrl) return;
+    setIsGeneratingCaption(true);
+    try {
+      const promptToUse = media.prompt || media.aiPrompt || "";
+      const response = await fetch('/api/ai/generate-caption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          imageUrl: media.mediaUrl, 
+          prompt: promptToUse, 
+          contentType 
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || t('captionGenerationFailed') || 'Generation failed');
+      }
+
+      const data = await response.json();
+      if (data.caption) {
+        setCaption(data.caption);
+        toast({ title: t('captionGenerated'), description: t('captionGeneratedDesc') });
+      }
+    } catch (error: any) {
+      console.error("Caption generation error:", error);
+      toast({ variant: 'destructive', title: t('captionGenerationFailed') || 'Error', description: error.message });
+    } finally {
+      setIsGeneratingCaption(false);
+    }
   };
 
   const handlePublish = async () => {
@@ -178,9 +205,11 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={handleGenerateCaption}
+                                disabled={isGeneratingCaption}
                                 className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
                             >
-                                <Wand2 size={12} /> {t('generateCaption')}
+                                {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />} 
+                                {isGeneratingCaption ? t('generating') || 'Generating...' : t('generateCaption')}
                             </Button>
                           </div>
                           <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t('captionPlaceholder')} className="bg-input/50 resize-none h-24" maxLength={280} />

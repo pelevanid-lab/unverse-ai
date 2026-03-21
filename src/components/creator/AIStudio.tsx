@@ -95,6 +95,7 @@ export function AIStudio() {
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [mediaId, setMediaId] = useState<string | null>(null);
     const [enhancedPromptUsed, setEnhancedPromptUsed] = useState<string | null>(null);
+    const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
     
     const handleSatisfactionScore = async (score: number) => {
         if (!logId) return;
@@ -162,6 +163,45 @@ export function AIStudio() {
         };
         reader.readAsDataURL(file);
     };
+
+    const handleEnhancePrompt = async () => {
+        if (!prompt.trim() || !user) return;
+        setIsEnhancingPrompt(true);
+        try {
+            const characterToUse = mode === 'consistent' 
+                ? (user.savedCharacter as CharacterProfile) 
+                : (charProfile as CharacterProfile);
+
+            const res = await fetch('/api/ai/enhance-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt,
+                    character: characterToUse,
+                    style: selectedStyle,
+                    composition,
+                    outfit: outfitLockEnabled ? lockedOutfit : undefined
+                })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || t('enhanceFailed') || 'Prompt enhancement failed.');
+            }
+
+            const data = await res.json();
+            if (data.enhancedPrompt) {
+                setPrompt(data.enhancedPrompt);
+                toast({ title: t('enhanceSuccess') || "Zenginleştirme Başarılı", description: t('enhanceSuccessDesc') || "Promptunuz profesyonel seviyeye çıkarıldı! ✨" });
+            }
+        } catch (error: any) {
+            console.error("Enhance prompt error:", error);
+            toast({ variant: 'destructive', title: "Hata", description: error.message });
+        } finally {
+            setIsEnhancingPrompt(false);
+        }
+    };
+
 
     const handleGenerate = async (overrideImage?: string) => {
         const imageToUse = overrideImage || refImage;
@@ -622,14 +662,21 @@ export function AIStudio() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5">
-                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                                            <Sparkles size={14} className="text-primary" />
+                                    <Button 
+                                        variant="outline"
+                                        onClick={handleEnhancePrompt}
+                                        disabled={!prompt.trim() || isEnhancingPrompt || generating}
+                                        className="w-full flex items-center justify-start gap-3 p-3 h-auto bg-primary/5 hover:bg-primary/20 border-primary/20 rounded-2xl transition-all font-normal text-left group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                            {isEnhancingPrompt ? <Loader2 size={14} className="text-primary animate-spin" /> : <Sparkles size={14} className="text-primary group-hover:animate-pulse" />}
                                         </div>
-                                        <p className="text-[10px] text-muted-foreground flex-1">
-                                            {t('copilotMessage', { composition: composition === 'solo' ? t('soloMode') : t('duoMode') })}
-                                        </p>
-                                    </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs font-bold text-primary">{t('enhanceWithCopilot') || "Copilot: Metni Zenginleştir"}</p>
+                                            <p className="text-[10px] text-muted-foreground">{t('enhanceWithCopilotDesc') || "Gemini AI ile hayal gücünüzü 50 kelimelik profesyonel bir prompta dönüştürün."}</p>
+                                        </div>
+                                    </Button>
+
 
                                     <Button 
                                         onClick={() => handleGenerate()}
