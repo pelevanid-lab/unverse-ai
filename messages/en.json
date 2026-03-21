@@ -285,6 +285,8 @@
     "fluxPainting": "Flux is painting your imagination...",
     "resultingMasterpiece": "Resulting Masterpiece",
     "characterTraits": "Character Traits",
+    "characterName": "Character Name",
+    "characterNamePlaceholder": "Unique name for your persona",
     "lockAsCharacter": "Lock as Character",
     "noCharacterToLock": "You don't have a locked main character yet. Please create a profile below or produce a new photo and lock it.",
     "satisfaction": "How satisfied are you?",

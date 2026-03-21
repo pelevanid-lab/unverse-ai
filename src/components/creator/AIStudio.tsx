@@ -80,6 +80,13 @@ export function AIStudio() {
         characterPromptBase: ''
     });
 
+    // Sync charProfile when user data changes
+    useEffect(() => {
+        if (user?.savedCharacter) {
+            setCharProfile(user.savedCharacter);
+        }
+    }, [user?.savedCharacter]);
+
     // Generation State
     const [prompt, setPrompt] = useState('');
     const [selectedStyle, setSelectedStyle] = useState<PromptStyle>('none');
@@ -467,7 +474,13 @@ export function AIStudio() {
                                     user?.savedCharacter ? (
                                         <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
                                             <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
-                                                <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
+                                                <Image 
+                                                    src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} 
+                                                    fill 
+                                                    alt="ref" 
+                                                    className="object-cover" 
+                                                    unoptimized // Avoid caching issues for new images
+                                                />
                                             </div>
                                             <div className="flex-1">
                                                 <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
@@ -496,17 +509,27 @@ export function AIStudio() {
                                             <User className="w-4 h-4 text-primary" />
                                             <span className="text-xs font-bold uppercase tracking-wider">{t('characterTraits')}</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-4">
                                             <div className="space-y-1.5">
-                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
-                                                <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
-                                                    <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="female">{t('female')}</SelectItem>
-                                                        <SelectItem value="male">{t('male')}</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('characterName')}</Label>
+                                                <Input 
+                                                    value={charProfile.name} 
+                                                    onChange={e => setCharProfile(p => ({ ...p, name: e.target.value }))}
+                                                    placeholder={t('characterNamePlaceholder')}
+                                                    className="bg-black/20 border-white/5 h-9 text-xs"
+                                                />
                                             </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
+                                                    <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
+                                                        <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="female">{t('female')}</SelectItem>
+                                                            <SelectItem value="male">{t('male')}</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             <div className="space-y-1.5">
                                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
                                                 <Input 
@@ -533,6 +556,7 @@ export function AIStudio() {
                                                     placeholder={t('faceStylePlaceholder')}
                                                     className="bg-black/20 border-white/5 h-9 text-xs"
                                                 />
+                                            </div>
                                             </div>
                                         </div>
                                     </div>
@@ -838,7 +862,7 @@ export function AIStudio() {
                                         {activeTab === 'standard' && mode === 'new' && imageUrl && (
                                             <Button 
                                                 variant="ghost" 
-                                                onClick={() => setShowCharacterEditor(true)}
+                                                onClick={handleSetAsMainCharacter}
                                                 className="w-full h-12 rounded-2xl border border-primary/20 text-primary font-bold gap-2 text-xs animate-in slide-in-from-bottom-2"
                                             >
                                                 <Lock size={14} /> {t('lockAsCharacter')}

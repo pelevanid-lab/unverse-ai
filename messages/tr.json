@@ -220,6 +220,8 @@
     "publishSuccess": "Başarılı!",
     "publishSuccessDesc": "Şaheseriniz başarıyla yayınlandı.",
     "characterTraits": "Karakter Özellikleri",
+    "characterName": "Karakter Adı",
+    "characterNamePlaceholder": "Persona için benzersiz bir isim",
     "lockAsCharacter": "Karakter Olarak Kilitle",
     "noCharacterToLock": "Henüz kilitli bir ana karakteriniz yok. Lütfen aşağıdan profil oluşturun veya yeni bir fotoğraf üretip kilitleyin.",
     "publishingError": "Yayın Hatası",
