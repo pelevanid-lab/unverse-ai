@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, Check, X, Globe, Lock, Clock, Coins, Package, Send, Sparkles, User, Save, RefreshCcw, AlertCircle, Users, Star } from 'lucide-react';
+import { Loader2, Wand2, Check, X, Globe, Lock, Clock, Coins, Package, Send, Sparkles, User, Save, RefreshCcw, AlertCircle, Users, Star, Container } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -243,19 +243,27 @@ export function AIStudio() {
         }
     };
 
-    const handleSaveToContainer = async () => {
-        if (!mediaId || publishing) return;
+    const handleSaveToPool = async () => {
+        if (!imageUrl || !user?.uid || publishing) return;
         setPublishing(true);
         try {
-            // Keep status as 'draft' but perhaps update some metadata if needed.
-            // Based on user feedback, "Havuza Kaydet" should not publish immediately.
-            const mediaRef = doc(db, 'creator_media', mediaId);
-            await updateDoc(mediaRef, {
-                status: 'draft', // Ensure it stays in the container/pool
-                updatedAt: Date.now()
+            // "Havuza Kaydet" now creates the draft manually
+            const mediaDocRef = await addDoc(collection(db, 'creator_media'), {
+                creatorId: user.uid,
+                mediaUrl: imageUrl,
+                mediaType: 'image',
+                status: 'draft',
+                createdAt: Date.now(),
+                prompt: prompt,
+                isAI: true,
+                aiPrompt: prompt,
+                aiEnhancedPrompt: enhancedPromptUsed || prompt,
+                paymentReference: logId // using the logId returned from generation
             });
+            setMediaId(mediaDocRef.id);
             toast({ title: t('savedInPool'), description: t('savedInPoolDesc') });
         } catch (e) {
+            console.error("Error saving to pool:", e);
             toast({ variant: 'destructive', title: t('saveFailed') });
         } finally {
             setPublishing(false);
@@ -326,11 +334,13 @@ export function AIStudio() {
                     <TabsTrigger value="standard" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
                         <Wand2 size={16} /> {t('tabStandard')}
                     </TabsTrigger>
-                    <TabsTrigger value="digitalTwin" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
+                    <TabsTrigger value="digitalTwin" disabled className="rounded-full py-3 font-bold text-xs gap-2 relative group opacity-50">
                         <Sparkles size={16} /> {t('tabDigitalTwin')}
+                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[8px] bg-primary text-white border-none">{t('comingSoon')}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="aiEdit" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
+                    <TabsTrigger value="aiEdit" disabled className="rounded-full py-3 font-bold text-xs gap-2 relative group opacity-50">
                         <RefreshCcw size={16} /> {t('tabAiEdit')}
+                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[8px] bg-primary text-white border-none">{t('comingSoon')}</Badge>
                     </TabsTrigger>
                 </TabsList>
 
@@ -595,8 +605,13 @@ export function AIStudio() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="digitalTwin" className="mt-0 space-y-6">
-                        <Card className="glass-card border-white/10 h-fit">
+                    <TabsContent value="digitalTwin" className="mt-0 space-y-6 relative">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
+                            <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
+                            <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
+                            <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
+                        </div>
+                        <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
                             <CardContent className="p-6 space-y-6">
                                 <div className="space-y-4">
                                     <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
@@ -658,15 +673,20 @@ export function AIStudio() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="aiEdit" className="mt-0 space-y-6">
-                        <div className="space-y-1 mb-4 px-2">
+                    <TabsContent value="aiEdit" className="mt-0 space-y-6 relative">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
+                            <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
+                            <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
+                            <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
+                        </div>
+                        <div className="space-y-1 mb-4 px-2 opacity-20 pointer-events-none">
                             <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
                                 <RefreshCcw className="text-primary" /> {t('tabAiEdit')}
                                 <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20 text-[10px]">3 ULC</Badge>
                             </h2>
                             <p className="text-sm text-muted-foreground">{t('aiEditDesc')}</p>
                         </div>
-                        <Card className="glass-card border-white/10 h-fit">
+                        <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
                             <CardContent className="p-6 space-y-6">
                                 <div className="space-y-4">
                                     <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
@@ -767,11 +787,11 @@ export function AIStudio() {
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase text-center mt-4 tracking-widest">{t('selectAction')}</p>
                                         
                                         <Button 
-                                            onClick={handlePublishDirectly}
-                                            disabled={publishing}
+                                            onClick={handleSaveToPool}
+                                            disabled={publishing || !imageUrl}
                                             className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-3"
                                         >
-                                            <Globe className="w-5 h-5" />
+                                            <Container className="w-5 h-5" />
                                             {publishing ? t('publishingBtn') : t('saveToContainer')}
                                         </Button>
                                         
@@ -791,12 +811,8 @@ export function AIStudio() {
                                             </Button>
                                             <Button 
                                                 variant="outline"
-                                                onClick={() => {
-                                                    setActiveTab('aiEdit');
-                                                    setRefImage(imageUrl);
-                                                    setImageUrl(null);
-                                                }}
-                                                className="h-12 rounded-2xl border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary font-bold gap-2 text-xs"
+                                                disabled
+                                                className="h-12 rounded-2xl border-white/10 opacity-50 cursor-not-allowed font-bold gap-2 text-xs"
                                             >
                                                 <RefreshCcw size={14} /> {t('editBtn')}
                                             </Button>

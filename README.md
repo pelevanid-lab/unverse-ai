@@ -1,5 +1,5 @@
 
-version= phase1.0.7 AI Studio 2.1
+version.phase.1.0.8 AI Studio 2.2
 # Unverse: AI-Powered SocialFi Ecosystem
 
 Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.

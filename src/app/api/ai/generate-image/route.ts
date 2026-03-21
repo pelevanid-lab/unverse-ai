@@ -95,34 +95,22 @@ export async function POST(req: Request) {
     await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
     const finalUrl = await getDownloadURL(storageRef);
 
-    // Save as draft for the UI container flow
-    const mediaDocRef = await addDoc(collection(db, 'creator_media'), {
-      creatorId: userId,
-      mediaUrl: finalUrl,
-      mediaType: 'image',
-      status: 'draft',
-      createdAt: Date.now(),
-      prompt: prompt,
-      isAI: true,
-      aiPrompt: prompt,
-      aiEnhancedPrompt: enhancedPrompt || prompt,
-      paymentReference: ledgerId
-    });
+    // Save logic removed from here as per user request (no auto-save to pool)
+    // The previous addDoc call to 'creator_media' has been removed.
 
     // 🚀 NEW: Create entry in ai_generation_logs for tracking and feedback
+    // No mediaId here as we are not auto-saving to creator_media anymore
     const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
         userId,
         prompt,
         enhancedPrompt: enhancedPrompt || prompt,
         mediaUrl: finalUrl,
-        mediaId: mediaDocRef.id,
         paymentReference: ledgerId,
         timestamp: serverTimestamp(),
         satisfactionScore: null // Initialize as null
     });
 
     return NextResponse.json({ 
-        mediaId: mediaDocRef.id, 
         logId: logDocRef.id, // Return logId to client for feedback update
         mediaUrl: finalUrl,
         prompt: prompt,
