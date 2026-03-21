@@ -421,21 +421,13 @@ Output ONLY the caption text.`;
      * Toggles AI Creator Mode state.
      * Activation costs 4 ULC (One-time or per-enable fee as per business rule).
      */
-    async toggleCreatorMode(enabled: boolean): Promise<{ success: boolean, ledgerId?: string }> {
+    async activateSubscription(): Promise<{ success: boolean, ledgerId?: string }> {
         if (!this.userId) return { success: false };
         try {
-            if (enabled) {
-                // Charge activation fee (4 ULC)
-                const ledgerId = await processAiCreatorActivation(this.userId);
-                return { success: true, ledgerId };
-            } else {
-                // Just toggle off
-                const userRef = doc(db, 'users', this.userId);
-                await updateDoc(userRef, { aiCreatorModeEnabled: false });
-                return { success: true };
-            }
+            const ledgerId = await processAiCreatorActivation(this.userId);
+            return { success: true, ledgerId };
         } catch (error) {
-            console.error("Toggle Creator Mode failed:", error);
+            console.error("Subscription activation failed:", error);
             throw error;
         }
     }
@@ -459,22 +451,30 @@ Output ONLY the caption text.`;
      * Cost: 2 ULC.
      */
     async generateDailyDraft(): Promise<string> {
-        if (!this.user?.aiCreatorModeEnabled) throw new Error("AI Creator Mode is disabled.");
+        const now = Date.now();
+        if (!this.user?.aiCreatorModeExpiresAt || this.user.aiCreatorModeExpiresAt < now) {
+            throw new Error("AI Copilot subscription is inactive or expired.");
+        }
         
         // Check 24h limit
         const lastRun = this.user?.aiCreatorModeLastRunAt || 0;
-        const now = Date.now();
         if (now - lastRun < 24 * 60 * 60 * 1000) {
             throw new Error("Already generated a draft today.");
         }
 
-        // 1. Charge fee (2 ULC)
+        // 1. Charge fee (1 ULC per content/draft)
         await processAiCreatorGeneration(this.userId);
 
-        // 2. Prepare Prompt (Memory or Cold Start)
+        // 2. Prepare Prompt (Using Zero-Day Config if available)
+        const config = this.user.aiCreatorModeConfig;
         let basePrompt = "A professional high-quality portrait";
+        
+        if (config) {
+            basePrompt = `Portrait of ${config.personaName}, niche: ${config.niche}, tone: ${config.tone}, vibe: ${config.vibe}. Style must be consistent with ${config.personaName}'s brand.`;
+        }
+
         const memory = await this.getMemoryContext();
-        if (!memory) {
+        if (!memory && !config) {
             basePrompt += ", " + this.getColdStartPrompt();
         }
 

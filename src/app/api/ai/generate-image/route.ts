@@ -54,8 +54,15 @@ export async function POST(req: Request) {
     };
 
     if (image && cost === 5) {
-        input.image = image;
-        input.prompt_strength = 0.8;
+        // Upgrade Standard mode to Dev-Img2Img if a reference is provided
+        model = "lucataco/flux-dev-img2img:cc9f0f970baaa9d00927e1a329d9fdc4eb2244a56c3216c52a0889c162590740";
+        input = {
+            prompt: finalPromptForAI,
+            image: image,
+            prompt_strength: 0.8,
+            num_inference_steps: 28,
+            guidance_scale: 3.5
+        };
     }
 
     // Digital Twin specialized model (Identity Preservation)
@@ -74,8 +81,9 @@ export async function POST(req: Request) {
       input = {
         prompt: finalPromptForAI,
         image: image,
-        mask: mask || undefined,
-        guidance: 30
+        mask: mask || image, // Fallback to image if no mask (global edit)
+        guidance: 30,
+        num_inference_steps: 20
       };
     }
 

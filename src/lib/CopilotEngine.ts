@@ -123,3 +123,11 @@ export function generateCaption(prompt: string, contentType: 'public' | 'premium
         default: return "Check this out!";
     }
 }
+
+export function getDailyStrategySuggestions(personaName: string, niche: string): { title: string, content: string }[] {
+    return [
+        { title: "Peak Time", content: `Since you're in the ${niche} niche, engagement peaks at 7 PM for ${personaName}.` },
+        { title: "Visual Trend", content: "Cyber-organic lighting is trending. Try adding 'neon vines' to your next prompt." },
+        { title: "Fan Reward", content: "Drop a 5-unit limited edition for your loyal subscribers this weekend." }
+    ];
+}

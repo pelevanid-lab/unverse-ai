@@ -500,7 +500,7 @@ export async function toggleUserFreeze(uid: string, freeze: boolean) {
  * Ratio: 70% Treasury / 30% Burn
  */
 export async function processAiGenerationPayment(userId: string, cost: number, isRegeneration?: boolean): Promise<string> {
-    const finalCost = isRegeneration ? 3 : cost;
+    const finalCost = isRegeneration ? (cost === 8 ? 4 : (cost === 5 ? 3 : cost)) : cost;
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);
@@ -589,18 +589,22 @@ export async function refundAiGenerationPayment(userId: string, ledgerId: string
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorActivation(userId: string): Promise<string> {
-    const cost = 2;
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);
         if (!userSnap.exists()) throw new Error("User not found");
         
         const userData = userSnap.data() as UserProfile;
-        
-        // FREE MONTH LOGIC: Check if account is < 30 days old
-        const accountAge = Date.now() - (userData.createdAt || Date.now());
-        const isFreeMonth = accountAge < 30 * 24 * 60 * 60 * 1000;
-        const finalCost = isFreeMonth ? 0 : 2;
+        const now = Date.now();
+
+        // Check if already active
+        if (userData.aiCreatorModeExpiresAt && userData.aiCreatorModeExpiresAt > now) {
+            throw new Error("ALREADY_ACTIVE");
+        }
+
+        // Logic: First time is FREE. Subsequent activations are 5 ULC.
+        const firstTime = !userData.aiCreatorModeActivatedAt;
+        const finalCost = firstTime ? 0 : 5;
 
         const balance = userData.ulcBalance?.available || 0;
         if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
@@ -608,26 +612,32 @@ export async function processAiCreatorActivation(userId: string): Promise<string
         const treasuryShare = Number((finalCost * 0.70).toFixed(2));
         const burnShare = Number((finalCost - treasuryShare).toFixed(2));
 
+        const expiresAt = now + (30 * 24 * 60 * 60 * 1000);
+
         transaction.update(userRef, {
             'ulcBalance.available': increment(-finalCost),
             aiCreatorModeEnabled: true,
-            aiCreatorModeLastChargedAt: Date.now()
+            aiCreatorModeActivatedAt: firstTime ? now : userData.aiCreatorModeActivatedAt,
+            aiCreatorModeExpiresAt: expiresAt,
+            aiCreatorModeLastChargedAt: now
         });
 
-        const statsRef = doc(db, 'config', 'stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: increment(treasuryShare),
-            totalBurnedULC: increment(burnShare)
-        }, { merge: true });
+        if (finalCost > 0) {
+            const statsRef = doc(db, 'config', 'stats');
+            transaction.set(statsRef, {
+                totalTreasuryULC: increment(treasuryShare),
+                totalBurnedULC: increment(burnShare)
+            }, { merge: true });
+        }
 
         const ledgerRef = doc(collection(db, 'ledger'));
         transaction.set(ledgerRef, {
             type: 'ai_creator_activation',
             fromUserId: userId,
-            amount: cost,
+            amount: finalCost,
             currency: 'ULC',
-            timestamp: Date.now(),
-            details: { treasury: treasuryShare, burn: burnShare }
+            timestamp: now,
+            details: { treasury: treasuryShare, burn: burnShare, expiresAt }
         });
 
         return ledgerRef.id;
@@ -646,12 +656,14 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
         if (!userSnap.exists()) throw new Error("User not found");
         
         const userData = userSnap.data() as UserProfile;
+        const now = Date.now();
 
-        // FREE MONTH LOGIC: Check if account is < 30 days old
-        const accountAge = Date.now() - (userData.createdAt || Date.now());
-        const isFreeMonth = accountAge < 30 * 24 * 60 * 60 * 1000;
-        const finalCost = isFreeMonth ? 0 : 1;
+        // Ensure active
+        if (!userData.aiCreatorModeExpiresAt || userData.aiCreatorModeExpiresAt < now) {
+            throw new Error("COPILOT_MODE_EXPIRED");
+        }
 
+        const finalCost = cost;
         const balance = userData.ulcBalance?.available || 0;
         if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
 
@@ -660,7 +672,7 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
 
         transaction.update(userRef, {
             'ulcBalance.available': increment(-finalCost),
-            aiCreatorModeLastRunAt: Date.now()
+            aiCreatorModeLastRunAt: now
         });
 
         const statsRef = doc(db, 'config', 'stats');
@@ -673,9 +685,9 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
         transaction.set(ledgerRef, {
             type: 'ai_creator_generation',
             fromUserId: userId,
-            amount: cost,
+            amount: finalCost,
             currency: 'ULC',
-            timestamp: Date.now(),
+            timestamp: now,
             details: { treasury: treasuryShare, burn: burnShare }
         });
 

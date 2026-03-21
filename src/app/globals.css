@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 270 12% 11%;
+    --background: 255 15% 7%;
     --foreground: 0 0% 100%;
-    --card: 270 12% 14%;
+    --card: 255 15% 10%;
     --card-foreground: 0 0% 100%;
-    --popover: 270 12% 11%;
+    --popover: 255 15% 7%;
     --popover-foreground: 0 0% 100%;
-    --primary: 258 100% 60%;
+    --primary: 255 85% 65%; /* Softened, more vibrant violet-blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 231 100% 79%;
-    --secondary-foreground: 270 12% 11%;
-    --muted: 270 12% 20%;
-    --muted-foreground: 270 5% 70%;
-    --accent: 231 100% 79%;
-    --accent-foreground: 270 12% 11%;
+    --secondary: 255 15% 15%; /* Darker surface for better nesting */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 255 15% 15%;
+    --muted-foreground: 255 10% 65%;
+    --accent: 255 85% 65%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 270 12% 20%;
-    --input: 270 12% 20%;
-    --ring: 258 100% 60%;
-    --radius: 0.75rem;
+    --border: 255 15% 15%;
+    --input: 255 15% 15%;
+    --ring: 255 85% 65%;
+    --radius: 1rem;
   }
 }
 
@@ -44,5 +44,5 @@
 }
 
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#7333FF] to-[#95A6FF];
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-[#8B5CF6] to-[#C4B5FD];
 }

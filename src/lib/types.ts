@@ -72,6 +72,15 @@ export interface UserProfile {
         activatedAt: number;
     };
     aiCreatorModeEnabled?: boolean;
+    aiCreatorModeExpiresAt?: number;
+    aiCreatorModeActivatedAt?: number;
+    aiCreatorModeConfig?: {
+        personaName: string;
+        niche: string;
+        tone: string;
+        targetAudience: string;
+        vibe: string;
+    };
     aiCreatorModeLastChargedAt?: number;
     aiCreatorModeLastRunAt?: number;
     aiPreferences?: AIPreference;

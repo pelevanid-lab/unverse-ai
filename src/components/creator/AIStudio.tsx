@@ -104,7 +104,6 @@ export function AIStudio() {
     const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
     const [lastNegativePrompt, setLastNegativePrompt] = useState<string | null>(null);
     const [isDailyDraftLoading, setIsDailyDraftLoading] = useState(false);
-    const [aiCreatorMode, setAiCreatorMode] = useState(user?.aiCreatorModeEnabled || false);
 
     const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -213,25 +212,6 @@ export function AIStudio() {
 
 
 
-    const handleToggleAiCreatorMode = async (enabled: boolean) => {
-        if (!user) return;
-        try {
-            const result = await copilot.toggleCreatorMode(enabled);
-            if (result.success) {
-                setAiCreatorMode(enabled);
-                toast({
-                    title: enabled ? "AI Creator Mode Aktif" : "AI Creator Mode Kapatıldı",
-                    description: enabled ? "Günde 1 taslak otomatik üretilecek. (4 ULC Tahsil edildi)" : "Otomatik üretim durduruldu.",
-                });
-            }
-        } catch (err: any) {
-            toast({
-                title: "İşlem Başarısız",
-                description: err.message,
-                variant: "destructive"
-            });
-        }
-    };
 
     const handleGenerate = async (overrideImage?: string, isRegen: boolean = false) => {
         const imageToUse = overrideImage || refImage;
@@ -253,7 +233,10 @@ export function AIStudio() {
             return;
         }
 
-        if ((user.ulcBalance?.available || 0) < 3) {
+        const baseCost = activeTab === 'digitalTwin' ? 20 : (activeTab === 'aiEdit' ? 8 : 5);
+        const finalCost = isRegen ? (baseCost === 8 ? 4 : (baseCost === 5 ? 3 : baseCost)) : baseCost;
+
+        if ((user.ulcBalance?.available || 0) < finalCost) {
             toast({ variant: "destructive", title: t('insufficientULC'), description: t('insufficientULCDesc') });
             return;
         }
@@ -267,8 +250,7 @@ export function AIStudio() {
         try {
             await copilot.init();
 
-            // 2. Prepare Payment (Standard: 5, Regen: 3, Twin: 20)
-            const baseCost = activeTab === 'digitalTwin' ? 20 : 5;
+            // 2. Process Payment
             const ledgerId = await processAiGenerationPayment(user.uid, baseCost, isRegen);
 
             // 🚀 SMART FLOW: Proactive enhancement
@@ -466,18 +448,6 @@ export function AIStudio() {
                     </div>
 
                     <div className="flex flex-col md:flex-row items-center gap-4">
-                        {/* AI Creator Mode Toggle (V2.1) */}
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 rounded-full border border-white/5">
-                            <Label htmlFor="ai-creator-mode" className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
-                                AI Creator Mode ({ (Date.now() - (user?.createdAt || Date.now()) < 30 * 24 * 60 * 60 * 1000) ? "0 ULC - HEDİYE" : "4 ULC" })
-                            </Label>
-                            <Switch 
-                                id="ai-creator-mode" 
-                                checked={aiCreatorMode} 
-                                onCheckedChange={handleToggleAiCreatorMode}
-                            />
-                        </div>
-
                         {/* Action-based Onboarding Buttons (V2 CTA Driven) */}
                         <div className="flex gap-2">
                         {copilotRecommendation?.cta && (
@@ -510,12 +480,13 @@ export function AIStudio() {
                     <TabsTrigger value="standard" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
                         <Wand2 size={16} /> {t('tabStandard')}
                     </TabsTrigger>
-                    <TabsTrigger value="digitalTwin" disabled className="rounded-full py-3 font-bold text-xs gap-2 relative group opacity-50">
+                    <TabsTrigger value="digitalTwin" className="rounded-full py-3 font-bold text-xs gap-2 relative group">
                         <Sparkles size={16} /> {t('tabDigitalTwin')}
-                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[8px] bg-primary text-white border-none">{t('comingSoon')}</Badge>
                     </TabsTrigger>
                     <TabsTrigger value="aiEdit" className="rounded-full py-3 font-bold text-xs gap-2 relative group">
-                        <RefreshCcw size={16} /> {t('tabAiEdit')}
+                        <RefreshCcw size={16} /> {t('tabAiEdit')} 
+                        <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 text-[8px] h-4 px-1.5 ml-1">BETA</Badge>
+                        <Badge variant="outline" className="text-[8px] opacity-0 group-hover:opacity-100 transition-opacity">8 ULC</Badge>
                     </TabsTrigger>
                 </TabsList>
 

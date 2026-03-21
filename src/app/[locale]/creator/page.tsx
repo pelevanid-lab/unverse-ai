@@ -4,7 +4,7 @@
 import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone, Package, Wand2, CreditCard } from 'lucide-react';
+import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone, Package, Wand2, CreditCard, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -161,6 +161,21 @@ export default function CreatorPanel() {
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-fuchsia-400 transition-colors" />
+                    </CardContent>
+                </Card>
+            </Link>
+
+            <Link href="/creator/copilot" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-primary/5">
+                    <CardContent className="p-6 flex items-center justify-between">
+                        <div className='flex items-center gap-4'>
+                            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"><Sparkles className="w-6 h-6 text-primary" /></div>
+                            <div>
+                                <p className="font-bold">AI Copilot</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Auto-pilot for your AI persona & monetization</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardContent>
                 </Card>
             </Link>
