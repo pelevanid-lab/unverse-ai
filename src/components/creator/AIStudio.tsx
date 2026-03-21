@@ -53,10 +53,12 @@ export function AIStudio() {
         }
     };
 
+    const [isRegenerating, setIsRegenerating] = useState(false);
     const [mode, setMode] = useState<'new' | 'consistent'>(user?.savedCharacter ? 'consistent' : 'new');
     const currentCost = activeTab === 'digitalTwin'
         ? (mode === 'consistent' ? 3 : 20)
-        : (activeTab === 'aiEdit' ? 3 : 5);
+        : (activeTab === 'aiEdit' ? (isRegenerating ? 4 : 8) : 5);
+    
     const [composition, setComposition] = useState<CompositionMode>('solo');
     const [showCharacterEditor, setShowCharacterEditor] = useState(false);
 
@@ -83,7 +85,7 @@ export function AIStudio() {
         characterPromptBase: ''
     });
 
-    // Sync charProfile when user data changes
+    // ... sync logic ...
     useEffect(() => {
         if (user?.savedCharacter) {
             setCharProfile(user.savedCharacter);
@@ -104,8 +106,6 @@ export function AIStudio() {
     const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
     const [lastNegativePrompt, setLastNegativePrompt] = useState<string | null>(null);
     const [isDailyDraftLoading, setIsDailyDraftLoading] = useState(false);
-
-    const [isRegenerating, setIsRegenerating] = useState(false);
 
     const copilot = new Copilot(user?.uid || '');
 
@@ -787,12 +787,7 @@ export function AIStudio() {
                         </TabsContent>
 
                         <TabsContent value="digitalTwin" className="mt-0 space-y-6 relative">
-                            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
-                                <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
-                                <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
-                                <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
-                            </div>
-                            <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
+                            <Card className="glass-card border-white/10 h-fit">
                                 <CardContent className="p-6 space-y-6">
                                     <div className="space-y-4">
                                         <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
@@ -858,7 +853,7 @@ export function AIStudio() {
                             <div className="space-y-1 mb-4 px-2">
                                 <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
                                     <RefreshCcw className="text-primary" /> {t('tabAiEdit')}
-                                    <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20 text-[10px]">3 ULC</Badge>
+                                    <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20 text-[10px]">8 ULC</Badge>
                                 </h2>
                                 <p className="text-sm text-muted-foreground">{t('aiEditDesc')}</p>
                             </div>

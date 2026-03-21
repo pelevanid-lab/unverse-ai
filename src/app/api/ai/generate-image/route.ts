@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         id_weight: 1,
         num_inference_steps: 20
       };
-    } else if (cost === 3 && image) {
+    } else if ((cost === 8 || cost === 4) && image) {
       // AI Edit / In-painting specialized model
       model = "black-forest-labs/flux-fill";
       input = {
