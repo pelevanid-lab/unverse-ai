@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [claims, setClaims] = useState<ClaimRequest[]>([]);
   const [vestingSchedules, setVestingSchedules] = useState<VestingSchedule[]>([]);
   const [loading, setLoading] = useState<string | boolean>(false);
+  const [editConfig, setEditConfig] = useState<{ cost: number, treasury: number, burn: number }>({ cost: 3, treasury: 7, burn: 3 });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,7 +32,14 @@ export default function AdminDashboard() {
 
     const unsubConfig = onSnapshot(doc(db, 'config', 'system'), (snap) => {
       const conf = snap.exists() ? (snap.data() as SystemConfig) : null;
-      setConfig(conf);
+      if (conf) {
+        setConfig(conf);
+        setEditConfig({
+          cost: conf.ai_generation_cost || 3,
+          treasury: conf.ai_generation_treasury_split || 7,
+          burn: conf.ai_generation_burn_split || 3
+        });
+      }
       if (conf && conf.admin_wallet_address && walletAddress &&
           conf.admin_wallet_address.toLowerCase() === walletAddress.toLowerCase()) {
         setAuthorized(true);
@@ -107,6 +115,21 @@ export default function AdminDashboard() {
   };
 
 
+
+  const handleUpdateAiConfig = async () => {
+    setLoading('ai-config');
+    try {
+        await updateDoc(doc(db, 'config', 'system'), {
+            ai_generation_cost: editConfig.cost,
+            ai_generation_treasury_split: editConfig.treasury,
+            ai_generation_burn_split: editConfig.burn
+        });
+        toast({ title: "AI Configuration Updated" });
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Update Failed", description: e.message });
+    }
+    setLoading(false);
+  };
 
   const handleGenesisAllocation = async () => {
     if (!user) return;
@@ -370,6 +393,58 @@ export default function AdminDashboard() {
              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Button onClick={handleGenesisAllocation} disabled={!!loading} className="w-full h-12 bg-yellow-400 text-black font-bold gap-2">
                    {loading === 'genesis' ? <Loader2 className="animate-spin"/> : <><Sparkles className="w-4 h-4"/> Claim Admin Allocation (50k ULC)</>}
+                </Button>
+             </CardContent>
+           </Card>
+
+           <Card className="glass-card border-blue-500/50">
+             <CardHeader>
+               <CardTitle>AI Production Settings</CardTitle>
+               <CardDescription>Configure generation costs and payment splits (Treasury vs Burn).</CardDescription>
+             </CardHeader>
+             <CardContent className="space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold opacity-50 uppercase">Base Cost (ULC)</label>
+                        <input 
+                            type="number" 
+                            value={editConfig.cost} 
+                            onChange={(e) => setEditConfig({...editConfig, cost: Number(e.target.value)})}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold opacity-50 uppercase">Treasury Split</label>
+                        <input 
+                            type="number" 
+                            value={editConfig.treasury} 
+                            onChange={(e) => setEditConfig({...editConfig, treasury: Number(e.target.value)})}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold opacity-50 uppercase">Burn Split</label>
+                        <input 
+                            type="number" 
+                            value={editConfig.burn} 
+                            onChange={(e) => setEditConfig({...editConfig, burn: Number(e.target.value)})}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg h-10 px-3 text-sm"
+                        />
+                    </div>
+                </div>
+                
+                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <p className="text-xs text-blue-400">
+                        Current Ratio: {((editConfig.treasury / (editConfig.treasury + editConfig.burn)) * 100).toFixed(0)}% Treasury / {((editConfig.burn / (editConfig.treasury + editConfig.burn)) * 100).toFixed(0)}% Burn
+                    </p>
+                </div>
+
+                <Button 
+                    onClick={handleUpdateAiConfig} 
+                    disabled={loading === 'ai-config'} 
+                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                >
+                    {loading === 'ai-config' ? <Loader2 className="animate-spin"/> : 'Update AI Configuration'}
                 </Button>
              </CardContent>
            </Card>

@@ -41,6 +41,7 @@ export function AIStudio() {
         setSatisfactionScore(null);
         // - **AI Edit**: Selective in-painting to change backgrounds or objects while preserving the main character (3 ULC) (Frozen).
         // - **Character Locking**: In 'New Character' mode, users can now immediately "Lock" a generated result as their main persona for future consistent generations.
+        // - **Economic Model**: Treasury (70%) and Burn (30%) logic is now fully dynamic and controlled by the `config/system` document in Firestore (`ai_generation_treasury_split` and `ai_generation_burn_split`).
         // - **Persona Verification**: The 'Consistent' mode now provides clear feedback if no character is yet locked, with a guided setup flow.
         // We keep the prompt in case they want to try the same prompt in another mode, 
         // but clear the refImage if moving to standard
@@ -181,7 +182,9 @@ export function AIStudio() {
             return;
         }
 
-        const characterToUse = mode === 'consistent' ? (user.savedCharacter as CharacterProfile) : null;
+        const characterToUse = mode === 'consistent' 
+            ? (user.savedCharacter as CharacterProfile) 
+            : (charProfile as CharacterProfile); // Use current traits for 'new' mode
         
         setGenerating(true);
         setImageUrl(null);
@@ -453,62 +456,6 @@ export function AIStudio() {
                     </div>
                 )}
 
-            {/* Character Profile Editor */}
-            {showCharacterEditor && (
-                <Card className="border-primary/30 bg-primary/5 animate-in slide-in-from-top-4 rounded-[2rem]">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <User className="w-5 h-5 text-primary" /> {t('setupMainCharacter')}
-                        </CardTitle>
-                        <CardDescription>{t('setupMainCharacterDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
-                                <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
-                                    <SelectTrigger className="bg-black/20 border-white/5"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="female">{t('female')}</SelectItem>
-                                        <SelectItem value="male">{t('male')}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
-                                <Input 
-                                    value={charProfile.hairColor} 
-                                    onChange={e => setCharProfile(p => ({ ...p, hairColor: e.target.value }))}
-                                    placeholder={t('hairColorPlaceholder')}
-                                    className="bg-black/20 border-white/5"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('eyeColor')}</Label>
-                                <Input 
-                                    value={charProfile.eyeColor} 
-                                    onChange={e => setCharProfile(p => ({ ...p, eyeColor: e.target.value }))}
-                                    placeholder={t('eyeColorPlaceholder')}
-                                    className="bg-black/20 border-white/5"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('faceStyle')}</Label>
-                                <Input 
-                                    value={charProfile.faceStyle} 
-                                    onChange={e => setCharProfile(p => ({ ...p, faceStyle: e.target.value }))}
-                                    placeholder={t('faceStylePlaceholder')}
-                                    className="bg-black/20 border-white/5"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex gap-2 justify-end">
-                            <Button variant="ghost" onClick={() => setShowCharacterEditor(false)} className="rounded-xl">{t('cancel')}</Button>
-                            <Button onClick={handleSaveCharacterProfile} className="bg-primary rounded-xl font-bold px-8">{t('saveProfile')}</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Generation Form Column */}
@@ -516,7 +463,7 @@ export function AIStudio() {
                     <TabsContent value="standard" className="mt-0 space-y-6">
                         <Card className="glass-card border-white/10 h-fit">
                             <CardContent className="p-6 space-y-6">
-                                {mode === 'consistent' && (
+                                {mode === 'consistent' ? (
                                     user?.savedCharacter ? (
                                         <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
                                             <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
@@ -535,13 +482,60 @@ export function AIStudio() {
                                             <p className="text-xs text-muted-foreground">{t('noCharacterToLock')}</p>
                                             <Button 
                                                 variant="outline" 
-                                                onClick={() => setShowCharacterEditor(true)}
+                                                onClick={() => setMode('new')}
                                                 className="w-full rounded-xl border-primary/30 text-primary hover:bg-primary/10"
                                             >
-                                                <User className="w-4 h-4 mr-2" /> {t('setupMainCharacter')}
+                                                <User className="w-4 h-4 mr-2" /> {t('newCharacter')}
                                             </Button>
                                         </div>
                                     )
+                                ) : (
+                                    /* Traits integration for New Character mode */
+                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4 animate-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <User className="w-4 h-4 text-primary" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">{t('characterTraits')}</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
+                                                <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
+                                                    <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="female">{t('female')}</SelectItem>
+                                                        <SelectItem value="male">{t('male')}</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
+                                                <Input 
+                                                    value={charProfile.hairColor} 
+                                                    onChange={e => setCharProfile(p => ({ ...p, hairColor: e.target.value }))}
+                                                    placeholder={t('hairColorPlaceholder')}
+                                                    className="bg-black/20 border-white/5 h-9 text-xs"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('eyeColor')}</Label>
+                                                <Input 
+                                                    value={charProfile.eyeColor} 
+                                                    onChange={e => setCharProfile(p => ({ ...p, eyeColor: e.target.value }))}
+                                                    placeholder={t('eyeColorPlaceholder')}
+                                                    className="bg-black/20 border-white/5 h-9 text-xs"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('faceStyle')}</Label>
+                                                <Input 
+                                                    value={charProfile.faceStyle} 
+                                                    onChange={e => setCharProfile(p => ({ ...p, faceStyle: e.target.value }))}
+                                                    placeholder={t('faceStylePlaceholder')}
+                                                    className="bg-black/20 border-white/5 h-9 text-xs"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
 
                                 {/* Outfit Lock Logic */}

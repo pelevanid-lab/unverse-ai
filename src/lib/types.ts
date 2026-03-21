@@ -114,6 +114,9 @@ export interface SystemConfig {
     premium_commission_treasury_ratio?: number;
     subscription_buyback_ratio?: number;
     subscription_treasury_ratio?: number;
+    ai_generation_cost?: number;
+    ai_generation_treasury_split?: number;
+    ai_generation_burn_split?: number;
     pools?: {
         [key: string]: number; // e.g. "reserve": 420000000
     };

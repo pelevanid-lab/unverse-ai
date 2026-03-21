@@ -322,11 +322,14 @@ export async function initializeSystemConfig() {
             TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
             TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
         },
+        ai_generation_cost: 3,
         platform_subscription_fee_split: 0.15,
         subscription_treasury_ratio: 0.67,
         subscription_buyback_ratio: 0.33,
         premium_commission_staking_ratio: 0.33,
         premium_commission_treasury_ratio: 0.67,
+        ai_generation_treasury_split: 7,
+        ai_generation_burn_split: 3,
         pools: {
             reserve: 420000000,
             team: 130000000,
@@ -479,11 +482,13 @@ export async function processAiGenerationPayment(userId: string, cost: number): 
         // The 'cost' parameter is now used directly, removing the shadowed 'const cost = 3;'
         // The fixed shares are replaced with calculated percentages.
 
-        if (balance < cost) {
-            throw new Error("INSUFFICIENT_ULC");
-        }
-        const treasuryShare = Number((cost * 0.7).toFixed(2));
-        const burnShare = Number((cost * 0.3).toFixed(2));
+        const config = await getSystemConfig();
+        const tSplit = config.ai_generation_treasury_split ?? 7;
+        const bSplit = config.ai_generation_burn_split ?? 3;
+        const totalSplit = tSplit + bSplit;
+
+        const treasuryShare = Number((cost * (tSplit / totalSplit)).toFixed(2));
+        const burnShare = Number((cost - treasuryShare).toFixed(2));
 
         // 1. Deduct from user
         transaction.update(userRef, {
@@ -515,8 +520,13 @@ export async function processAiGenerationPayment(userId: string, cost: number): 
 export async function refundAiGenerationPayment(userId: string, ledgerId: string, cost: number): Promise<void> {
     await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
-        const treasuryShare = Number((cost * 0.7).toFixed(2));
-        const burnShare = Number((cost * 0.3).toFixed(2));
+        const config = await getSystemConfig();
+        const tSplit = config.ai_generation_treasury_split ?? 7;
+        const bSplit = config.ai_generation_burn_split ?? 3;
+        const totalSplit = tSplit + bSplit;
+
+        const treasuryShare = Number((cost * (tSplit / totalSplit)).toFixed(2));
+        const burnShare = Number((cost - treasuryShare).toFixed(2));
 
         // 1. Refund user
         transaction.update(userRef, {
