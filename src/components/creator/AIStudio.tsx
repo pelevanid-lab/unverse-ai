@@ -287,10 +287,10 @@ export function AIStudio() {
                 const char = (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile;
                 if (char) {
                     const traits = `Adult ${char.gender}, ${char.hairColor} hair, ${char.eyeColor} eyes, ${char.faceStyle} face`;
-                    const attire = outfitLockEnabled && lockedOutfit ? ` wearing ${lockedOutfit}` : "";
+                    const attire = outfitLockEnabled && lockedOutfit ? `${lockedOutfit}` : "casual clothing";
                     
-                    // SCENE-FIRST Structure: Prioritize the action and environment
-                    finalPromptForGeneration = `SCENE: ${prompt}. SUBJECT: A professional photorealistic adult person with these traits: ${traits}${attire}. Atmospheric lighting, detailed environment, cinematic 8k. NO children.`;
+                    // PROTOCOL V3: OUTFIT -> SCENE -> SUBJECT (Full Body focus)
+                    finalPromptForGeneration = `FULL BODY SHOT, head to toe visibility. OUTFIT: ${attire}. SCENE: ${prompt} at a cinematic location. SUBJECT: A professional photorealistic adult person with these traits: ${traits}. Photorealistic, wide angle, incredibly detailed. NO children. NO indoor studio.`;
                 }
             }
 

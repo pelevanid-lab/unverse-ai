@@ -46,19 +46,20 @@ export async function POST(req: Request) {
     // 2. Call AI Generation using the ENHANCED prompt
     let finalPromptForAI = enhancedPrompt || prompt;
     
-    // Dynamic Negative Prompt based on requested profile
-    let genderSpecificNegative = "child, kid, toddler, teenager, underage";
+    // Dynamic Negative Prompt based on requested profile & scene
+    let negativeFils = "child, kid, toddler, teenager, underage, portrait, close-up, cropped, headshot, macro, room, indoors, studio, apartment, office, domestic, ceiling, wall";
+    
     if (finalPromptForAI.toLowerCase().includes("woman") || finalPromptForAI.toLowerCase().includes("female")) {
-        genderSpecificNegative += ", man, male, facial hair, beard";
+        negativeFils += ", man, male, facial hair, beard";
     } else if (finalPromptForAI.toLowerCase().includes("man") || finalPromptForAI.toLowerCase().includes("male")) {
-        genderSpecificNegative += ", woman, female";
+        negativeFils += ", woman, female";
     }
 
-    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${genderSpecificNegative}` : genderSpecificNegative;
+    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${negativeFils}` : negativeFils;
     
-    // Solo Subject Enforcement
+    // Solo Subject & Full Body Enforcement
     if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
-        finalPromptForAI = `A solo shot of 1 person, ${finalPromptForAI}`;
+        finalPromptForAI = `FULL BODY SHOT, WIDE ANGLE VIEW, 1 adult person, ${finalPromptForAI}`;
     }
 
     let model: any = "black-forest-labs/flux-dev";
