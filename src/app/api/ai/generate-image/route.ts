@@ -54,12 +54,13 @@ export async function POST(req: Request) {
     };
 
     if (image && cost === 5) {
-        // Upgrade Standard mode to Dev-Img2Img if a reference is provided
-        model = "lucataco/flux-dev-img2img:cc9f0f970baaa9d00927e1a329d9fdc4eb2244a56c3216c52a0889c162590740";
+        // Standard mode: Use Flux Dev directly for img2img tasks (more stable slug)
+        model = "black-forest-labs/flux-dev";
         input = {
             prompt: finalPromptForAI,
             image: image,
             prompt_strength: 0.8,
+            num_outputs: 1,
             num_inference_steps: 28,
             guidance_scale: 3.5
         };
@@ -67,21 +68,20 @@ export async function POST(req: Request) {
 
     // Digital Twin specialized model (Identity Preservation)
     if (cost === 20 && image) {
-      model = "zsxkib/flux-pulid:833fb9ac519ea623da8ddbf16ce13d4aba69f962";
+      model = "fofr/flux-pulid";
       input = {
         prompt: finalPromptForAI,
         main_face_image: image,
-        negative_prompt: (negativePrompt ? negativePrompt + ", " : "") + "bad quality, blurry, distorted face, unrealistic, woman if reference is man, person change",
-        id_weight: 1,
+        id_weight: 1.0,
         num_steps: 20
       };
     } else if ((cost === 8 || cost === 4) && image) {
       // AI Edit / In-painting specialized model
-      model = "black-forest-labs/flux-fill-dev:03e289f530df51d014f48e675a9ffa2141bc003259bf5f25d75b957e920a41ca";
+      model = "black-forest-labs/flux-fill-dev";
       input = {
         prompt: finalPromptForAI,
         image: image,
-        mask: mask || image, // Fallback to image if no mask (global edit)
+        mask: mask || image, 
         guidance: 30,
         num_inference_steps: 20
       };
