@@ -16,6 +16,10 @@ export interface CharacterProfile {
     vibe: string;
     characterPromptBase: string;
     referenceImageUrl?: string;
+    persona_id?: string;
+    persona_prompt?: string;
+    face_reference_image?: string;
+    style_bias?: string;
     createdAt: number;
 }
 
@@ -61,6 +65,16 @@ export interface UserProfile {
     };
     promoCard?: PromoCard | null;
     savedCharacter?: CharacterProfile | null;
+    onboardingState?: OnboardingState;
+    aiLearningState?: {
+        mode: "default" | "memory" | "adaptive";
+        confidenceScore: number;
+        activatedAt: number;
+    };
+    aiCreatorModeEnabled?: boolean;
+    aiCreatorModeLastChargedAt?: number;
+    aiCreatorModeLastRunAt?: number;
+    aiPreferences?: AIPreference;
 }
 
 export interface PromoCard {
@@ -121,6 +135,20 @@ export interface SystemConfig {
         TRON: string;
         TON: string;
     };
+    // Pre-Sale Tier Upgrade
+    presaleAllocationULC?: number;
+    currentPresaleStage?: number;
+    presalePriceUSDT?: number;
+    listingPriceUSDT?: number;
+
+    // Post-launch Buyback Configuration
+    treasury_buyback_enabled?: boolean;
+    treasury_buyback_ratio?: number;
+    operationCostUSDT?: number;
+    treasuryUSDTBalanceManual?: number;
+    presaleCompleted?: boolean;
+    tokenLaunchCompleted?: boolean;
+    marketLiquidityReady?: boolean;
 }
 
 export interface SystemStats {
@@ -147,6 +175,8 @@ export type LedgerEntryType =
     | 'buyback_staking_fee'
     | 'ai_generation_payment'
     | 'ai_generation_refund'
+    | 'ai_creator_activation'
+    | 'ai_creator_generation'
     | 'vesting_claim'
     | 'vesting_created'
     | 'genesis_allocation'
@@ -183,6 +213,9 @@ export interface LedgerEntry {
     memo?: string;
     referenceId?: string;
     platformFee?: number;
+    description?: string;
+    ulcBurned?: number;
+    adminId?: string;
     metadata?: any;
     details?: any;
 }
@@ -261,6 +294,7 @@ export interface CreatorMedia {
     isAI?: boolean;
     aiPrompt?: string;
     aiEnhancedPrompt?: string;
+    source?: 'ai_auto' | 'user';
 }
 
 export interface GroupedLedgerEntry {
@@ -294,4 +328,33 @@ export interface Message {
     senderId: string;
     content: string;
     timestamp: number;
+}
+
+export interface OnboardingState {
+    step: 'welcome' | 'goal_selection' | 'first_generate' | 'first_container' | 'first_publish' | 'first_monetization' | 'completed';
+    goal?: 'explore' | 'earn' | 'create';
+    completedSteps: string[];
+}
+
+export interface AIPreference {
+    preferredStyles: string[];
+    dislikedPatterns: string[];
+    visualToneSummary: string;
+}
+
+export interface AIGenerationLog {
+    id: string;
+    userId: string;
+    prompt: string;
+    enhancedPrompt: string;
+    mediaUrl: string;
+    paymentReference: string | null;
+    timestamp: any;
+    satisfactionScore: number | null;
+    contentScore?: number;
+    negativePrompt?: string;
+    monetized?: boolean;
+    savedToContainer?: boolean;
+    published?: boolean;
+    tags?: string[];
 }

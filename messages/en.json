@@ -6,7 +6,8 @@
     "description": "Accessing the public layer of the sovereign creator economy.",
     "rate": "Universal Rate",
     "noContent": "No public content available yet.",
-    "syncing": "Syncing Sovereign Feed..."
+    "syncing": "Syncing Sovereign Feed...",
+    "updateName": "THE EVOLUTION"
   },
   "Navbar": {
     "connect": "Connect Wallet",
@@ -502,8 +503,12 @@
     "month": "Month",
     "reserveProtocolTitle": "Reserve Maturity Protocol",
     "reserveProtocolDesc": "The 420,000,000 ULC Reserve Pool is the cornerstone of Unverse's decade-long sustainability. To ensure total transparency and prevent inflationary shocks, the pool is governed by a strict release schedule.",
-    "cliffVestingLabel": "24-Month Cliff / 240-Month Release",
-    "daoNote": "40% of the released reserve (168M ULC) is dedicated to DAO Governance. Stakers will decide its allocation starting from Year 10."
+    "cliffVestingLabel": "0-Month Cliff / 240-Month Release",
+    "daoNote": "40% of the released reserve (168M ULC) is dedicated to DAO Governance. Stakers will decide its allocation starting from Year 10.",
+    "aiBurnTitle": "AI Creator Burn",
+    "aiBurnDesc": "30% of all fees from AI-generated content (Auto-Drafts) are permanently burned from the circulating supply.",
+    "buybackTitle": "Strategic Buyback",
+    "buybackDesc": "A portion of net platform profits is allocated to market buybacks and subsequent token burns, creating a perpetual demand-burn loop."
   },
   "CreatorTokenomics": {
     "back": "Back",

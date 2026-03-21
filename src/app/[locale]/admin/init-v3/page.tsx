@@ -49,6 +49,7 @@ export default function InitV3() {
                     team: 130000000,
                     creators: 120000000,
                     presale: 100000000,
+                    staking: 80000000,
                     liquidity: 60000000,
                     promo: 50000000,
                     exchanges: 40000000

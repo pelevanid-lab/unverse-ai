@@ -11,11 +11,11 @@ export default function InvestorTokenomics() {
     // Circulating Supply Data Points (Estimated)
     const projectionData = [
         { month: 0, supply: 150 },   // Initial unlock (Liquidity + Promo + Partial Team)
-        { month: 6, supply: 180 },   
-        { month: 12, supply: 220 },  // First Cliff ends (Pre-sale starts)
-        { month: 18, supply: 350 },
-        { month: 24, supply: 480 },
-        { month: 36, supply: 750 },
+        { month: 6, supply: 190 },   // Reserve (10.5M) + Team/Creator partial
+        { month: 12, supply: 245 },  // Reserve (21M) + Pre-sale starts + Team partial
+        { month: 18, supply: 380 },
+        { month: 24, supply: 520 },  // Reserve (42M)
+        { month: 36, supply: 780 },
         { month: 48, supply: 1000 }
     ];
 
@@ -86,6 +86,38 @@ export default function InvestorTokenomics() {
                         <h4 className="text-xl font-bold text-primary">{t('p5Title')}</h4>
                         <p className="text-muted-foreground leading-relaxed">{t('p5Desc')}</p>
                     </div>
+                </div>
+            </section>
+
+            {/* Deflationary Flywheels */}
+            <section className="space-y-6">
+                <h2 className="text-3xl font-headline font-bold flex items-center gap-3">
+                    <Flame className="text-red-500" /> {t('deflationaryBurn')}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="glass-card border-orange-500/20 bg-orange-500/5 p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-orange-500/20">
+                                <BarChart3 className="w-6 h-6 text-orange-400" />
+                            </div>
+                            <h4 className="text-xl font-bold">{t('aiBurnTitle')}</h4>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">
+                            {t('aiBurnDesc')}
+                        </p>
+                    </Card>
+
+                    <Card className="glass-card border-blue-500/20 bg-blue-500/5 p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-blue-500/20">
+                                <TrendingUp className="w-6 h-6 text-blue-400" />
+                            </div>
+                            <h4 className="text-xl font-bold">{t('buybackTitle')}</h4>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">
+                            {t('buybackDesc')}
+                        </p>
+                    </Card>
                 </div>
             </section>
             

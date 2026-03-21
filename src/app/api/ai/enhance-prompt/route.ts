@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { prompt, character, style, composition, outfit } = await req.json();
+    const { prompt, character, style, composition, outfit, systemInstructions } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     const styleContext = style && style !== 'none' ? `Style: ${style} atmosphere/lighting` : '';
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
-    const systemPrompt = `You are an expert AI image generation Prompt Engineer (for Midjourney/Flux).
+    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer (for Midjourney/Flux).
 Your job is to take a short, simple user prompt (which might be in Turkish or English) and expand it into a highly detailed, professional, 50-word english prompt for an AI image generator.
 
 User's short input: "${prompt}"
@@ -40,11 +40,13 @@ Rules:
 3. Seamlessly blend the user's idea with the character constraints.
 4. Output ONLY the raw prompt text, no intro or outro, just the final comma-separated prompt string.`;
 
+    const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
+
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
-        parts: [{ text: systemPrompt }]
+        parts: [{ text: finalSystemPrompt }]
       }],
       generationConfig: {
         temperature: 0.7,

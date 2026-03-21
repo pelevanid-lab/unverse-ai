@@ -249,6 +249,18 @@ export const confirmUlcPurchase = async (user: UserProfile, amount: number, netw
     }
 }
 
+export const confirmPresalePurchaseAction = async (user: UserProfile, amount: number, network: string, txHash: string): Promise<any> => {
+    const confirmFunction = httpsCallable(functions, 'confirmPresalePurchase');
+    
+    try {
+        const result = await confirmFunction({ amount, network, txHash });
+        return result.data;
+    } catch (error: any) {
+        console.error("Presale purchase error:", error);
+        throw error;
+    }
+}
+
 // --- ADMIN / SYSTEM FUNCTIONS ---
 
 export async function getVestingSchedules(userId: string): Promise<VestingSchedule[]> {
@@ -329,6 +341,7 @@ export async function syncSystemConfigAction() {
             presale: 100000000,
             promo: 50000000,
             reserve: 420000000,
+            staking: 80000000,
             team: 130000000,
         },
         premium_unlock_burn_ratio: 0.33,
@@ -343,7 +356,20 @@ export async function syncSystemConfigAction() {
         treasury_wallets: {
             TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
             TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2",
-        }
+        },
+        // Buyback Defaults (Post-Launch Preparation)
+        treasury_buyback_enabled: true,
+        treasury_buyback_ratio: 0.3,
+        operationCostUSDT: 0,
+        treasuryUSDTBalanceManual: 0,
+        presaleCompleted: false,
+        tokenLaunchCompleted: false,
+        marketLiquidityReady: false,
+        // Pre-Sale Tier Upgrade 2026
+        presaleAllocationULC: 100000000,
+        currentPresaleStage: 1,
+        presalePriceUSDT: 0.009,
+        listingPriceUSDT: 0.015,
     };
 
     // We use merge: true to not overwrite currently accumulated values like totalTreasuryUSDT, 
@@ -429,8 +455,16 @@ export async function handleUnstaking(user: UserProfile, amount: number) {
 }
 
 export async function sealEconomyAction() {
-    const configRef = doc(db, 'config', 'system');
-    await updateDoc(configRef, { isSealed: true });
+    const sealFn = httpsCallable(functions, "sealEconomy");
+    return await sealFn();
+}
+
+export async function executeBuybackAction(data: {
+    amountUSDT: number;
+    description: string;
+}) {
+    const buybackFn = httpsCallable(functions, "executeBuyback");
+    return await buybackFn(data);
 }
 
 export async function triggerGenesisAllocation(user: UserProfile) {
@@ -465,7 +499,8 @@ export async function toggleUserFreeze(uid: string, freeze: boolean) {
  * Supports dynamic costs (Standard: 5, Digital Twin: 20, Edit: 3)
  * Ratio: 70% Treasury / 30% Burn
  */
-export async function processAiGenerationPayment(userId: string, cost: number): Promise<string> {
+export async function processAiGenerationPayment(userId: string, cost: number, isRegeneration?: boolean): Promise<string> {
+    const finalCost = isRegeneration ? 3 : cost;
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);
@@ -474,6 +509,7 @@ export async function processAiGenerationPayment(userId: string, cost: number): 
         
         const userData = userSnap.data() as UserProfile;
         const balance = userData.ulcBalance?.available || 0;
+        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
         // The 'cost' parameter is now used directly, removing the shadowed 'const cost = 3;'
         // The fixed shares are replaced with calculated percentages.
 
@@ -487,7 +523,7 @@ export async function processAiGenerationPayment(userId: string, cost: number): 
 
         // 1. Deduct from user
         transaction.update(userRef, {
-            'ulcBalance.available': increment(-cost)
+            'ulcBalance.available': increment(-finalCost)
         });
 
         // 2. Update Global Treasury and Burn Stats
@@ -502,7 +538,7 @@ export async function processAiGenerationPayment(userId: string, cost: number): 
         transaction.set(ledgerRef, {
             type: 'ai_generation_payment',
             fromUserId: userId,
-            amount: cost,
+            amount: finalCost,
             currency: 'ULC',
             timestamp: Date.now(),
             details: { treasury: treasuryShare, burn: burnShare }
@@ -545,5 +581,104 @@ export async function refundAiGenerationPayment(userId: string, ledgerId: string
             timestamp: Date.now(),
             referenceId: ledgerId
         });
+    });
+}
+
+/**
+ * AI Creator Mode Activation (2 ULC)
+ * 70% Treasury / 30% Burn
+ */
+export async function processAiCreatorActivation(userId: string): Promise<string> {
+    const cost = 2;
+    return await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+        
+        // FREE MONTH LOGIC: Check if account is < 30 days old
+        const accountAge = Date.now() - (userData.createdAt || Date.now());
+        const isFreeMonth = accountAge < 30 * 24 * 60 * 60 * 1000;
+        const finalCost = isFreeMonth ? 0 : 2;
+
+        const balance = userData.ulcBalance?.available || 0;
+        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
+
+        const treasuryShare = Number((finalCost * 0.70).toFixed(2));
+        const burnShare = Number((finalCost - treasuryShare).toFixed(2));
+
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(-finalCost),
+            aiCreatorModeEnabled: true,
+            aiCreatorModeLastChargedAt: Date.now()
+        });
+
+        const statsRef = doc(db, 'config', 'stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: increment(treasuryShare),
+            totalBurnedULC: increment(burnShare)
+        }, { merge: true });
+
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'ai_creator_activation',
+            fromUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: Date.now(),
+            details: { treasury: treasuryShare, burn: burnShare }
+        });
+
+        return ledgerRef.id;
+    });
+}
+
+/**
+ * AI Creator Mode Daily Generation (1 ULC)
+ * 70% Treasury / 30% Burn
+ */
+export async function processAiCreatorGeneration(userId: string): Promise<string> {
+    const cost = 1;
+    return await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+
+        // FREE MONTH LOGIC: Check if account is < 30 days old
+        const accountAge = Date.now() - (userData.createdAt || Date.now());
+        const isFreeMonth = accountAge < 30 * 24 * 60 * 60 * 1000;
+        const finalCost = isFreeMonth ? 0 : 1;
+
+        const balance = userData.ulcBalance?.available || 0;
+        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
+
+        const treasuryShare = Number((finalCost * 0.70).toFixed(2));
+        const burnShare = Number((finalCost - treasuryShare).toFixed(2));
+
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(-finalCost),
+            aiCreatorModeLastRunAt: Date.now()
+        });
+
+        const statsRef = doc(db, 'config', 'stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: increment(treasuryShare),
+            totalBurnedULC: increment(burnShare)
+        }, { merge: true });
+
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'ai_creator_generation',
+            fromUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: Date.now(),
+            details: { treasury: treasuryShare, burn: burnShare }
+        });
+
+        return ledgerRef.id;
     });
 }

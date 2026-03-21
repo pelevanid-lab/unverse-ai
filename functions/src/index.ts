@@ -377,36 +377,79 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
 
 /**
  * Confirms a Pre-Sale ULC purchase.
- * Price: 0.01 USDT / ULC
- * Vesting: 1 month cliff, 12 months linear release.
+ * Supports Tier-Based Pricing (Stage 1-5).
+ * Vesting: 12 month cliff, 24 months linear release.
  */
 export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
     
     const { amount, network, txHash } = request.data;
-    if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing params.");
+    if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing purchase parameters.");
 
     const userId = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
-    const ulcAmount = amount * 100; // 0.01 USDT price -> 1 USDT = 100 ULC
+
+    const PRESALE_TIERS = [
+        { stage: 1, limit: 20000000, price: 0.009 },
+        { stage: 2, limit: 40000000, price: 0.010 },
+        { stage: 3, limit: 60000000, price: 0.011 },
+        { stage: 4, limit: 80000000, price: 0.012 },
+        { stage: 5, limit: 100000000, price: 0.013 },
+    ];
+    const PRESALE_TOTAL_ALLOCATION = 100000000;
 
     try {
-        await db.runTransaction(async (transaction) => {
+        const result = await db.runTransaction(async (transaction) => {
             const userRef = db.collection("users").doc(userId);
             const configRef = db.collection("config").doc("system");
-            const scheduleRef = db.collection("vesting_schedules").doc();
-
             const configSnap = await transaction.get(configRef);
-            const configData = configSnap.data();
-            const presalePool = configData?.pools?.presale || 0;
+            const config = configSnap.data();
 
-            if (presalePool < ulcAmount) {
-                throw new HttpsError("resource-exhausted", "Not enough tokens left in Pre-Sale allocation.");
+            const totalSoldBefore = config?.totalPresaleSold || 0;
+            const presalePool = config?.pools?.presale || 0;
+
+            if (totalSoldBefore >= PRESALE_TOTAL_ALLOCATION) {
+                throw new HttpsError("resource-exhausted", "Pre-Sale is SOLD OUT.");
             }
 
-            // 1. Audit Ledger (USDT Payment)
+            // --- CROSS-STAGE CALCULATION ---
+            let remainingUsdt = amount;
+            let totalUlc = 0;
+            let currentSold = totalSoldBefore;
+            const breakdown: { stage: number; ulcAmount: number; priceUSDT: number }[] = [];
+
+            for (const tier of PRESALE_TIERS) {
+                if (currentSold >= tier.limit) continue;
+                if (remainingUsdt <= 0) break;
+
+                const remainingInTier = tier.limit - currentSold;
+                const costForTier = remainingInTier * tier.price;
+
+                if (remainingUsdt <= costForTier) {
+                    const ulcInTier = remainingUsdt / tier.price;
+                    totalUlc += ulcInTier;
+                    breakdown.push({ stage: tier.stage, ulcAmount: ulcInTier, priceUSDT: tier.price });
+                    remainingUsdt = 0;
+                } else {
+                    totalUlc += remainingInTier;
+                    breakdown.push({ stage: tier.stage, ulcAmount: remainingInTier, priceUSDT: tier.price });
+                    remainingUsdt -= costForTier;
+                    currentSold = tier.limit;
+                }
+            }
+
+            const ulcAmount = Math.floor(totalUlc);
+            if (presalePool < ulcAmount) {
+                throw new HttpsError("resource-exhausted", "Insufficient Pre-Sale allocation left for this amount.");
+            }
+
+            // --- EXECUTION ---
             const usdtLedgerRef = db.collection("ledger").doc();
+            const ulcLedgerRef = db.collection("ledger").doc();
+            const scheduleRef = db.collection("vesting_schedules").doc();
+
+            // 1. Audit Ledger (USDT Payment)
             transaction.set(usdtLedgerRef, {
                 fromUserId: userId,
                 amount: amount,
@@ -414,21 +457,25 @@ export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (reques
                 type: "ulc_purchase_payment",
                 network,
                 txHash,
-                timestamp: now
+                timestamp: now,
+                memo: `Presale Stages: ${breakdown.map(b => `S${b.stage}`).join(', ')}`
             });
 
             // 2. Pre-Sale Purchase Ledger (ULC)
-            transaction.set(db.collection("ledger").doc(), {
+            transaction.set(ulcLedgerRef, {
                 toUserId: userId,
                 amount: ulcAmount,
                 currency: "ULC",
                 type: "presale_purchase",
                 referenceId: usdtLedgerRef.id,
-                timestamp: now
+                timestamp: now,
+                details: {
+                    stageBreakdown: breakdown,
+                    effectiveAveragePriceUSDT: amount / ulcAmount
+                }
             });
 
-            // 3. Automatic Vesting Schedule
-            // Preset: presale (12 month cliff, 24 months duration)
+            // 3. Vesting Schedule (12m cliff, 24m duration)
             const cliffMs = 12 * 30 * 24 * 60 * 60 * 1000;
             const durationMs = 24 * 30 * 24 * 60 * 60 * 1000;
 
@@ -439,28 +486,36 @@ export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (reques
                 startTime: now,
                 cliff: cliffMs,
                 duration: durationMs,
-                description: "Pre-Sale Allocation",
+                description: `Pre-Sale Allocation (Avg Price: $${(amount/ulcAmount).toFixed(4)})`,
                 poolId: "presale",
                 lastClaimedAt: 0,
                 createdAt: now
             });
 
-            // 4. Update User Profile (Move to Locked)
+            // 4. Update Balances
             transaction.update(userRef, {
                 'ulcBalance.locked': admin.firestore.FieldValue.increment(ulcAmount)
             });
 
-            // 5. Update Global Stats
+            // 5. Update Global Stats & Tiers
+            const totalSoldAfter = totalSoldBefore + ulcAmount;
+            const newStageInfo = PRESALE_TIERS.find(t => totalSoldAfter < t.limit) || PRESALE_TIERS[4];
+            
             transaction.update(configRef, {
                 'pools.presale': admin.firestore.FieldValue.increment(-ulcAmount),
                 'totalPresaleSold': admin.firestore.FieldValue.increment(ulcAmount),
-                'totalTreasuryUSDT': admin.firestore.FieldValue.increment(amount)
+                'totalTreasuryUSDT': admin.firestore.FieldValue.increment(amount),
+                'currentPresaleStage': newStageInfo.stage,
+                'presalePriceUSDT': newStageInfo.price,
+                'presaleActive': totalSoldAfter < PRESALE_TOTAL_ALLOCATION
             });
+
+            return { success: true, ulcAmount, breakdown };
         });
         
-        return { success: true, ulcAmount };
+        return result;
     } catch (error: any) {
-        logger.error("Pre-Sale purchase error:", error);
+        logger.error("Pre-Sale confirmation error:", error);
         throw new HttpsError("internal", error.message);
     }
 });
@@ -470,12 +525,14 @@ export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (reques
  * Restricted to the Admin Wallet defined in system config.
  */
 const VESTING_PRESETS: Record<string, { cliffMonths: number; durationMonths: number }> = {
-    reserve: { cliffMonths: 6, durationMonths: 48 },
-    team: { cliffMonths: 12, durationMonths: 48 },
+    reserve: { cliffMonths: 0, durationMonths: 240 },
+    team: { cliffMonths: 0, durationMonths: 36 },
     creators: { cliffMonths: 0, durationMonths: 24 },
-    presale: { cliffMonths: 1, durationMonths: 12 },
+    presale: { cliffMonths: 12, durationMonths: 24 },
     liquidity: { cliffMonths: 0, durationMonths: 0 },
-    exchanges: { cliffMonths: 0, durationMonths: 0 }
+    exchanges: { cliffMonths: 0, durationMonths: 0 },
+    promo: { cliffMonths: 0, durationMonths: 0 },
+    staking: { cliffMonths: 0, durationMonths: 0 }
 };
 
 export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
@@ -676,7 +733,8 @@ export const distributeStakingRewards = onSchedule("0 0 27 * *", async (event) =
         return;
     }
 
-    const rewardPoolULC = rewardPoolUSDT * 100; // 1 USDT = 100 ULC fixed for internal reward calculation
+    const listingPrice = config?.listingPriceUSDT || 0.015;
+    const rewardPoolULC = rewardPoolUSDT / listingPrice; 
     const usersSnap = await db.collection("users").where("ulcBalance.staked", ">", 0).get();
     
     let totalEligibleStaked = 0;
@@ -730,8 +788,11 @@ export const distributeStakingRewards = onSchedule("0 0 27 * *", async (event) =
         }
     });
 
-    // Reset USDT Pool after successful 'buyback' reward distribution
-    batch.update(configRef, { totalBuybackStakingUSDT: 0 });
+    // 1. Update Pool Balance (Subtract total distributed ULC)
+    batch.update(configRef, { 
+        totalBuybackStakingUSDT: 0,
+        "pools.staking": admin.firestore.FieldValue.increment(-rewardPoolULC)
+    });
     
     await batch.commit();
     logger.info(`Successfully distributed ${rewardPoolULC} ULC rewards to ${eligibleUsers.length} eligible stakers.`);
@@ -799,6 +860,152 @@ export const getPostMedia = onCall({ memory: "256MiB" }, async (request: Callabl
 
     } catch (error: any) {
         logger.error("getPostMedia error:", error);
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+/**
+ * SEAL ECONOMY PROTOCOL
+ * 1. Atomically splits 420M ULC Reserve Pool into 4 system schedules.
+ * 2. Ratios: Team (126M), Liquidity (84M), Promo (42M), DAO (168M).
+ * 3. Terms: 0 month cliff, 240 month linear duration.
+ * 4. Locks the economy forever.
+ */
+export const sealEconomy = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+    
+    const db = admin.firestore();
+    const now = Date.now();
+    const adminId = request.auth.uid;
+
+    const configRef = db.collection("config").doc("system");
+    
+    try {
+        return await db.runTransaction(async (transaction) => {
+            const configSnap = await transaction.get(configRef);
+            const configData = configSnap.data();
+
+            if (configData?.isSealed) {
+                throw new HttpsError("already-exists", "Economy is already sealed.");
+            }
+
+            // Admin Authorization
+            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
+            if (adminId !== VERIFIED_ADMIN_UID) {
+                throw new HttpsError("permission-denied", "Unauthorized admin.");
+            }
+
+            const reserveBalance = configData?.pools?.reserve || 0;
+            if (reserveBalance < 420000000) {
+                throw new HttpsError("failed-precondition", "Insufficient Reserve balance for sealing.");
+            }
+
+            // Split Calculations (3:2:1:4)
+            const splits = [
+                { name: "Team Reserve", amount: 126000000, targetId: "TEAM_POOL_SYSTEM" },
+                { name: "Liquidity Reserve", amount: 84000000, targetId: "LIQUIDITY_POOL_SYSTEM" },
+                { name: "Promo Reserve", amount: 42000000, targetId: "PROMO_POOL_SYSTEM" },
+                { name: "DAO Strategic Reserve", amount: 168000000, targetId: "DAO_POOL_SYSTEM" }
+            ];
+
+            const durationMs = 240 * 30 * 24 * 60 * 60 * 1000;
+
+            for (const split of splits) {
+                const scheduleRef = db.collection("vesting_schedules").doc();
+                transaction.set(scheduleRef, {
+                    userId: split.targetId,
+                    totalAmount: split.amount,
+                    startTime: now,
+                    duration: durationMs,
+                    cliff: 0,
+                    releasedAmount: 0,
+                    description: `The Seal: ${split.name} (Automated Split)`,
+                    poolId: "reserve",
+                    createdAt: now
+                });
+
+                transaction.set(db.collection("ledger").doc(), {
+                    type: "vesting_created",
+                    fromWallet: "reserve",
+                    toUserId: split.targetId,
+                    amount: split.amount,
+                    currency: "ULC",
+                    referenceId: scheduleRef.id,
+                    timestamp: now,
+                    details: { splitName: split.name }
+                });
+            }
+
+            // 3. Finalize
+            transaction.update(configRef, {
+                isSealed: true,
+                "pools.reserve": admin.firestore.FieldValue.increment(-420000000)
+            });
+
+            return { success: true };
+        });
+    } catch (error: any) {
+        logger.error("Seal Economy Error:", error);
+        throw new HttpsError("internal", error.message);
+    }
+});
+/**
+ * Executes a strategic Buyback & Burn.
+ * Restricted to Admin. Enforces launch gates.
+ */
+export const executeBuyback = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+    
+    const { amountUSDT, description } = request.data;
+    if (!amountUSDT) throw new HttpsError("invalid-argument", "Amount is required.");
+
+    const adminId = request.auth.uid;
+    const db = admin.firestore();
+    const now = Date.now();
+
+    try {
+        return await db.runTransaction(async (transaction) => {
+            const configRef = db.collection("config").doc("system");
+            const configSnap = await transaction.get(configRef);
+            const config = configSnap.data();
+
+            // 1. Admin Check
+            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
+            if (adminId !== VERIFIED_ADMIN_UID && !config?.admin_wallet_address) {
+                 throw new HttpsError("permission-denied", "Unauthorized.");
+            }
+
+            // 2. Launch Gates Check
+            const isReady = config?.presaleCompleted && config?.tokenLaunchCompleted && config?.marketLiquidityReady;
+            if (!isReady) {
+                throw new HttpsError("failed-precondition", "LAUNCH_GATED: All conditions must be met.");
+            }
+
+            // 3. Execution (Simulated Burn)
+            // Dynamic simulation rate based on listing price (current retail price)
+            const listingPrice = config?.listingPriceUSDT || 0.015;
+            const ulcBurnAmount = amountUSDT / listingPrice;
+
+            const statsRef = db.collection("config").doc("stats");
+            transaction.set(statsRef, {
+                totalBurnedULC: admin.firestore.FieldValue.increment(ulcBurnAmount)
+            }, { merge: true });
+
+            // 4. Record Ledger
+            transaction.set(db.collection("ledger").doc(), {
+                type: "buyback_burn",
+                amount: amountUSDT, // USDT value logged
+                ulcBurned: ulcBurnAmount,
+                currency: "USDT",
+                description: description || "Strategic Buyback & Burn",
+                timestamp: now,
+                adminId
+            });
+
+            return { success: true, ulcBurned: ulcBurnAmount };
+        });
+    } catch (error: any) {
+        logger.error("Buyback execution error:", error);
         throw new HttpsError("internal", error.message);
     }
 });

@@ -510,12 +510,14 @@ function UlcDashboard({ stats }: { stats: any }) {
 }
 
 const VESTING_PRESETS: Record<string, { cliffMonths: number; durationMonths: number }> = {
-    reserve: { cliffMonths: 6, durationMonths: 48 },
-    team: { cliffMonths: 12, durationMonths: 48 },
+    reserve: { cliffMonths: 0, durationMonths: 240 },
+    team: { cliffMonths: 0, durationMonths: 36 },
     creators: { cliffMonths: 0, durationMonths: 24 },
-    presale: { cliffMonths: 1, durationMonths: 12 },
+    presale: { cliffMonths: 12, durationMonths: 24 },
     liquidity: { cliffMonths: 0, durationMonths: 0 },
-    exchanges: { cliffMonths: 0, durationMonths: 0 }
+    exchanges: { cliffMonths: 0, durationMonths: 0 },
+    promo: { cliffMonths: 0, durationMonths: 0 },
+    staking: { cliffMonths: 0, durationMonths: 0 }
 };
 
 function VestingManager({ users, schedules, onRefresh }: { users: UserProfile[], schedules: VestingSchedule[], onRefresh: () => void }) {

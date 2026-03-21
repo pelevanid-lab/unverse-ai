@@ -6,7 +6,8 @@
     "description": "Egemen yaratıcı ekonomisinin açık katmanına erişiliyor.",
     "rate": "Evrensel Kur",
     "noContent": "Henüz açık içerik mevcut değil.",
-    "syncing": "Kozmik Akış Senkronize Ediliyor..."
+    "syncing": "Kozmik Akış Senkronize Ediliyor...",
+    "updateName": "EVRİM"
   },
   "Navbar": {
     "connect": "Cüzdan Bağla",
@@ -505,8 +506,12 @@
     "month": "Ay",
     "reserveProtocolTitle": "Rezerv Olgunluk Protokolü",
     "reserveProtocolDesc": "420.000.000 ULC'lik Rezerv Havuzu, Unverse'in on yıllarca sürecek sürdürülebilirliğinin temel taşıdır. Tam şeffaflık sağlamak ve enflasyonist şokları önlemek için havuz, katı bir serbest bırakma takvimi ile yönetilir.",
-    "cliffVestingLabel": "24 Ay Kilit / 240 Ay Taksit",
-    "daoNote": "Serbest bırakılan rezervin %40'ı (168M ULC) DAO Yönetimine ayrılmıştır. 10. yıldan itibaren stakerlar bu payın kullanımına karar verecektir."
+    "cliffVestingLabel": "0 Ay Kilit / 240 Ay Taksit",
+    "daoNote": "UNVERSE DAO bu fonları uzun vadeli büyüme için yönetir. Önceden belirlenmiş program dışındaki herhangi bir sürüm topluluk oylaması gerektirir.",
+    "aiBurnTitle": "Yapay Zeka Yakımı",
+    "aiBurnDesc": "Yapay zeka tarafından oluşturulan içeriklerden (Otomatik Taslaklar) gelen tüm ücretlerin %30'u dolaşımdaki arzdan kalıcı olarak yakılır.",
+    "buybackTitle": "Stratejik Geri Alım",
+    "buybackDesc": "Platform net kârının bir kısmı, piyasa geri alımlarına ve ardından token yakımlarına ayrılarak sürekli bir talep-yakım döngüsü oluşturur."
   },
   "CreatorTokenomics": {
     "back": "Geri",

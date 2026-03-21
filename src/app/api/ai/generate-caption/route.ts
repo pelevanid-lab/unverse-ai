@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, prompt, contentType } = await req.json();
+    const { imageUrl, prompt, contentType, systemInstructions } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: 'imageUrl is required' }, { status: 400 });
@@ -36,10 +36,12 @@ export async function POST(req: Request) {
     if (contentType === 'premium') toneInstruction = "Make it sound exclusive, premium, and VIP. Encourage followers to unlock this content. Use emojis like 🔒 or 💎. Keep it short.";
     if (contentType === 'limited') toneInstruction = "Create a sense of urgency (FOMO). Mention it's a limited edition drop. Use emojis like 🔥 or ⏳. Keep it short.";
 
-    let systemPrompt = `You are a social media manager for a creator. Look at the image and write a caption for it. ${toneInstruction}`;
+    let defaultSystemPrompt = `You are a social media manager for a creator. Look at the image and write a caption for it. ${toneInstruction}`;
     if (prompt) {
-      systemPrompt += ` The user originally used this prompt to generate the image: "${prompt}".`;
+      defaultSystemPrompt += ` The user originally used this prompt to generate the image: "${prompt}".`;
     }
+
+    const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
     // Call the direct Gemini REST API
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
     const geminiRequestBody = {
       contents: [{
         parts: [
-          { text: systemPrompt },
+          { text: finalSystemPrompt },
           {
             inline_data: {
               mime_type: mimeType,

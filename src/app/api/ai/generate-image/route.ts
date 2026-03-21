@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, userId, image, mask } = json;
+    const { prompt, enhancedPrompt, negativePrompt, userId, image, mask } = json;
     cost = json.cost || 5; // Assign cost from json, default to 5
 
     if (!prompt || !userId) {
@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     let input: any = {
       prompt: finalPromptForAI,
       aspect_ratio: "1:1",
+      negative_prompt: negativePrompt || undefined,
     };
 
     if (image && cost === 5) {
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
       input = {
         prompt: finalPromptForAI,
         main_face_image: image,
-        negative_prompt: "bad quality, blurry, distorted face, unrealistic, woman if reference is man, person change",
+        negative_prompt: (negativePrompt ? negativePrompt + ", " : "") + "bad quality, blurry, distorted face, unrealistic, woman if reference is man, person change",
         id_weight: 1,
         num_inference_steps: 20
       };

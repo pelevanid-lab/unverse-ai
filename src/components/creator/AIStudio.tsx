@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, Check, X, Globe, Lock, Clock, Coins, Package, Send, Sparkles, User, Save, RefreshCcw, AlertCircle, Users, Star, Container } from 'lucide-react';
+import { processAiCreatorActivation, processAiCreatorGeneration, processAiGenerationPayment } from '@/lib/ledger';
+import { Loader2, Wand2, Check, X, Globe, Lock, Clock, Coins, Package, Send, Sparkles, User, Save, RefreshCcw, AlertCircle, Users, Star, Container, Calendar, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -21,6 +22,8 @@ import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Copilot } from '@/lib/copilot';
+import { cn } from '@/lib/utils';
 
 type StudioMode = 'standard' | 'digitalTwin' | 'aiEdit';
 
@@ -28,7 +31,7 @@ export function AIStudio() {
     const t = useTranslations('AIStudio');
     const { user } = useWallet();
     const { toast } = useToast();
-    
+
     // UI state
     const [activeTab, setActiveTab] = useState<StudioMode>('standard');
 
@@ -51,18 +54,18 @@ export function AIStudio() {
     };
 
     const [mode, setMode] = useState<'new' | 'consistent'>(user?.savedCharacter ? 'consistent' : 'new');
-    const currentCost = activeTab === 'digitalTwin' 
-        ? (mode === 'consistent' ? 3 : 20) 
+    const currentCost = activeTab === 'digitalTwin'
+        ? (mode === 'consistent' ? 3 : 20)
         : (activeTab === 'aiEdit' ? 3 : 5);
     const [composition, setComposition] = useState<CompositionMode>('solo');
     const [showCharacterEditor, setShowCharacterEditor] = useState(false);
-    
+
     // Advanced AI Controls
     const [outfitLockEnabled, setOutfitLockEnabled] = useState(false);
     const [lockedOutfit, setLockedOutfit] = useState('');
     const [refImage, setRefImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    
+
     // Feedback state
     const [logId, setLogId] = useState<string | null>(null);
     const [satisfactionScore, setSatisfactionScore] = useState<number | null>(null);
@@ -96,12 +99,32 @@ export function AIStudio() {
     const [mediaId, setMediaId] = useState<string | null>(null);
     const [enhancedPromptUsed, setEnhancedPromptUsed] = useState<string | null>(null);
     const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
-    
+    const [smartMode, setSmartMode] = useState(true);
+    const [copilotRecommendation, setCopilotRecommendation] = useState<{ action: string, message: string, cta: string } | null>(null);
+    const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
+    const [lastNegativePrompt, setLastNegativePrompt] = useState<string | null>(null);
+    const [isDailyDraftLoading, setIsDailyDraftLoading] = useState(false);
+    const [aiCreatorMode, setAiCreatorMode] = useState(user?.aiCreatorModeEnabled || false);
+
+    const [isRegenerating, setIsRegenerating] = useState(false);
+
+    const copilot = new Copilot(user?.uid || '');
+
+    useEffect(() => {
+        if (user?.uid) {
+            copilot.init().then(() => {
+                setCopilotRecommendation(copilot.getNextActionRecommendation());
+            });
+        }
+    }, [user?.uid]);
+
     const handleSatisfactionScore = async (score: number) => {
         if (!logId) return;
         setSatisfactionScore(score);
         try {
-            await updateDoc(doc(db, 'ai_generation_logs', logId), {
+            await copilot.init();
+            await copilot.logInteraction({
+                id: logId,
                 satisfactionScore: score
             });
             toast({ title: t('feedbackReceived'), description: t('feedbackReceivedDesc') });
@@ -154,7 +177,7 @@ export function AIStudio() {
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        
+
         setIsUploading(true);
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -168,31 +191,17 @@ export function AIStudio() {
         if (!prompt.trim() || !user) return;
         setIsEnhancingPrompt(true);
         try {
-            const characterToUse = mode === 'consistent' 
-                ? (user.savedCharacter as CharacterProfile) 
-                : (charProfile as CharacterProfile);
-
-            const res = await fetch('/api/ai/enhance-prompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt,
-                    character: characterToUse,
-                    style: selectedStyle,
-                    composition,
-                    outfit: outfitLockEnabled ? lockedOutfit : undefined
-                })
+            await copilot.init();
+            const { enhancedPrompt } = await copilot.generateImagePrompt({
+                userInput: prompt,
+                style: selectedStyle,
+                composition,
+                character: (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile
             });
 
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || t('enhanceFailed') || 'Prompt enhancement failed.');
-            }
-
-            const data = await res.json();
-            if (data.enhancedPrompt) {
-                setPrompt(data.enhancedPrompt);
-                toast({ title: t('enhanceSuccess') || "Zenginleştirme Başarılı", description: t('enhanceSuccessDesc') || "Promptunuz profesyonel seviyeye çıkarıldı! ✨" });
+            if (enhancedPrompt) {
+                setPrompt(enhancedPrompt);
+                toast({ title: t('enhanceSuccess') || "Copilot: Metin Zenginleştirildi", description: "Yapay zeka hayal gücünüzü profesyonel bir prompta çevirdi! ✨" });
             }
         } catch (error: any) {
             console.error("Enhance prompt error:", error);
@@ -203,82 +212,97 @@ export function AIStudio() {
     };
 
 
-    const handleGenerate = async (overrideImage?: string) => {
-        const imageToUse = overrideImage || refImage;
 
+    const handleToggleAiCreatorMode = async (enabled: boolean) => {
+        if (!user) return;
+        try {
+            const result = await copilot.toggleCreatorMode(enabled);
+            if (result.success) {
+                setAiCreatorMode(enabled);
+                toast({
+                    title: enabled ? "AI Creator Mode Aktif" : "AI Creator Mode Kapatıldı",
+                    description: enabled ? "Günde 1 taslak otomatik üretilecek. (4 ULC Tahsil edildi)" : "Otomatik üretim durduruldu.",
+                });
+            }
+        } catch (err: any) {
+            toast({
+                title: "İşlem Başarısız",
+                description: err.message,
+                variant: "destructive"
+            });
+        }
+    };
+
+    const handleGenerate = async (overrideImage?: string, isRegen: boolean = false) => {
+        const imageToUse = overrideImage || refImage;
+        setIsRegenerating(isRegen);
+
+        if (!isPromptValid && !isRegen) {
+            toast({
+                title: t('invalidPrompt'),
+                description: t('invalidPromptDesc'),
+                variant: "destructive"
+            });
+            return;
+        }
         if (!prompt.trim() || !user?.uid) return;
 
-        const wordCount = prompt.trim().split(/\s+/).length;
-        const charCount = prompt.length;
-
-        if (wordCount < 3 && charCount < 20) {
-            toast({ 
-                variant: "destructive", 
-                title: t('promptTooShort'), 
-                description: t('promptTooShortDesc') 
-            });
+        // Validation for minimum effort
+        if (prompt.trim().split(/\s+/).length < 2) {
+            toast({ variant: "destructive", title: "Çok Kısa", description: "Lütfen en az 2 kelime yazın." });
             return;
         }
 
         if ((user.ulcBalance?.available || 0) < 3) {
-            toast({ 
-                variant: "destructive", 
-                title: t('insufficientULC'), 
-                description: t('insufficientULCDesc') 
-            });
+            toast({ variant: "destructive", title: t('insufficientULC'), description: t('insufficientULCDesc') });
             return;
         }
 
-        const characterToUse = mode === 'consistent' 
-            ? (user.savedCharacter as CharacterProfile) 
-            : (charProfile as CharacterProfile); // Use current traits for 'new' mode
-        
         setGenerating(true);
         setImageUrl(null);
         setMediaId(null);
         setLogId(null);
         setSatisfactionScore(null);
 
-        let finalUserPrompt = prompt.trim();
-        // ... translation logic omitted for brevity in chunk but I must include it or replace it correctly
         try {
-            const trRes = await fetch('/api/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: finalUserPrompt, targetLang: 'en' })
-            });
-            if (trRes.ok) {
-                const data = await trRes.json();
-                if (data.translatedText) {
-                    finalUserPrompt = data.translatedText;
-                    console.log("Copilot translated prompt to:", finalUserPrompt);
-                }
+            await copilot.init();
+
+            // 2. Prepare Payment (Standard: 5, Regen: 3, Twin: 20)
+            const baseCost = activeTab === 'digitalTwin' ? 20 : 5;
+            const ledgerId = await processAiGenerationPayment(user.uid, baseCost, isRegen);
+
+            // 🚀 SMART FLOW: Proactive enhancement
+            // If the prompt is short or user has smartMode on, we enhance it automatically
+            let finalPromptForGeneration = prompt;
+            let originalInput = prompt;
+
+            if (smartMode || prompt.length < 50) {
+                setIsEnhancingPrompt(true);
+                const result = await copilot.generateImagePrompt({
+                    userInput: prompt,
+                    style: selectedStyle,
+                    composition,
+                    character: (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile,
+                    isEditMode: activeTab === 'aiEdit',
+                    referenceImageUrl: imageToUse || undefined
+                });
+                finalPromptForGeneration = result.enhancedPrompt;
+                setEnhancedPromptUsed(finalPromptForGeneration);
+                setLastNegativePrompt(result.negativePrompt || null); // V2: Capture negative context
+                setIsEnhancingPrompt(false);
             }
-        } catch (trErr) {
-            console.warn("Translation failed, using original prompt:", trErr);
-        }
 
-        const finalPrompt = buildPrompt(
-            finalUserPrompt, 
-            selectedStyle, 
-            composition, 
-            characterToUse,
-            outfitLockEnabled ? lockedOutfit : undefined,
-            activeTab
-        );
-        setEnhancedPromptUsed(finalPrompt);
-
-        try {
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: finalUserPrompt, 
-                    enhancedPrompt: finalPrompt,
+                body: JSON.stringify({
+                    prompt: originalInput,
+                    enhancedPrompt: finalPromptForGeneration,
+                    negativePrompt: lastNegativePrompt, // V2: Inject negative prompt
                     userId: user.uid,
                     cost: currentCost,
                     image: imageToUse || undefined,
-                    mask: activeTab === 'aiEdit' ? imageToUse : undefined // Simplified
+                    mask: activeTab === 'aiEdit' ? imageToUse : undefined
                 }),
             });
 
@@ -287,23 +311,48 @@ export function AIStudio() {
                 throw new Error(errorData.error || t('generationFailed'));
             }
 
-            const { mediaUrl, mediaId: newMediaId, logId: newLogId } = await response.json();
+            const { mediaUrl, logId: newLogId } = await response.json();
             setImageUrl(mediaUrl);
-            setMediaId(newMediaId);
             setLogId(newLogId);
+
+            // Generate monetization suggestion (V2 Engine)
+            const suggestion = copilot.getMonetizationSuggestion(finalPromptForGeneration, activeTab === 'aiEdit');
+            setMonetizationSuggestion(suggestion);
+
+            // Log extended data (Score/Negative Prompt)
+            await copilot.logInteraction({
+                id: newLogId,
+                contentScore: suggestion.score,
+                negativePrompt: lastNegativePrompt || undefined
+            });
+
+            // Update onboarding if they just generated for the first time
+            if (user.onboardingState?.step === 'first_generate') {
+                const userRef = doc(db, 'users', user.uid);
+                await updateDoc(userRef, {
+                    'onboardingState.step': 'first_monetization',
+                    'onboardingState.completedSteps': [...(user.onboardingState.completedSteps || []), 'first_generate']
+                });
+                setCopilotRecommendation(copilot.getNextActionRecommendation());
+            }
 
         } catch (error: any) {
             console.error("AI Generation failed:", error);
             toast({ variant: "destructive", title: t('generationError'), description: error.message });
         } finally {
             setGenerating(false);
+            setIsEnhancingPrompt(false);
         }
     };
+
 
     const handleSaveToPool = async () => {
         if (!imageUrl || !user?.uid || publishing) return;
         setPublishing(true);
         try {
+            await copilot.init();
+            const tags = await copilot.generateTags(prompt); // 🚀 Auto-tagging
+
             // "Havuza Kaydet" now creates the draft manually
             const mediaDocRef = await addDoc(collection(db, 'creator_media'), {
                 creatorId: user.uid,
@@ -315,8 +364,19 @@ export function AIStudio() {
                 isAI: true,
                 aiPrompt: prompt,
                 aiEnhancedPrompt: enhancedPromptUsed || prompt,
-                paymentReference: logId // using the logId returned from generation
+                paymentReference: logId,
+                tags: tags // Storing generated tags
             });
+
+            // Also update the log
+            if (logId) {
+                await copilot.logInteraction({
+                    id: logId,
+                    savedToContainer: true,
+                    tags: tags // Mirror tags in log for learning
+                });
+            }
+
             setMediaId(mediaDocRef.id);
             toast({ title: t('savedInPool'), description: t('savedInPoolDesc') });
             resetStudio(); // Clear the screen after save as requested
@@ -357,7 +417,7 @@ export function AIStudio() {
             resetStudio();
         } catch (error) {
             console.error("Error publishing AI image:", error);
-            toast({ variant: 'destructive', title: t('publishingError'), description: t('publishingErrorDesc')});
+            toast({ variant: 'destructive', title: t('publishingError'), description: t('publishingErrorDesc') });
         } finally {
             setPublishing(false);
         }
@@ -386,6 +446,64 @@ export function AIStudio() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Copilot Presence & Onboarding Guidance */}
+            {user && (
+                <div className="bg-primary/10 border border-primary/20 rounded-[2rem] p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center relative">
+                            <Sparkles className="text-primary animate-pulse" />
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-black" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                                Copilot {user.aiLearningState?.mode === 'adaptive' ? <Badge className="bg-primary text-white text-[8px] h-4">ADAPTIVE</Badge> : <Badge variant="outline" className="text-[8px] h-4">LEARNING</Badge>}
+                                <span className="text-[10px] text-muted-foreground font-normal ml-2">İlerleme: {user.onboardingState?.completedSteps?.length || 0}/4</span>
+                            </h4>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                {copilotRecommendation?.message || "Sizin için en iyi görseli üretmeye hazırım. Sadece hayal edin."}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                        {/* AI Creator Mode Toggle (V2.1) */}
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 rounded-full border border-white/5">
+                            <Label htmlFor="ai-creator-mode" className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
+                                AI Creator Mode ({ (Date.now() - (user?.createdAt || Date.now()) < 30 * 24 * 60 * 60 * 1000) ? "0 ULC - HEDİYE" : "4 ULC" })
+                            </Label>
+                            <Switch 
+                                id="ai-creator-mode" 
+                                checked={aiCreatorMode} 
+                                onCheckedChange={handleToggleAiCreatorMode}
+                            />
+                        </div>
+
+                        {/* Action-based Onboarding Buttons (V2 CTA Driven) */}
+                        <div className="flex gap-2">
+                        {copilotRecommendation?.cta && (
+                            <Button 
+                                size="sm" 
+                                className="rounded-full bg-primary text-white font-bold animate-bounce shadow-lg shadow-primary/20"
+                                onClick={() => {
+                                    const elementId = 
+                                        copilotRecommendation.action === 'first_generate' ? 'studio-prompt-area' :
+                                        copilotRecommendation.action === 'first_monetization' ? 'studio-preview-area' :
+                                        copilotRecommendation.action === 'first_container' ? 'studio-preview-area' : 'studio-prompt-area';
+                                    
+                                    const element = document.getElementById(elementId);
+                                    if (element) {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }
+                                }}
+                            >
+                                {copilotRecommendation.cta}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
+            )}
+
             {/* Main Tabs Selection */}
             <Tabs defaultValue="standard" value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="flex flex-col sm:grid sm:grid-cols-3 bg-black/40 p-1.5 rounded-[2rem] border border-white/5 h-auto mb-8 gap-2 sm:gap-0">
@@ -396,9 +514,8 @@ export function AIStudio() {
                         <Sparkles size={16} /> {t('tabDigitalTwin')}
                         <Badge variant="secondary" className="absolute -top-2 -right-2 text-[8px] bg-primary text-white border-none">{t('comingSoon')}</Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="aiEdit" disabled className="rounded-full py-3 font-bold text-xs gap-2 relative group opacity-50">
+                    <TabsTrigger value="aiEdit" className="rounded-full py-3 font-bold text-xs gap-2 relative group">
                         <RefreshCcw size={16} /> {t('tabAiEdit')}
-                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[8px] bg-primary text-white border-none">{t('comingSoon')}</Badge>
                     </TabsTrigger>
                 </TabsList>
 
@@ -417,12 +534,12 @@ export function AIStudio() {
                                     {activeTab === 'digitalTwin' && t('digitalTwinDesc')}
                                 </p>
                             </div>
-                            
+
                             <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 self-start md:self-center">
                                 {activeTab === 'standard' ? (
                                     <>
-                                        <Button 
-                                            variant={mode === 'new' ? 'default' : 'ghost'} 
+                                        <Button
+                                            variant={mode === 'new' ? 'default' : 'ghost'}
                                             size="sm"
                                             onClick={() => setMode('new')}
                                             className={cn(
@@ -432,8 +549,8 @@ export function AIStudio() {
                                         >
                                             {t('newCharacter')}
                                         </Button>
-                                        <Button 
-                                            variant={mode === 'consistent' ? 'default' : 'ghost'} 
+                                        <Button
+                                            variant={mode === 'consistent' ? 'default' : 'ghost'}
                                             size="sm"
                                             onClick={() => {
                                                 if (!user?.savedCharacter) setShowCharacterEditor(true);
@@ -465,8 +582,8 @@ export function AIStudio() {
                             <div className="flex items-center gap-2">
                                 <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">{t('composition')}</Label>
                                 <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
-                                    <Button 
-                                        variant={composition === 'solo' ? 'default' : 'ghost'} 
+                                    <Button
+                                        variant={composition === 'solo' ? 'default' : 'ghost'}
                                         size="sm"
                                         onClick={() => setComposition('solo')}
                                         className={cn(
@@ -477,8 +594,8 @@ export function AIStudio() {
                                     >
                                         <User size={12} /> {t('soloMode')}
                                     </Button>
-                                    <Button 
-                                        variant={composition === 'duo' ? 'default' : 'ghost'} 
+                                    <Button
+                                        variant={composition === 'duo' ? 'default' : 'ghost'}
                                         size="sm"
                                         onClick={() => setComposition('duo')}
                                         className={cn(
@@ -504,210 +621,286 @@ export function AIStudio() {
                 )}
 
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Generation Form Column */}
-                <div className="space-y-6">
-                    <TabsContent value="standard" className="mt-0 space-y-6">
-                        <Card className="glass-card border-white/10 h-fit">
-                            <CardContent className="p-6 space-y-6">
-                                {mode === 'consistent' ? (
-                                    user?.savedCharacter ? (
-                                        <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
-                                            <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
-                                                <Image 
-                                                    src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} 
-                                                    fill 
-                                                    alt="ref" 
-                                                    className="object-cover" 
-                                                    unoptimized // Avoid caching issues for new images
-                                                />
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
-                                                <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
-                                            </div>
-                                            <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
-                                                <RefreshCcw size={14} />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 text-center space-y-3">
-                                            <p className="text-xs text-muted-foreground">{t('noCharacterToLock')}</p>
-                                            <Button 
-                                                variant="outline" 
-                                                onClick={() => setMode('new')}
-                                                className="w-full rounded-xl border-primary/30 text-primary hover:bg-primary/10"
-                                            >
-                                                <User className="w-4 h-4 mr-2" /> {t('newCharacter')}
-                                            </Button>
-                                        </div>
-                                    )
-                                ) : (
-                                    /* Traits integration for New Character mode */
-                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4 animate-in slide-in-from-top-2">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <User className="w-4 h-4 text-primary" />
-                                            <span className="text-xs font-bold uppercase tracking-wider">{t('characterTraits')}</span>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('characterName')}</Label>
-                                                <Input 
-                                                    value={charProfile.name} 
-                                                    onChange={e => setCharProfile(p => ({ ...p, name: e.target.value }))}
-                                                    placeholder={t('characterNamePlaceholder')}
-                                                    className="bg-black/20 border-white/5 h-9 text-xs"
-                                                />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-1.5">
-                                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
-                                                    <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
-                                                        <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="female">{t('female')}</SelectItem>
-                                                            <SelectItem value="male">{t('male')}</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Generation Form Column */}
+                    <div className="space-y-6">
+                        <TabsContent value="standard" className="mt-0 space-y-6">
+                            <Card className="glass-card border-white/10 h-fit">
+                                <CardContent className="p-6 space-y-6">
+                                    {mode === 'consistent' ? (
+                                        user?.savedCharacter ? (
+                                            <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
+                                                <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
+                                                    <Image
+                                                        src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"}
+                                                        fill
+                                                        alt="ref"
+                                                        className="object-cover"
+                                                        unoptimized // Avoid caching issues for new images
+                                                    />
                                                 </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
-                                                <Input 
-                                                    value={charProfile.hairColor} 
-                                                    onChange={e => setCharProfile(p => ({ ...p, hairColor: e.target.value }))}
-                                                    placeholder={t('hairColorPlaceholder')}
-                                                    className="bg-black/20 border-white/5 h-9 text-xs"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('eyeColor')}</Label>
-                                                <Input 
-                                                    value={charProfile.eyeColor} 
-                                                    onChange={e => setCharProfile(p => ({ ...p, eyeColor: e.target.value }))}
-                                                    placeholder={t('eyeColorPlaceholder')}
-                                                    className="bg-black/20 border-white/5 h-9 text-xs"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('faceStyle')}</Label>
-                                                <Input 
-                                                    value={charProfile.faceStyle} 
-                                                    onChange={e => setCharProfile(p => ({ ...p, faceStyle: e.target.value }))}
-                                                    placeholder={t('faceStylePlaceholder')}
-                                                    className="bg-black/20 border-white/5 h-9 text-xs"
-                                                />
-                                            </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Outfit Lock Logic */}
-                                <div className="space-y-4 p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-1">
-                                            <Label className="text-sm font-bold flex items-center gap-2">
-                                                <Lock size={14} className="text-primary" /> {t('outfitLock')}
-                                            </Label>
-                                            <p className="text-[10px] text-muted-foreground">{t('outfitLockTooltip')}</p>
-                                        </div>
-                                        <Switch checked={outfitLockEnabled} onCheckedChange={setOutfitLockEnabled} />
-                                    </div>
-                                    {outfitLockEnabled && (
-                                        <Input 
-                                            placeholder={t('outfitLockPlaceholder')}
-                                            value={lockedOutfit}
-                                            onChange={(e) => setLockedOutfit(e.target.value)}
-                                            className="bg-black/20 border-white/5 text-xs h-10 rounded-xl"
-                                        />
-                                    )}
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="space-y-3">
-                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('selectStylePreset')}</Label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {styles.map((style) => (
-                                                <Button
-                                                    key={style.id}
-                                                    variant={selectedStyle === style.id ? 'default' : 'outline'}
-                                                    size="sm"
-                                                    onClick={() => setSelectedStyle(style.id)}
-                                                    className={cn(
-                                                        "rounded-full text-[10px] font-bold px-4 h-8 transition-all",
-                                                        selectedStyle === style.id ? "bg-primary text-white" : "border-white/10 hover:bg-white/5"
-                                                    )}
-                                                >
-                                                    {style.label}
+                                                <div className="flex-1">
+                                                    <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
+                                                    <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
+                                                    <RefreshCcw size={14} />
                                                 </Button>
-                                            ))}
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 text-center space-y-3">
+                                                <p className="text-xs text-muted-foreground">{t('noCharacterToLock')}</p>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => setMode('new')}
+                                                    className="w-full rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                                                >
+                                                    <User className="w-4 h-4 mr-2" /> {t('newCharacter')}
+                                                </Button>
+                                            </div>
+                                        )
+                                    ) : (
+                                        /* Traits integration for New Character mode */
+                                        <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-4 animate-in slide-in-from-top-2">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <User className="w-4 h-4 text-primary" />
+                                                <span className="text-xs font-bold uppercase tracking-wider">{t('characterTraits')}</span>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('characterName')}</Label>
+                                                    <Input
+                                                        value={charProfile.name}
+                                                        onChange={e => setCharProfile(p => ({ ...p, name: e.target.value }))}
+                                                        placeholder={t('characterNamePlaceholder')}
+                                                        className="bg-black/20 border-white/5 h-9 text-xs"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('gender')}</Label>
+                                                        <Select value={charProfile.gender} onValueChange={(v: any) => setCharProfile(p => ({ ...p, gender: v }))}>
+                                                            <SelectTrigger className="bg-black/20 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="female">{t('female')}</SelectItem>
+                                                                <SelectItem value="male">{t('male')}</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('hairColor')}</Label>
+                                                        <Input
+                                                            value={charProfile.hairColor}
+                                                            onChange={e => setCharProfile(p => ({ ...p, hairColor: e.target.value }))}
+                                                            placeholder={t('hairColorPlaceholder')}
+                                                            className="bg-black/20 border-white/5 h-9 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('eyeColor')}</Label>
+                                                        <Input
+                                                            value={charProfile.eyeColor}
+                                                            onChange={e => setCharProfile(p => ({ ...p, eyeColor: e.target.value }))}
+                                                            placeholder={t('eyeColorPlaceholder')}
+                                                            className="bg-black/20 border-white/5 h-9 text-xs"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-[10px] uppercase font-bold text-muted-foreground">{t('faceStyle')}</Label>
+                                                        <Input
+                                                            value={charProfile.faceStyle}
+                                                            onChange={e => setCharProfile(p => ({ ...p, faceStyle: e.target.value }))}
+                                                            placeholder={t('faceStylePlaceholder')}
+                                                            className="bg-black/20 border-white/5 h-9 text-xs"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                    )}
+
+                                    {/* Outfit Lock Logic */}
+                                    <div className="space-y-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <Label className="text-sm font-bold flex items-center gap-2">
+                                                    <Lock size={14} className="text-primary" /> {t('outfitLock')}
+                                                </Label>
+                                                <p className="text-[10px] text-muted-foreground">{t('outfitLockTooltip')}</p>
+                                            </div>
+                                            <Switch checked={outfitLockEnabled} onCheckedChange={setOutfitLockEnabled} />
+                                        </div>
+                                        {outfitLockEnabled && (
+                                            <Input
+                                                placeholder={t('outfitLockPlaceholder')}
+                                                value={lockedOutfit}
+                                                onChange={(e) => setLockedOutfit(e.target.value)}
+                                                className="bg-black/20 border-white/5 text-xs h-10 rounded-xl"
+                                            />
+                                        )}
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
-                                        <div className="relative">
-                                            <Textarea 
-                                                placeholder={t('promptPlaceholder')}
+                                    <div className="space-y-4">
+                                        <div className="space-y-3">
+                                            <Label className="text-xs font-bold uppercase text-muted-foreground">{t('selectStylePreset')}</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {styles.map((style) => (
+                                                    <Button
+                                                        key={style.id}
+                                                        variant={selectedStyle === style.id ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        onClick={() => setSelectedStyle(style.id)}
+                                                        className={cn(
+                                                            "rounded-full text-[10px] font-bold px-4 h-8 transition-all",
+                                                            selectedStyle === style.id ? "bg-primary text-white" : "border-white/10 hover:bg-white/5"
+                                                        )}
+                                                    >
+                                                        {style.label}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                            <div className="relative">
+                                                <Textarea
+                                                    placeholder={t('promptPlaceholder')}
+                                                    value={prompt}
+                                                    onChange={(e) => setPrompt(e.target.value)}
+                                                    className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl resize-none p-4"
+                                                />
+                                                {prompt.length > 0 && !isPromptValid && (
+                                                    <div className="absolute bottom-3 left-4 flex items-center gap-1.5 text-orange-400">
+                                                        <AlertCircle size={12} />
+                                                        <span className="text-[10px] font-bold uppercase">{t('needsMoreDetail')}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className={cn(
+                                            "w-full flex items-center justify-between p-4 rounded-2xl border transition-all duration-500",
+                                            prompt.length > 0 ? "bg-primary/5 border-primary/20" : "bg-white/5 border-white/5 opacity-50"
+                                        )}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                                    {isEnhancingPrompt ? <Loader2 size={14} className="text-primary animate-spin" /> : <Sparkles size={14} className="text-primary" />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-primary">Copilot: Smart Flow</p>
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        {isEnhancingPrompt ? "Metin zenginleştiriliyor..." : (prompt.length > 0 ? "Görseliniz otomatik zenginleştirilecek ✨" : "Yazmaya başladığınızda Copilot devreye girecek.")}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-[10px] font-bold text-muted-foreground uppercase">Auto</Label>
+                                                <Switch checked={smartMode} onCheckedChange={setSmartMode} />
+                                            </div>
+                                        </div>
+
+
+
+                                        <Button
+                                            onClick={() => handleGenerate()}
+                                            disabled={!isPromptValid || generating || !!imageUrl}
+                                            className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
+                                        >
+                                            {generating ? <Loader2 className="animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                                            {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="digitalTwin" className="mt-0 space-y-6 relative">
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
+                                <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
+                                <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
+                                <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
+                            </div>
+                            <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
+                                <CardContent className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
+                                        {mode === 'new' ? (
+                                            <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-white/10 bg-black/40 overflow-hidden group">
+                                                {refImage ? (
+                                                    <>
+                                                        <Image src={refImage} alt="Reference" fill className="object-cover" />
+                                                        <Button
+                                                            variant="destructive" size="icon"
+                                                            className="absolute top-2 right-2 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={() => setRefImage(null)}
+                                                        >
+                                                            <X size={14} />
+                                                        </Button>
+                                                    </>
+                                                ) : (
+                                                    <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
+                                                        <User size={32} className="text-muted-foreground opacity-20 mb-2" />
+                                                        <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabDigitalTwin')}</p>
+                                                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                                    </label>
+                                                )}
+                                                {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
+                                            </div>
+                                        ) : (
+                                            <div className="relative aspect-video w-full rounded-2xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center p-6 text-center space-y-3">
+                                                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
+                                                    <Lock className="text-primary w-8 h-8" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-primary uppercase tracking-wider">{t('mainCharacterLocked')}</p>
+                                                    <p className="text-[10px] text-muted-foreground px-4">{t('mainCharacterLockedDesc')}</p>
+                                                </div>
+                                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">3 ULC</Badge>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-3">
+                                            <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                            <Textarea
+                                                placeholder={t('promptPlaceholderDigitalTwin')}
                                                 value={prompt}
                                                 onChange={(e) => setPrompt(e.target.value)}
-                                                className="min-h-[120px] bg-black/40 border-white/10 rounded-2xl resize-none p-4"
+                                                className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
                                             />
-                                            {prompt.length > 0 && !isPromptValid && (
-                                                <div className="absolute bottom-3 left-4 flex items-center gap-1.5 text-orange-400">
-                                                    <AlertCircle size={12} />
-                                                    <span className="text-[10px] font-bold uppercase">{t('needsMoreDetail')}</span>
-                                                </div>
-                                            )}
                                         </div>
+
+                                        <Button
+                                            onClick={() => handleGenerate()}
+                                            disabled={(mode === 'new' && !refImage) || !isPromptValid || generating || !!imageUrl}
+                                            className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
+                                        >
+                                            {generating ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                            {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
+                                        </Button>
                                     </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
-                                    <Button 
-                                        variant="outline"
-                                        onClick={handleEnhancePrompt}
-                                        disabled={!prompt.trim() || isEnhancingPrompt || generating}
-                                        className="w-full flex items-center justify-start gap-3 p-3 h-auto bg-primary/5 hover:bg-primary/20 border-primary/20 rounded-2xl transition-all font-normal text-left group"
-                                    >
-                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                                            {isEnhancingPrompt ? <Loader2 size={14} className="text-primary animate-spin" /> : <Sparkles size={14} className="text-primary group-hover:animate-pulse" />}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs font-bold text-primary">{t('enhanceWithCopilot') || "Copilot: Metni Zenginleştir"}</p>
-                                            <p className="text-[10px] text-muted-foreground">{t('enhanceWithCopilotDesc') || "Gemini AI ile hayal gücünüzü 50 kelimelik profesyonel bir prompta dönüştürün."}</p>
-                                        </div>
-                                    </Button>
-
-
-                                    <Button 
-                                        onClick={() => handleGenerate()}
-                                        disabled={!isPromptValid || generating || !!imageUrl}
-                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
-                                    >
-                                        {generating ? <Loader2 className="animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                                        {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="digitalTwin" className="mt-0 space-y-6 relative">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
-                            <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
-                            <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
-                            <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
-                        </div>
-                        <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
-                            <CardContent className="p-6 space-y-6">
-                                <div className="space-y-4">
-                                    <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
-                                    {mode === 'new' ? (
+                        <TabsContent value="aiEdit" className="mt-0 space-y-6 relative">
+                            <div className="space-y-1 mb-4 px-2">
+                                <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
+                                    <RefreshCcw className="text-primary" /> {t('tabAiEdit')}
+                                    <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20 text-[10px]">3 ULC</Badge>
+                                </h2>
+                                <p className="text-sm text-muted-foreground">{t('aiEditDesc')}</p>
+                            </div>
+                            <Card className="glass-card border-white/10 h-fit">
+                                <CardContent className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
                                         <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-white/10 bg-black/40 overflow-hidden group">
                                             {refImage ? (
                                                 <>
                                                     <Image src={refImage} alt="Reference" fill className="object-cover" />
-                                                    <Button 
-                                                        variant="destructive" size="icon" 
+                                                    <Button
+                                                        variant="destructive" size="icon"
                                                         className="absolute top-2 right-2 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
                                                         onClick={() => setRefImage(null)}
                                                     >
@@ -716,226 +909,185 @@ export function AIStudio() {
                                                 </>
                                             ) : (
                                                 <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
-                                                    <User size={32} className="text-muted-foreground opacity-20 mb-2" />
-                                                    <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabDigitalTwin')}</p>
+                                                    <RefreshCcw size={32} className="text-muted-foreground opacity-20 mb-2" />
+                                                    <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabAiEdit')}</p>
                                                     <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                                                 </label>
                                             )}
                                             {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
                                         </div>
-                                    ) : (
-                                        <div className="relative aspect-video w-full rounded-2xl border border-primary/20 bg-primary/5 flex flex-col items-center justify-center p-6 text-center space-y-3">
-                                            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
-                                                <Lock className="text-primary w-8 h-8" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-primary uppercase tracking-wider">{t('mainCharacterLocked')}</p>
-                                                <p className="text-[10px] text-muted-foreground px-4">{t('mainCharacterLockedDesc')}</p>
-                                            </div>
-                                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">3 ULC</Badge>
+
+                                        <div className="space-y-3">
+                                            <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
+                                            <Textarea
+                                                placeholder={t('promptPlaceholderAiEdit')}
+                                                value={prompt}
+                                                onChange={(e) => setPrompt(e.target.value)}
+                                                className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
+                                            />
                                         </div>
-                                    )}
 
-                                    <div className="space-y-3">
-                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
-                                        <Textarea 
-                                            placeholder={t('promptPlaceholderDigitalTwin')}
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
-                                        />
-                                    </div>
-
-                                    <Button 
-                                        onClick={() => handleGenerate()}
-                                        disabled={(mode === 'new' && !refImage) || !isPromptValid || generating || !!imageUrl}
-                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
-                                    >
-                                        {generating ? <Loader2 className="animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                        {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="aiEdit" className="mt-0 space-y-6 relative">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-50 rounded-[2rem] flex flex-col items-center justify-center text-center p-6 border border-primary/20">
-                            <Clock className="w-12 h-12 text-primary mb-4 opacity-50" />
-                            <h3 className="text-2xl font-headline font-bold uppercase tracking-tighter mb-2">{t('comingSoon')}</h3>
-                            <p className="text-muted-foreground text-sm max-w-[250px]">{t('featureFrozenDesc')}</p>
-                        </div>
-                        <div className="space-y-1 mb-4 px-2 opacity-20 pointer-events-none">
-                            <h2 className="text-2xl font-headline font-bold flex items-center gap-2">
-                                <RefreshCcw className="text-primary" /> {t('tabAiEdit')}
-                                <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20 text-[10px]">3 ULC</Badge>
-                            </h2>
-                            <p className="text-sm text-muted-foreground">{t('aiEditDesc')}</p>
-                        </div>
-                        <Card className="glass-card border-white/10 h-fit opacity-20 pointer-events-none">
-                            <CardContent className="p-6 space-y-6">
-                                <div className="space-y-4">
-                                    <Label className="text-xs font-bold uppercase text-muted-foreground">{t('uploadReference')}</Label>
-                                    <div className="relative aspect-video w-full rounded-2xl border-2 border-dashed border-white/10 bg-black/40 overflow-hidden group">
-                                        {refImage ? (
-                                            <>
-                                                <Image src={refImage} alt="Reference" fill className="object-cover" />
-                                                <Button 
-                                                    variant="destructive" size="icon" 
-                                                    className="absolute top-2 right-2 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => setRefImage(null)}
-                                                >
-                                                    <X size={14} />
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-white/5 transition-colors">
-                                                <RefreshCcw size={32} className="text-muted-foreground opacity-20 mb-2" />
-                                                <p className="text-xs font-bold text-muted-foreground uppercase">{t('tabAiEdit')}</p>
-                                                <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                                            </label>
-                                        )}
-                                        {isUploading && <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <Label className="text-xs font-bold uppercase text-muted-foreground">{t('promptYourVision')}</Label>
-                                        <Textarea 
-                                            placeholder={t('promptPlaceholderAiEdit')}
-                                            value={prompt}
-                                            onChange={(e) => setPrompt(e.target.value)}
-                                            className="min-h-[100px] bg-black/40 border-white/10 rounded-2xl p-4"
-                                        />
-                                    </div>
-
-                                    <Button 
-                                        onClick={() => handleGenerate()}
-                                        disabled={!refImage || !isPromptValid || generating || !!imageUrl}
-                                        className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
-                                    >
-                                        {generating ? <Loader2 className="animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
-                                        {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </div>
-
-                {/* Preview & Action Area Column */}
-                <div className="space-y-6 lg:sticky lg:top-8 h-fit">
-                    {imageUrl ? (
-                        <div className="space-y-6 animate-in slide-in-from-right-8 duration-500">
-                            <Card className="glass-card border-white/10 overflow-hidden shadow-2xl">
-                                <div className="relative aspect-square w-full group">
-                                    <Image src={imageUrl} alt="Generated AI" fill className="object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                        <p className="text-white font-bold text-sm uppercase tracking-tighter">{t('resultingMasterpiece')}</p>
-                                    </div>
-                                </div>
-                                
-                                <CardContent className="p-6 space-y-4">
-                                    {/* Satisfaction Feedback Section */}
-                                    <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">{t('satisfaction')}</p>
-                                        <div className="flex justify-center gap-2">
-                                            {[1, 2, 3, 4, 5].map((score) => (
-                                                <Button
-                                                    key={score}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    disabled={!logId}
-                                                    onClick={() => handleSatisfactionScore(score)}
-                                                    className={cn(
-                                                        "h-10 w-10 rounded-xl transition-all",
-                                                        satisfactionScore === score ? "bg-primary text-white" : "hover:bg-white/10 text-muted-foreground"
-                                                    )}
-                                                >
-                                                    <Star className={cn("w-5 h-5", satisfactionScore && satisfactionScore >= score ? "fill-current" : "")} />
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-3">
-                                        <Button 
-                                            variant="outline"
-                                            onClick={() => {
-                                                setImageUrl(null);
-                                                setMediaId(null);
-                                                setLogId(null);
-                                            }}
-                                            className="w-full h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
+                                        <Button
+                                            onClick={() => handleGenerate()}
+                                            disabled={!refImage || !isPromptValid || generating || !!imageUrl}
+                                            className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
                                         >
-                                            <RefreshCcw size={14} /> {t('startOver')}
+                                            {generating ? <Loader2 className="animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
+                                            {generating ? t('generating') : `${t('generateBtn')} (${currentCost} ULC)`}
                                         </Button>
-
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase text-center mt-4 tracking-widest">{t('selectAction')}</p>
-                                        
-                                        <Button 
-                                            onClick={handleSaveToPool}
-                                            disabled={publishing || !imageUrl}
-                                            className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-3"
-                                        >
-                                            <Container className="w-5 h-5" />
-                                            {publishing ? t('publishingBtn') : t('saveToContainer')}
-                                        </Button>
-                                        
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Button 
-                                                variant="outline"
-                                                onClick={() => {
-                                                    // Variation Logic: Trigger generation immediately
-                                                    setActiveTab('standard');
-                                                    setPrompt(prompt); 
-                                                    setRefImage(imageUrl); 
-                                                    setImageUrl(null);
-                                                    handleGenerate(imageUrl); // Trigger immediately with current result as ref
-                                                }}
-                                                className="h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
-                                            >
-                                                <Sparkles size={14} className="text-primary" /> {t('variationBtn')}
-                                            </Button>
-                                            <Button 
-                                                variant="outline"
-                                                disabled
-                                                className="h-12 rounded-2xl border-white/10 opacity-50 cursor-not-allowed font-bold gap-2 text-xs"
-                                            >
-                                                <RefreshCcw size={14} /> {t('editBtn')}
-                                            </Button>
-                                        </div>
-
-                                        {/* NEW: Lock Character Button for Standard AI */}
-                                        {activeTab === 'standard' && mode === 'new' && imageUrl && (
-                                            <Button 
-                                                variant="ghost" 
-                                                onClick={handleSetAsMainCharacter}
-                                                className="w-full h-12 rounded-2xl border border-primary/20 text-primary font-bold gap-2 text-xs animate-in slide-in-from-bottom-2"
-                                            >
-                                                <Lock size={14} /> {t('lockAsCharacter')}
-                                            </Button>
-                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
-                        </div>
-                    ) : (
-                        <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem] p-12 text-center bg-black/10">
-                            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                                <Wand2 className="w-8 h-8 text-muted-foreground opacity-20" />
+                        </TabsContent>
+                    </div>
+
+                    {/* Preview & Action Area Column */}
+                    <div className="space-y-6 lg:sticky lg:top-8 h-fit">
+                        {imageUrl ? (
+                            <div className="space-y-6 animate-in slide-in-from-right-8 duration-500">
+                                <Card className="glass-card border-white/10 overflow-hidden shadow-2xl">
+                                    <div className="relative aspect-square w-full group">
+                                        <Image src={imageUrl} alt="Generated AI" fill className="object-cover" />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                            <p className="text-white font-bold text-sm uppercase tracking-tighter">{t('resultingMasterpiece')}</p>
+                                        </div>
+                                    </div>
+
+                                    <CardContent className="p-6 space-y-4">
+                                        {/* Copilot V2: Monetization Intelligence */}
+                                        {monetizationSuggestion && (
+                                            <div id="studio-preview-area" className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in transition-all">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Sparkles className="text-primary w-4 h-4" />
+                                                        <span className="text-xs font-bold uppercase text-primary">Copilot V2 Değerlendirmesi</span>
+                                                    </div>
+                                                    <Badge className="bg-primary text-white text-[10px]">Skor: {monetizationSuggestion.score}/100</Badge>
+                                                </div>
+
+                                                <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                                                    <p className="text-[10px] text-muted-foreground uppercase mb-1">Akıllı Öneri</p>
+                                                    <p className="text-sm font-bold text-white">{monetizationSuggestion.recommendation}</p>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="p-3 bg-black/20 rounded-xl">
+                                                        <p className="text-[10px] text-muted-foreground uppercase mb-1">Premium</p>
+                                                        <p className="text-sm font-bold text-primary">{monetizationSuggestion.premiumPrice} ULC</p>
+                                                    </div>
+                                                    <div className="p-3 bg-black/20 rounded-xl">
+                                                        <p className="text-[10px] text-muted-foreground uppercase mb-1">Limited</p>
+                                                        <p className="text-sm font-bold text-primary">{monetizationSuggestion.limitedPrice} ULC ({monetizationSuggestion.limitedSupply} Adet)</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Satisfaction Feedback Section */}
+                                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">{t('satisfaction')}</p>
+                                            <div className="flex justify-center gap-2">
+                                                {[1, 2, 3, 4, 5].map((score) => (
+                                                    <Button
+                                                        key={score}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled={!logId}
+                                                        onClick={() => handleSatisfactionScore(score)}
+                                                        className={cn(
+                                                            "h-10 w-10 rounded-xl transition-all",
+                                                            satisfactionScore === score ? "bg-primary text-white" : "hover:bg-white/10 text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        <Star className={cn("w-5 h-5", satisfactionScore && satisfactionScore >= score ? "fill-current" : "")} />
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <Button variant="outline" size="sm" className="bg-white/5 rounded-full text-[10px]" onClick={() => handleGenerate(undefined, true)}>
+                                                <RefreshCcw className="mr-1 h-3 w-3" /> {t('regenerate')}
+                                            </Button>
+                                            <Button variant="outline" size="sm" className="bg-white/5 rounded-full text-[10px]">
+                                                <Download className="mr-1 h-3 w-3" /> {t('download')}
+                                            </Button>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setImageUrl(null);
+                                                    setMediaId(null);
+                                                    setLogId(null);
+                                                }}
+                                                className="w-full h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
+                                            >
+                                                <RefreshCcw size={14} /> {t('startOver')}
+                                            </Button>
+
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase text-center mt-4 tracking-widest">{t('selectAction')}</p>
+
+                                            <Button
+                                                onClick={handleSaveToPool}
+                                                disabled={publishing || !imageUrl}
+                                                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/90 font-bold text-lg gap-3"
+                                            >
+                                                <Container className="w-5 h-5" />
+                                                {publishing ? t('publishingBtn') : t('saveToContainer')}
+                                            </Button>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        // Variation Logic: Trigger generation immediately
+                                                        setActiveTab('standard');
+                                                        setPrompt(prompt);
+                                                        setRefImage(imageUrl);
+                                                        setImageUrl(null);
+                                                        handleGenerate(imageUrl); // Trigger immediately with current result as ref
+                                                    }}
+                                                    className="h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
+                                                >
+                                                    <Sparkles size={14} className="text-primary" /> {t('variationBtn')}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    disabled
+                                                    className="h-12 rounded-2xl border-white/10 opacity-50 cursor-not-allowed font-bold gap-2 text-xs"
+                                                >
+                                                    <RefreshCcw size={14} /> {t('editBtn')}
+                                                </Button>
+                                            </div>
+
+                                            {/* NEW: Lock Character Button for Standard AI */}
+                                            {activeTab === 'standard' && mode === 'new' && imageUrl && (
+                                                <Button
+                                                    variant="ghost"
+                                                    onClick={handleSetAsMainCharacter}
+                                                    className="w-full h-12 rounded-2xl border border-primary/20 text-primary font-bold gap-2 text-xs animate-in slide-in-from-bottom-2"
+                                                >
+                                                    <Lock size={14} /> {t('lockAsCharacter')}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             </div>
-                            <h3 className="text-muted-foreground font-headline font-bold text-xl opacity-40 uppercase">{t('canvasEmpty')}</h3>
-                            <p className="text-muted-foreground/40 text-sm mt-2 max-w-xs">{t('canvasEmptyDesc')}</p>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-[2.5rem] p-12 text-center bg-black/10">
+                                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                    <Wand2 className="w-8 h-8 text-muted-foreground opacity-20" />
+                                </div>
+                                <h3 className="text-muted-foreground font-headline font-bold text-xl opacity-40 uppercase">{t('canvasEmpty')}</h3>
+                                <p className="text-muted-foreground/40 text-sm mt-2 max-w-xs">{t('canvasEmptyDesc')}</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
             </Tabs>
         </div>
     );
-}
-
-// Helper utility
-function cn(...inputs: any[]) {
-    return inputs.filter(Boolean).join(" ");
 }

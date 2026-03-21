@@ -20,13 +20,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTonConnectUI } from '@tonconnect/ui-react';
-import { getSystemConfig, confirmUlcPurchase } from '@/lib/ledger';
+import { 
+    getSystemConfig, 
+    confirmPresalePurchaseAction 
+} from '@/lib/ledger';
 import { SystemConfig } from '@/lib/types';
 import { useTranslations } from 'next-intl';
-
-const PRESALE_PRICE = 0.01;
-const DEX_LISTING_PRICE = 0.015;
-const TOTAL_PRESALE_ALLOCATION = 100000000; // 100M
+import { 
+    getPresaleStageInfo, 
+    calculateUlcForUsdt, 
+    PRESALE_TOTAL_ALLOCATION 
+} from '@/lib/presale';
 
 export default function TokenomicsPage() {
   const t = useTranslations('Tokenomics');
@@ -37,7 +41,7 @@ export default function TokenomicsPage() {
   
   // Presale States
   const [usdtAmount, setUsdtAmount] = useState(10);
-  const [ulcAmount, setUlcAmount] = useState(1000);
+  const [ulcAmount, setUlcAmount] = useState(1111); // Initial based on ~$0.009
   const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -45,10 +49,14 @@ export default function TokenomicsPage() {
     getSystemConfig().then(setSystemConfig);
   }, []);
 
+  const presaleSold = systemConfig?.totalPresaleSold || 0;
+  const stageInfo = getPresaleStageInfo(presaleSold);
+
   const handleUsdtChange = (val: string) => {
     const num = Number(val);
     setUsdtAmount(num);
-    setUlcAmount(num / PRESALE_PRICE);
+    const { totalUlc } = calculateUlcForUsdt(presaleSold, num);
+    setUlcAmount(totalUlc);
   };
 
   const handlePurchase = async () => {
@@ -77,7 +85,7 @@ export default function TokenomicsPage() {
             txHash = result;
         }
 
-        await confirmUlcPurchase(user, usdtAmount, selectedNetwork, txHash);
+        await confirmPresalePurchaseAction(user, usdtAmount, selectedNetwork, txHash);
         toast({ title: t('successTitle'), description: t('successDesc', { amount: ulcAmount.toLocaleString() }) });
         getSystemConfig().then(setSystemConfig);
     } catch (e: any) {
@@ -87,8 +95,7 @@ export default function TokenomicsPage() {
     }
   };
 
-  const presaleSold = systemConfig?.totalPresaleSold || 0;
-  const presaleProgress = (presaleSold / TOTAL_PRESALE_ALLOCATION) * 100;
+  const presaleProgress = (presaleSold / PRESALE_TOTAL_ALLOCATION) * 100;
 
   return (
     <div className="space-y-16 pb-20 overflow-hidden">
@@ -111,9 +118,14 @@ export default function TokenomicsPage() {
 
         {/* Pre-Sale Card */}
         <div className="mt-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <Card className="glass-card border-primary/30 relative overflow-hidden group shadow-2xl shadow-primary/10">
-                <div className="absolute top-0 right-0 p-4">
-                    <Badge className="bg-green-500 text-black font-bold animate-pulse">{t('presaleBadge')}</Badge>
+            <Card className={`glass-card border-primary/30 relative overflow-hidden group shadow-2xl shadow-primary/10 ${stageInfo.isSoldOut ? 'opacity-70 grayscale' : ''}`}>
+                <div className="absolute top-0 right-0 p-4 flex gap-2">
+                    <Badge variant="outline" className="text-primary border-primary/20 backdrop-blur-md">
+                        Stage {stageInfo.currentStage}/5
+                    </Badge>
+                    <Badge className={`${stageInfo.isSoldOut ? 'bg-red-500' : 'bg-green-500'} text-black font-bold animate-pulse`}>
+                        {stageInfo.isSoldOut ? 'SOLD OUT' : t('presaleBadge')}
+                    </Badge>
                 </div>
                 
                 <CardHeader className="text-left pb-2">
@@ -125,22 +137,37 @@ export default function TokenomicsPage() {
                 
                 <CardContent className="space-y-6 text-left">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('priceLabel')}</p>
-                            <p className="text-xl font-bold font-headline text-green-400">${PRESALE_PRICE} <span className="text-xs font-normal opacity-50">USDT</span></p>
+                            <p className="text-xl font-bold font-headline text-green-400">${stageInfo.currentPrice.toFixed(3)} <span className="text-xs font-normal opacity-50">USDT</span></p>
                         </div>
-                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden">
+                             <div className="absolute top-0 left-0 w-1 h-full bg-primary/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('listingLabel')}</p>
-                            <p className="text-xl font-bold font-headline text-primary">${DEX_LISTING_PRICE} <span className="text-xs font-normal opacity-50">USDT</span></p>
+                            <p className="text-xl font-bold font-headline text-primary">${systemConfig?.listingPriceUSDT || 0.015} <span className="text-xs font-normal opacity-50">USDT</span></p>
                         </div>
                     </div>
 
                     <div className="space-y-3">
                         <div className="flex justify-between items-end">
-                            <Label className="text-xs font-bold text-muted-foreground uppercase">{t('soldLabel')}: {presaleSold.toLocaleString()} / 100M</Label>
+                            <div className="space-y-1">
+                                <Label className="text-xs font-bold text-muted-foreground uppercase">{t('soldLabel')}: {presaleSold.toLocaleString()} / 100M</Label>
+                                {!stageInfo.isSoldOut && (
+                                    <p className="text-[10px] text-primary/70 font-bold">
+                                        {stageInfo.remainingInStage.toLocaleString()} ULC remaining at this price
+                                    </p>
+                                )}
+                            </div>
                             <span className="text-xs font-bold text-primary">{presaleProgress.toFixed(1)}%</span>
                         </div>
                         <Progress value={presaleProgress} className="h-2 bg-white/5" />
+                        
+                        {stageInfo.nextPrice && (
+                            <p className="text-[10px] text-center text-muted-foreground opacity-60">
+                                Next Stage Price: <span className="text-white font-bold">${stageInfo.nextPrice.toFixed(3)}</span>
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-4 pt-2 border-t border-white/5">
@@ -152,6 +179,7 @@ export default function TokenomicsPage() {
                                         type="number"
                                         value={usdtAmount}
                                         onChange={(e) => handleUsdtChange(e.target.value)}
+                                        disabled={stageInfo.isSoldOut}
                                         className="h-12 bg-white/5 border-white/10 font-bold pl-12"
                                     />
                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
@@ -159,7 +187,7 @@ export default function TokenomicsPage() {
                             </div>
                             <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex flex-col justify-center">
                                 <p className="text-[10px] uppercase font-bold text-primary/70">{t('receiveAmount')}</p>
-                                <p className="text-lg font-bold font-headline">{ulcAmount.toLocaleString()} ULC</p>
+                                <p className="text-lg font-bold font-headline">{Math.floor(ulcAmount).toLocaleString()} ULC</p>
                             </div>
                         </div>
 
