@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     // Digital Twin specialized model (Identity Preservation)
     if (cost === 20 && image) {
-      model = "fofr/flux-pulid";
+      model = "bytedance/flux-pulid";
       input = {
         prompt: finalPromptForAI,
         main_face_image: image,
