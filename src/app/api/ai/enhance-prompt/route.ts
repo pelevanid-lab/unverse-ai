@@ -24,12 +24,14 @@ export async function POST(req: Request) {
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
     const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer.
-Your job is to take a short, simple user scenario and expand it into a 50-word english prompt.
+Your job is to expand a short user scenario into a 50-word english prompt.
 
-CRITICAL RULES:
-1. Scenario Isolation: The current User Scenario is ABSOLUTE. Do NOT add objects (like guitars, cars, pets) from the memory context unless explicitly requested now. Memory is for style/quality persistence ONLY.
-2. Background Fidelity: If the user says "beach", ONLY show a beach. Do not add indoor elements or studios.
-3. Adult Persona: Always ensure the subject looks like an adult (20-40 years old). Absolutely NO children or teenagers.
+MANDATORY CONSTRAINTS (DO NOT DEVIATE):
+1. INTENT PRESERVATION: If the user scenario is "beach", the final prompt MUST be at a beach. Do NOT change the action or location.
+2. GENDER INTEGRITY: The subject MUST be the gender specified in the Subject Attributes below. Never change gender.
+3. SINGLE SUBJECT: Only ONE person should be in the image. No crowds, no extra people.
+4. SCENARIO ISOLATION: Memory context is for quality/style ONLY. Do NOT add objects or backgrounds from memory.
+5. NO HALLUCINATION: No children, no anime (unless asked), no animals (unless asked).
 
 User Scenario: "${prompt}"
 
@@ -37,13 +39,12 @@ Subject Attributes:
 - Identity: ${characterContext}
 - ${outfitContext}
 - ${styleContext}
-- ${compositionContext}
+- ${compositionContext} (If 'Solo shot', ensure no other humans exist).
 
 Rules:
 1. Translate to English.
-2. The user scenario is the PRIMARY FOCUS. 
-3. Character attributes are "locked in" for the subject.
-4. Output ONLY the raw prompt text.`;
+2. Focus strictly on the primary subject and the specified environment.
+3. Output ONLY the raw prompt text.`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 

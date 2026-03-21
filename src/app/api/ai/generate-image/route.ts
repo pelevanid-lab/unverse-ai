@@ -44,10 +44,23 @@ export async function POST(req: Request) {
     });
 
     // 2. Call AI Generation using the ENHANCED prompt
-    const finalPromptForAI = enhancedPrompt || prompt;
-    const globalNegativePrompt = "child, kid, toddler, newborn, infant, teenager, young boy, young girl, school student, underage, small person";
-    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${globalNegativePrompt}` : globalNegativePrompt;
+    let finalPromptForAI = enhancedPrompt || prompt;
     
+    // Dynamic Negative Prompt based on requested profile
+    let genderSpecificNegative = "child, kid, toddler, teenager, underage";
+    if (finalPromptForAI.toLowerCase().includes("woman") || finalPromptForAI.toLowerCase().includes("female")) {
+        genderSpecificNegative += ", man, male, facial hair, beard";
+    } else if (finalPromptForAI.toLowerCase().includes("man") || finalPromptForAI.toLowerCase().includes("male")) {
+        genderSpecificNegative += ", woman, female";
+    }
+
+    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${genderSpecificNegative}` : genderSpecificNegative;
+    
+    // Solo Subject Enforcement
+    if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
+        finalPromptForAI = `A solo shot of 1 person, ${finalPromptForAI}`;
+    }
+
     let model: any = "black-forest-labs/flux-dev";
     let input: any = {
       prompt: finalPromptForAI,
@@ -56,6 +69,9 @@ export async function POST(req: Request) {
       guidance_scale: 3.5,
       negative_prompt: userNegativePrompt,
     };
+    
+    // Final Audit Copy for for Logging
+    const finalAuditPrompt = finalPromptForAI;
 
     if (image && cost === 5) {
         // Standard mode with reference: maintain same model but keep img2img logic
@@ -230,6 +246,7 @@ export async function POST(req: Request) {
         userId,
         prompt,
         enhancedPrompt: enhancedPrompt || prompt,
+        finalAuditPrompt: finalAuditPrompt, // Forensic log
         mediaUrl: finalUrl,
         paymentReference: ledgerId,
         timestamp: serverTimestamp(),

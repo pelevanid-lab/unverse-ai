@@ -144,8 +144,9 @@ export class Copilot {
         outfit?: string
     }): Promise<{ enhancedPrompt: string, originalPrompt: string, negativePrompt?: string }> {
         
-        const memoryContext = await this.getMemoryContext();
-        const negativeContext = await this.getNegativeMemoryContext();
+        // DISABLE memory to clear hallucinations for for current triage
+        const memoryContext = ""; 
+        const negativeMemoryContext = "";
         
         // Character context construction (Persona Upgrade)
         const char = params.character || this.user?.savedCharacter;
@@ -184,7 +185,8 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
                 character: char,
                 style: params.style,
                 composition: params.composition,
-                outfit: params.outfit
+                outfit: params.outfit,
+                negativeContext: negativeMemoryContext // Added negativeContext here
             })
         });
 
@@ -196,7 +198,7 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
         return {
             enhancedPrompt: data.enhancedPrompt,
             originalPrompt: params.userInput,
-            negativePrompt: negativeContext
+            negativePrompt: negativeMemoryContext
         };
     }
 

@@ -245,12 +245,16 @@ export function AIStudio() {
             toast({ variant: "destructive", title: t('insufficientULC'), description: t('insufficientULCDesc') });
             return;
         }
-
         setGenerating(true);
         setImageUrl(null);
         setMediaId(null);
+        setEnhancedPromptUsed(null);
         setLogId(null);
         setSatisfactionScore(null);
+
+        // imageToUse is already set by the logic below in a later pass, but let's consolidate
+        const imageToUseFinal = activeTab === 'standard' ? null : refImage; 
+        const maskToUse = activeTab === 'aiEdit' ? imageToUseFinal : undefined;
 
         try {
             await copilot.init();
