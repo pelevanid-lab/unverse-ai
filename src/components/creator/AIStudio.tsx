@@ -276,11 +276,11 @@ export function AIStudio() {
                 setLastNegativePrompt(result.negativePrompt || null);
                 setIsEnhancingPrompt(false);
             } else {
-                // FALLBACK: When smartMode is off, we still MUST append character traits so they aren't ignored
+                // FALLBACK: Improve prompt structure to ensure scene is not ignored
                 const char = (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile;
                 if (char) {
-                    const traits = `${char.gender}, ${char.hairColor} hair, ${char.eyeColor} eyes, ${char.faceStyle} face`;
-                    finalPromptForGeneration = `${prompt}, ${traits}`;
+                    const traits = `Identity: ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}`;
+                    finalPromptForGeneration = `A professional photorealistic portrait of an individual with these traits: ${traits}. The scene and action is: ${prompt}. High quality, cinematic.`;
                 }
             }
 

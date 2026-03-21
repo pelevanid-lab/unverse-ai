@@ -46,23 +46,21 @@ export async function POST(req: Request) {
     // 2. Call AI Generation using the ENHANCED prompt
     const finalPromptForAI = enhancedPrompt || prompt;
     
-    let model: any = "black-forest-labs/flux-schnell";
+    let model: any = "black-forest-labs/flux-dev";
     let input: any = {
       prompt: finalPromptForAI,
       aspect_ratio: "1:1",
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
       negative_prompt: negativePrompt || undefined,
     };
 
     if (image && cost === 5) {
-        // Standard mode: Use Flux Dev directly for img2img tasks (more stable slug)
-        model = "black-forest-labs/flux-dev";
+        // Standard mode with reference: maintain same model but keep img2img logic
         input = {
-            prompt: finalPromptForAI,
+            ...input,
             image: image,
             prompt_strength: 0.8,
-            num_outputs: 1,
-            num_inference_steps: 28,
-            guidance_scale: 3.5
         };
     }
 
