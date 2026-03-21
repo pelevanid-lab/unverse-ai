@@ -97,35 +97,30 @@ export interface Creator {
 }
 
 export interface SystemConfig {
+    admin_wallet_address: string;
+    ai_generation_burn_split?: number;
+    ai_generation_cost?: number;
+    ai_generation_treasury_split?: number;
+    genesis_initialized?: boolean;
+    isSealed?: boolean;
+    last_manual_fix_v3_at?: number;
+    platform_subscription_fee_split?: number;
+    pools?: {
+        [key: string]: number; // e.g. "reserve": 420000000
+    };
+    premium_unlock_burn_ratio?: number;
+    premium_unlock_fee_split?: number;
+    premium_unlock_treasury_ratio?: number;
+    subscription_buyback_ratio?: number;
+    subscription_treasury_ratio?: number;
+    totalBuybackStakingUSDT?: number;
+    totalPresaleSold?: number;
+    totalStakedULC?: number;
+    totalTreasuryUSDT?: number;
     treasury_wallets: {
         TRON: string;
         TON: string;
     };
-    platform_subscription_fee_split?: number;
-    wallets?: {
-        promo_pool: {
-            address: string;
-        }
-    };
-    admin_wallet_address: string;
-    genesis_initialized?: boolean;
-    ulc_token_network?: string;
-    premium_commission_staking_ratio?: number;
-    premium_commission_treasury_ratio?: number;
-    subscription_buyback_ratio?: number;
-    subscription_treasury_ratio?: number;
-    ai_generation_cost?: number;
-    ai_generation_treasury_split?: number;
-    ai_generation_burn_split?: number;
-    pools?: {
-        [key: string]: number; // e.g. "reserve": 420000000
-    };
-    totalTreasuryUSDT?: number;
-    totalBuybackBurnUSDT?: number; // Legacy
-    totalBuybackStakingUSDT?: number; // For staking rewards
-    totalStakedULC?: number;
-    totalPresaleSold?: number;
-    isSealed?: boolean;
 }
 
 export interface SystemStats {
@@ -150,8 +145,12 @@ export type LedgerEntryType =
     | 'treasury_fee'
     | 'buyback_burn_fee'
     | 'buyback_staking_fee'
+    | 'ai_generation_payment'
     | 'ai_generation_refund'
     | 'vesting_claim'
+    | 'vesting_created'
+    | 'genesis_allocation'
+    | 'premium_unlock_earning'
     | 'presale_purchase';
 
 export interface VestingSchedule {
@@ -177,7 +176,7 @@ export interface LedgerEntry {
     fromUserId?: string;
     toUserId?: string;
     fromWallet?: string;
-    toWallet: string;
+    toWallet?: string;
     creatorId?: string;
     txHash?: string;
     network?: 'TRON' | 'TON';
@@ -185,6 +184,7 @@ export interface LedgerEntry {
     referenceId?: string;
     platformFee?: number;
     metadata?: any;
+    details?: any;
 }
 
 export interface ClaimRequest {

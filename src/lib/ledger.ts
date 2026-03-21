@@ -30,18 +30,14 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'id' | 'timesta
 
 export async function grantWelcomeBonus(address: string): Promise<void> {
     const userDocRef = doc(db, 'users', address);
-    const config = await getSystemConfig();
+    const configRef = doc(db, 'config', 'system');
     
-    if (!config?.wallets?.promo_pool?.address) {
-        throw new Error("Promo pool address not configured.");
-    }
-
     const batch = writeBatch(db);
     
     // 1. Record in Ledger
     const ledgerRef = doc(collection(db, 'ledger'));
     batch.set(ledgerRef, {
-        fromWallet: config.wallets.promo_pool.address,
+        fromWallet: "SYSTEM_PROMO_POOL",
         toUserId: address,
         toWallet: address,
         amount: 100,
@@ -54,6 +50,11 @@ export async function grantWelcomeBonus(address: string): Promise<void> {
     batch.update(userDocRef, {
         welcomeBonusClaimed: true,
         'ulcBalance.available': increment(100)
+    });
+
+    // 3. Update Global Promo Pool
+    batch.update(configRef, {
+        'pools.promo': increment(-100)
     });
 
     await batch.commit();
@@ -304,59 +305,53 @@ export async function getPostMediaAction(postId: string): Promise<{ url: string 
     return result.data as { url: string };
 }
 
-export async function initializeSystemConfig() {
+export async function syncSystemConfigAction() {
     const configRef = doc(db, 'config', 'system');
-    const statsRef = doc(db, 'config', 'stats');
     
     const configSnap = await getDoc(configRef);
     if (configSnap.exists() && configSnap.data()?.isSealed) {
         throw new Error("TOKENOMICS_LOCKED");
     }
 
-    const initialConfig = {
-        genesis_initialized: true,
-        isSealed: false,
-        last_initialized_at: Date.now(),
+    const syncedConfig: SystemConfig = {
         admin_wallet_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
-        treasury_wallets: {
-            TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
-            TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
-        },
-        ai_generation_cost: 3,
+        ai_generation_burn_split: 3, // Repesents 30% proportional burn
+        ai_generation_cost: 5,
+        ai_generation_treasury_split: 7, // Represents 70% proportional treasury
+        genesis_initialized: false,
+        isSealed: false,
+        last_manual_fix_v3_at: Date.now(),
         platform_subscription_fee_split: 0.15,
-        subscription_treasury_ratio: 0.67,
-        subscription_buyback_ratio: 0.33,
-        premium_commission_staking_ratio: 0.33,
-        premium_commission_treasury_ratio: 0.67,
-        ai_generation_treasury_split: 7,
-        ai_generation_burn_split: 3,
         pools: {
+            creators: 120000000,
+            exchanges: 40000000,
+            liquidity: 60000000,
+            presale: 100000000,
+            promo: 50000000,
             reserve: 420000000,
             team: 130000000,
-            creators: 120000000,
-            presale: 100000000,
-            liquidity: 60000000,
-            promo: 50000000,
-            exchanges: 40000000
         },
-        totalTreasuryUSDT: 0,
+        premium_unlock_burn_ratio: 0.33,
+        premium_unlock_fee_split: 0.15,
+        premium_unlock_treasury_ratio: 0.67,
+        subscription_buyback_ratio: 0.33,
+        subscription_treasury_ratio: 0.67,
         totalBuybackStakingUSDT: 0,
+        totalPresaleSold: 0,
         totalStakedULC: 0,
-        totalPresaleSold: 0
+        totalTreasuryUSDT: 0,
+        treasury_wallets: {
+            TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
+            TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2",
+        }
     };
 
-    const initialStats = {
-        totalTreasuryULC: 0,
-        totalBurnedULC: 0
-    };
-
-    const batch = writeBatch(db);
-    batch.set(configRef, initialConfig);
-    batch.set(statsRef, initialStats, { merge: true });
+    // We use merge: true to not overwrite currently accumulated values like totalTreasuryUSDT, 
+    // but we ensure all keys are strictly aligned to the codebase structure.
+    await setDoc(configRef, syncedConfig, { merge: true });
     
-    await batch.commit();
     systemConfigCache = null; 
-    return initialConfig as SystemConfig;
+    return syncedConfig;
 }
 
 export async function handleStaking(user: UserProfile, amount: number) {

@@ -3,7 +3,7 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, initializeSystemConfig, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction, sealEconomyAction } from '@/lib/ledger';
+import { getSystemConfig, syncSystemConfigAction, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction, sealEconomyAction } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles, Lock as LockIcon, Shield, RefreshCw } from 'lucide-react';
@@ -95,10 +95,10 @@ export default function AdminDashboard() {
   const handleInitialize = async () => {
     setLoading('init');
     try {
-      await initializeSystemConfig();
-      toast({ title: "System Initialized" });
+      await syncSystemConfigAction();
+      toast({ title: "System Configuration Synced & Verified" });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Setup Failed", description: e.message });
+      toast({ variant: "destructive", title: "Sync Failed", description: e.message });
     }
     setLoading(false);
   };
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
                 {!config?.isSealed ? (
                   <>
                     <Button onClick={handleInitialize} disabled={loading === 'init'} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold">
-                      {loading === 'init' ? <Loader2 className="animate-spin"/> : 'Initialize System Economy'}
+                      {loading === 'init' ? <Loader2 className="animate-spin"/> : 'Sync & Align System Configuration'}
                     </Button>
                     
                     <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">

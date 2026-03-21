@@ -214,12 +214,13 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
             const configSnap = await transaction.get(db.collection("config").doc("system"));
             const config = configSnap.data();
 
-            // --- 85/15 Split Logic (Dynamic) ---
-            const creatorShare = price * 0.85;
-            const platformMargin = price * 0.15;
-            
-            const treasuryRatio = 0.67; // 10% of total (0.15 * 0.67 approx 0.10)
-            const burnRatio = 0.33;     // 5% of total (0.15 * 0.33 approx 0.05)
+            // --- Dynamic Split Logic via System Config ---
+            const platformFeeSplit = config?.premium_unlock_fee_split ?? 0.15;
+            const treasuryRatio = config?.premium_unlock_treasury_ratio ?? 0.67;
+            const burnRatio = config?.premium_unlock_burn_ratio ?? 0.33;
+
+            const creatorShare = price * (1 - platformFeeSplit);
+            const platformMargin = price * platformFeeSplit;
 
             const treasuryShare = platformMargin * treasuryRatio;
             const burnShare = platformMargin * burnRatio;
