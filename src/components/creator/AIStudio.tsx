@@ -50,6 +50,9 @@ export function AIStudio() {
         // but clear the refImage if moving to standard
         if (value === 'standard') {
             setRefImage(null);
+        } else {
+            // Force 'new' mode for Digital Twin and AI Edit as they require fresh reference images
+            setMode('new');
         }
     };
 
@@ -270,8 +273,15 @@ export function AIStudio() {
                 });
                 finalPromptForGeneration = result.enhancedPrompt;
                 setEnhancedPromptUsed(finalPromptForGeneration);
-                setLastNegativePrompt(result.negativePrompt || null); // V2: Capture negative context
+                setLastNegativePrompt(result.negativePrompt || null);
                 setIsEnhancingPrompt(false);
+            } else {
+                // FALLBACK: When smartMode is off, we still MUST append character traits so they aren't ignored
+                const char = (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile;
+                if (char) {
+                    const traits = `${char.gender}, ${char.hairColor} hair, ${char.eyeColor} eyes, ${char.faceStyle} face`;
+                    finalPromptForGeneration = `${prompt}, ${traits}`;
+                }
             }
 
             const response = await fetch('/api/ai/generate-image', {

@@ -80,10 +80,10 @@ export async function POST(req: Request) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            prompt: finalPromptForAI,
+            prompt: `A high-quality professional portrait of the subject person from the reference image. The person is ${finalPromptForAI}. Photorealistic, cinematic lighting, 8k.`,
             reference_image_url: image,
-            id_weight: 1.0,
-            num_inference_steps: 20,
+            id_weight: 1.25, // Increased for stronger likeness
+            num_inference_steps: 30, // Higher steps for quality
             guidance_scale: 3.5,
             image_size: "square_hd"
         })
@@ -134,17 +134,69 @@ export async function POST(req: Request) {
           prompt: prompt,
           enhancedPrompt: enhancedPrompt || prompt
       });
-    }
- else if ((cost === 8 || cost === 4) && image) {
-      // AI Edit / In-painting specialized model
-      model = "black-forest-labs/flux-fill-dev";
-      input = {
-        prompt: finalPromptForAI,
-        image: image,
-        mask: mask || image, 
-        guidance: 30,
-        num_inference_steps: 20
-      };
+    // AI Edit / In-painting specialized model - NOW POWERED BY FAL.AI
+    } else if ((cost === 8 || cost === 4) && image) {
+      const falKey = process.env.FAL_API_KEY;
+      if (!falKey) {
+          throw new Error("FAL_API_KEY is missing on server.");
+      }
+
+      // We use Fal's dedicated in-painting model for superior background control
+      const response = await fetch("https://fal.run/fal-ai/flux-general/inpainting", {
+        method: "POST",
+        headers: {
+            "Authorization": `Key ${falKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            prompt: `Maintain the absolute likeness and details of the person in the image. ${finalPromptForAI}`,
+            image_url: image, // Base64
+            mask_url: undefined, // Let Fal auto-detect or treat as a global edit if no mask
+            num_inference_steps: 28,
+            guidance_scale: 30,
+            strength: 0.95
+        })
+      });
+
+      if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(`Fal.ai Edit Error: ${errData.detail || response.statusText}`);
+      }
+
+      const result = await response.json();
+      const falImageUrl = result.images?.[0]?.url;
+      
+      if (!falImageUrl) {
+          throw new Error("Fal.ai Edit returned no image URL.");
+      }
+
+      const imageUrl = falImageUrl;
+      const imageResponse = await fetch(imageUrl);
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+
+      const fileName = `ai_edit_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+      const imagePath = `creator-media/${userId}/${fileName}`;
+      const storageRef = ref(storage, imagePath);
+      await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
+      const finalUrl = await getDownloadURL(storageRef);
+
+      const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
+          userId,
+          prompt,
+          enhancedPrompt: enhancedPrompt || prompt,
+          mediaUrl: finalUrl,
+          paymentReference: ledgerId,
+          timestamp: serverTimestamp(),
+          satisfactionScore: null
+      });
+
+      return NextResponse.json({ 
+          logId: logDocRef.id, 
+          mediaUrl: finalUrl,
+          prompt: prompt,
+          enhancedPrompt: enhancedPrompt || prompt
+      });
     }
 
     const output = await replicate.run(model, { input }) as string[];
