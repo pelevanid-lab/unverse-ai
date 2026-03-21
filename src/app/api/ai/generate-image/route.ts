@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, negativePrompt, userId, image, mask } = json;
+    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask } = json;
     cost = json.cost || 5; // Assign cost from json, default to 5
 
     if (!prompt || !userId) {
@@ -45,18 +45,19 @@ export async function POST(req: Request) {
 
     // 2. FAIL-SAFE PROMPT MERGING (User Instruction 2)
     // We never rely solely on Gemini. We MERGE the core intent.
-    const userScene = prompt;
+    // NORMALIZATION RULE: Always use English for for the and anchor.
+    const userSceneEnglish = translation || prompt; 
     const userOutfit = (prompt.toLowerCase().includes("bikini") || (enhancedPrompt?.toLowerCase().includes("bikini"))) ? "bikini" : ""; 
     
-    // Construct the "Security Anchor"
-    const securityAnchor = `FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. SCENE: ${userScene}.`;
+    // Construct the "Security Anchor" (Strict English ONLY)
+    const securityAnchor = `FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. SCENE: ${userSceneEnglish}.`;
     
     let basePrompt = enhancedPrompt || prompt;
     
     // If Gemini returned a uselessly short prompt, discard it and use a high-quality fallback
     if (enhancedPrompt && enhancedPrompt.length < 25) {
         console.warn("Gemini Truncation Detected. Using Fallback.");
-        basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${prompt}`;
+        basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
     }
 
     let finalPromptForAI = `${securityAnchor} ${basePrompt}`;

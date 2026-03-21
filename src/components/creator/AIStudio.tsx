@@ -110,6 +110,7 @@ export function AIStudio() {
     const [copilotRecommendation, setCopilotRecommendation] = useState<{ action: string, message: string, cta: string } | null>(null);
     const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
     const [lastNegativePrompt, setLastNegativePrompt] = useState<string | null>(null);
+    const [lastTranslation, setLastTranslation] = useState<string | null>(null);
     const [isDailyDraftLoading, setIsDailyDraftLoading] = useState(false);
 
     const copilot = new Copilot(user?.uid || '');
@@ -280,6 +281,7 @@ export function AIStudio() {
                 });
                 finalPromptForGeneration = result.enhancedPrompt;
                 setEnhancedPromptUsed(finalPromptForGeneration);
+                setLastTranslation(result.translation || null); 
                 setLastNegativePrompt(result.negativePrompt || null);
                 setIsEnhancingPrompt(false);
             } else {
@@ -300,7 +302,8 @@ export function AIStudio() {
                 body: JSON.stringify({
                     prompt: originalInput,
                     enhancedPrompt: finalPromptForGeneration,
-                    negativePrompt: lastNegativePrompt, // V2: Inject negative prompt
+                    translation: lastTranslation, // Pass the English translation
+                    negativePrompt: lastNegativePrompt, 
                     userId: user.uid,
                     cost: currentCost,
                     image: imageToUse || undefined,

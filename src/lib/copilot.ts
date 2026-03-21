@@ -142,7 +142,7 @@ export class Copilot {
         isEditMode?: boolean,
         referenceImageUrl?: string,
         outfit?: string
-    }): Promise<{ enhancedPrompt: string, originalPrompt: string, negativePrompt?: string }> {
+    }): Promise<{ enhancedPrompt: string, originalPrompt: string, translation?: string, negativePrompt?: string }> {
         
         // DISABLE memory to clear hallucinations for for current triage
         const memoryContext = ""; 
@@ -198,6 +198,7 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
         return {
             enhancedPrompt: data.enhancedPrompt,
             originalPrompt: params.userInput,
+            translation: data.translation,
             negativePrompt: negativeMemoryContext
         };
     }

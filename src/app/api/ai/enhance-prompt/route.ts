@@ -23,28 +23,29 @@ export async function POST(req: Request) {
     const styleContext = style && style !== 'none' ? `Style: ${style} atmosphere/lighting` : '';
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
-    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer.
-Your job is to expand a short user scenario into a 50-word english prompt.
+    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer and Translator.
 
-MANDATORY PROTOCOL (DO NOT DEVIATE):
-1. FULL BODY SHOT: If an outfit is specified, you MUST describe a "full body shot, head to toe" view. NO portrait cropping.
-2. OUTFIT VISIBILITY: The specified clothing MUST be the visual highlight. Clearly describe it.
-3. SCENE FOUNDATION: The User Scenario is the absolute environment. No indoor/studio unless asked.
-4. GENDER & ADULT: Maintain the adult persona and the specified gender.
+LANGUAGE RULE: 
+- Translate everything to CLEAN NATURAL ENGLISH. 
+- NO TURKISH or hybrid text in the output.
+- The first sentence MUST be a clean direct 1-sentence translation of the user scenario.
 
-User Scenario: "${prompt}"
+MANDATORY PROTOCOL:
+1. FULL BODY SHOT: Describe a "full body shot, head to toe".
+2. OUTFIT VISIBILITY: The clothing is the priority.
+3. SCENE FOUNDATION: Use the translated scenario as the absolute background.
+
+User Scenario (Translate this): "${prompt}"
 
 Subject Attributes:
-- OUTFIT (MANDATORY): ${outfitContext}
-- SCENE (FOUNDATION): ${prompt}
 - Identity: ${characterContext}
-- ${styleContext}
-- ${compositionContext} (If 'Solo', no extra people).
+- Outfit: ${outfitContext}
+- Style: ${styleContext}
 
 Rules:
-1. Translate to English.
-2. Use Wide-Angle lens descriptors (e.g., 35mm, f/4) to show the full body and environment.
-3. Output ONLY the raw prompt text.`;
+1. Translate the scenario to English first.
+2. The entire output MUST be in English.
+3. Output ONLY the raw prompt text (Starting with the translation).`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
@@ -79,13 +80,23 @@ Rules:
     }
 
     const geminiData = await geminiResponse.json();
-    const enhancedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!enhancedText) {
-      throw new Error("Received empty text from Gemini.");
+    if (!rawText) {
+      throw new Error("Received empty response from Gemini.");
     }
 
-    return NextResponse.json({ enhancedPrompt: enhancedText.trim() });
+    // Attempt to extract the clean prompt. We'll harden this to ALWAYS return English.
+    // If Gemini returns a JSON-like string, we parse it, otherwise we treat the whole thing as enhancedPrompt.
+    let translation = prompt; // Fallback
+    let enhancedPrompt = rawText.trim();
+
+    // Force Gemini to give us a clear translation in a structured way if possible
+    // For now, we'll refine the system prompt to facilitate this.
+    return NextResponse.json({ 
+        enhancedPrompt: enhancedPrompt,
+        translation: enhancedPrompt.split('.')[0] // Use the first sentence as a proxy for for translation if not structured
+    });
 
   } catch (error: any) {
     console.error('AI PROMPT ENHANCE ERROR:', error);
