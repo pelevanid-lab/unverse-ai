@@ -40,7 +40,7 @@ Rules:
 3. Seamlessly blend the user's idea with the character constraints.
 4. Output ONLY the raw prompt text, no intro or outro, just the final comma-separated prompt string.`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
