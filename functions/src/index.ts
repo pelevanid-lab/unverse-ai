@@ -131,6 +131,19 @@ export const publishScheduledPosts = onSchedule("every 1 hours synchronized", as
             likes: 0,
             unlockCount: 0,
             earningsULC: 0,
+            // Carry over AI prompt data if exists
+            ...(mediaData.isAI && {
+                isAI: true,
+                aiPrompt: mediaData.aiPrompt || mediaData.prompt,
+                aiEnhancedPrompt: mediaData.aiEnhancedPrompt || mediaData.enhancedPrompt
+            }),
+            ...(mediaData.contentType === 'limited' && {
+                limited: {
+                    totalSupply: Number(mediaData.limited?.totalSupply || 100),
+                    soldCount: 0,
+                    price: Number(mediaData.limited?.price || mediaData.priceULC || 0)
+                }
+            })
         };
       
         const newPostRef = postsCollection.doc();

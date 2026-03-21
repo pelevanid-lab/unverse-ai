@@ -153,6 +153,19 @@ exports.publishScheduledPosts = (0, scheduler_1.onSchedule)("every 1 hours synch
             likes: 0,
             unlockCount: 0,
             earningsULC: 0,
+            // Carry over AI prompt data if exists
+            ...(mediaData.isAI && {
+                isAI: true,
+                aiPrompt: mediaData.aiPrompt || mediaData.prompt,
+                aiEnhancedPrompt: mediaData.aiEnhancedPrompt || mediaData.enhancedPrompt
+            }),
+            ...(mediaData.contentType === 'limited' && {
+                limited: {
+                    totalSupply: Number(mediaData.limited?.totalSupply || 100),
+                    soldCount: 0,
+                    price: Number(mediaData.limited?.price || mediaData.priceULC || 0)
+                }
+            })
         };
         const newPostRef = postsCollection.doc();
         batch.set(newPostRef, newPostData);
@@ -401,9 +414,9 @@ exports.confirmPresalePurchase = (0, https_1.onCall)({ memory: "256MiB" }, async
                 timestamp: now
             });
             // 3. Automatic Vesting Schedule
-            // Preset: presale (1 month cliff, 12 months duration)
-            const cliffMs = 1 * 30 * 24 * 60 * 60 * 1000;
-            const durationMs = 12 * 30 * 24 * 60 * 60 * 1000;
+            // Preset: presale (12 month cliff, 24 months duration)
+            const cliffMs = 12 * 30 * 24 * 60 * 60 * 1000;
+            const durationMs = 24 * 30 * 24 * 60 * 60 * 1000;
             transaction.set(scheduleRef, {
                 userId,
                 totalAmount: ulcAmount,
