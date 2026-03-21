@@ -25,27 +25,24 @@ export async function POST(req: Request) {
 
     const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer and Translator.
 
-LANGUAGE RULE: 
-- Translate everything to CLEAN NATURAL ENGLISH. 
-- NO TURKISH or hybrid text in the output.
-- The first sentence MUST be a clean direct 1-sentence translation of the user scenario.
+OUTPUT STRUCTURE (MANDATORY):
+TRANSLATION: [Translate the User Scenario below into 1 clean English sentence. DO NOT ADD DETAILS HERE.]
+ENHANCEMENT: [A 50-word cinematic expansion of the scenario including camera, lighting, and mood.]
 
-MANDATORY PROTOCOL:
-1. FULL BODY SHOT: Describe a "full body shot, head to toe".
-2. OUTFIT VISIBILITY: The clothing is the priority.
-3. SCENE FOUNDATION: Use the translated scenario as the absolute background.
+CRITICAL RULES:
+1. TRANSLATION MUST capture the user's core action/location (e.g., "lying on a beach").
+2. ENHANCEMENT MUST include the Subject Attributes provided.
+3. Use Wide-Angle lens descriptors.
+4. ABSOLUTELY NO TURKISH.
 
-User Scenario (Translate this): "${prompt}"
+User Scenario to translate: "${prompt}"
 
 Subject Attributes:
 - Identity: ${characterContext}
 - Outfit: ${outfitContext}
 - Style: ${styleContext}
 
-Rules:
-1. Translate the scenario to English first.
-2. The entire output MUST be in English.
-3. Output ONLY the raw prompt text (Starting with the translation).`;
+Output ONLY the two tagged blocks.`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
@@ -86,16 +83,24 @@ Rules:
       throw new Error("Received empty response from Gemini.");
     }
 
-    // Attempt to extract the clean prompt. We'll harden this to ALWAYS return English.
-    // If Gemini returns a JSON-like string, we parse it, otherwise we treat the whole thing as enhancedPrompt.
-    let translation = prompt; // Fallback
-    let enhancedPrompt = rawText.trim();
+    // Surgical extraction using Regex
+    const translationMatch = rawText.match(/TRANSLATION:\s*([^\n\r]*)/i);
+    const enhancementMatch = rawText.match(/ENHANCEMENT:\s*([\s\S]*)/i);
+    
+    let translation = translationMatch ? translationMatch[1].trim() : "";
+    let enhancedPrompt = enhancementMatch ? enhancementMatch[1].trim() : rawText.trim();
 
-    // Force Gemini to give us a clear translation in a structured way if possible
-    // For now, we'll refine the system prompt to facilitate this.
+    // Clean up if tags were mixed in in enhancement
+    enhancedPrompt = enhancedPrompt.replace(/TRANSLATION:.*$/im, '').trim();
+
+    // If translation is empty, try a a a last-ditch fallback (first sentence)
+    if (!translation) {
+        translation = enhancedPrompt.split(/[.!?]/)[0].trim();
+    }
+
     return NextResponse.json({ 
         enhancedPrompt: enhancedPrompt,
-        translation: enhancedPrompt.split('.')[0] // Use the first sentence as a proxy for for translation if not structured
+        translation: translation 
     });
 
   } catch (error: any) {
