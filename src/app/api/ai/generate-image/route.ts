@@ -52,6 +52,11 @@ export async function POST(req: Request) {
       aspect_ratio: "1:1",
     };
 
+    if (image && cost === 5) {
+        input.image = image;
+        input.prompt_strength = 0.8;
+    }
+
     // Digital Twin specialized model (Identity Preservation)
     if (cost === 20 && image) {
       model = "lucataco/flux-pulid-ca:46914902357738f15b812f862fe57d079983ed758d4a675034c56fd5767c6999";

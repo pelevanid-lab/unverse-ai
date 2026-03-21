@@ -39,6 +39,9 @@ export function AIStudio() {
         setMediaId(null);
         setLogId(null);
         setSatisfactionScore(null);
+        // - **AI Edit**: Selective in-painting to change backgrounds or objects while preserving the main character (3 ULC) (Frozen).
+        // - **Character Locking**: In 'New Character' mode, users can now immediately "Lock" a generated result as their main persona for future consistent generations.
+        // - **Persona Verification**: The 'Consistent' mode now provides clear feedback if no character is yet locked, with a guided setup flow.
         // We keep the prompt in case they want to try the same prompt in another mode, 
         // but clear the refImage if moving to standard
         if (value === 'standard') {
@@ -132,6 +135,8 @@ export function AIStudio() {
                 savedCharacter: updatedProfile
             });
             toast({ title: t('mainCharacterSet'), description: t('mainCharacterSetDesc') });
+            setMode('consistent');
+            setShowCharacterEditor(false);
         } catch (e) {
             toast({ variant: 'destructive', title: t('updateFailed') });
         }
@@ -150,7 +155,9 @@ export function AIStudio() {
         reader.readAsDataURL(file);
     };
 
-    const handleGenerate = async () => {
+    const handleGenerate = async (overrideImage?: string) => {
+        const imageToUse = overrideImage || refImage;
+
         if (!prompt.trim() || !user?.uid) return;
 
         const wordCount = prompt.trim().split(/\s+/).length;
@@ -220,8 +227,8 @@ export function AIStudio() {
                     enhancedPrompt: finalPrompt,
                     userId: user.uid,
                     cost: currentCost,
-                    image: activeTab !== 'standard' ? refImage : undefined,
-                    mask: activeTab === 'aiEdit' ? refImage : undefined // Simplified: using same image as mask reference for now
+                    image: imageToUse || undefined,
+                    mask: activeTab === 'aiEdit' ? imageToUse : undefined // Simplified
                 }),
             });
 
@@ -262,6 +269,7 @@ export function AIStudio() {
             });
             setMediaId(mediaDocRef.id);
             toast({ title: t('savedInPool'), description: t('savedInPoolDesc') });
+            resetStudio(); // Clear the screen after save as requested
         } catch (e) {
             console.error("Error saving to pool:", e);
             toast({ variant: 'destructive', title: t('saveFailed') });
@@ -508,19 +516,32 @@ export function AIStudio() {
                     <TabsContent value="standard" className="mt-0 space-y-6">
                         <Card className="glass-card border-white/10 h-fit">
                             <CardContent className="p-6 space-y-6">
-                                {mode === 'consistent' && user?.savedCharacter && (
-                                    <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
-                                        <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
-                                            <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
+                                {mode === 'consistent' && (
+                                    user?.savedCharacter ? (
+                                        <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-2xl border border-primary/20 animate-in fade-in">
+                                            <div className="w-12 h-12 rounded-xl overflow-hidden relative border border-white/10">
+                                                <Image src={user.savedCharacter.referenceImageUrl || "https://placehold.co/100x100/png?text=?"} fill alt="ref" className="object-cover" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
+                                                <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
+                                                <RefreshCcw size={14} />
+                                            </Button>
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] font-bold text-primary uppercase">{t('consistentPersonaActive')}</p>
-                                            <p className="text-xs font-bold text-white truncate">{user.savedCharacter.name || t('virtualModel')}</p>
+                                    ) : (
+                                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20 text-center space-y-3">
+                                            <p className="text-xs text-muted-foreground">{t('noCharacterToLock')}</p>
+                                            <Button 
+                                                variant="outline" 
+                                                onClick={() => setShowCharacterEditor(true)}
+                                                className="w-full rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                                            >
+                                                <User className="w-4 h-4 mr-2" /> {t('setupMainCharacter')}
+                                            </Button>
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={() => setShowCharacterEditor(true)} className="h-8 w-8 rounded-lg hover:bg-primary/20 text-primary">
-                                            <RefreshCcw size={14} />
-                                        </Button>
-                                    </div>
+                                    )
                                 )}
 
                                 {/* Outfit Lock Logic */}
@@ -593,7 +614,7 @@ export function AIStudio() {
                                     </div>
 
                                     <Button 
-                                        onClick={handleGenerate}
+                                        onClick={() => handleGenerate()}
                                         disabled={!isPromptValid || generating || !!imageUrl}
                                         className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
                                     >
@@ -661,7 +682,7 @@ export function AIStudio() {
                                     </div>
 
                                     <Button 
-                                        onClick={handleGenerate}
+                                        onClick={() => handleGenerate()}
                                         disabled={(mode === 'new' && !refImage) || !isPromptValid || generating || !!imageUrl}
                                         className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
                                     >
@@ -723,7 +744,7 @@ export function AIStudio() {
                                     </div>
 
                                     <Button 
-                                        onClick={handleGenerate}
+                                        onClick={() => handleGenerate()}
                                         disabled={!refImage || !isPromptValid || generating || !!imageUrl}
                                         className="w-full h-14 rounded-2xl bg-primary font-bold text-lg gap-3"
                                     >
@@ -799,11 +820,12 @@ export function AIStudio() {
                                             <Button 
                                                 variant="outline"
                                                 onClick={() => {
-                                                    // Variation Logic: standard tab but with img2img ref
+                                                    // Variation Logic: Trigger generation immediately
                                                     setActiveTab('standard');
-                                                    setPrompt(prompt); // Keep current prompt
-                                                    setRefImage(imageUrl); // Use result as ref
+                                                    setPrompt(prompt); 
+                                                    setRefImage(imageUrl); 
                                                     setImageUrl(null);
+                                                    handleGenerate(imageUrl); // Trigger immediately with current result as ref
                                                 }}
                                                 className="h-12 rounded-2xl border-white/10 hover:bg-white/5 font-bold gap-2 text-xs"
                                             >
@@ -817,6 +839,17 @@ export function AIStudio() {
                                                 <RefreshCcw size={14} /> {t('editBtn')}
                                             </Button>
                                         </div>
+
+                                        {/* NEW: Lock Character Button for Standard AI */}
+                                        {activeTab === 'standard' && mode === 'new' && imageUrl && (
+                                            <Button 
+                                                variant="ghost" 
+                                                onClick={() => setShowCharacterEditor(true)}
+                                                className="w-full h-12 rounded-2xl border border-primary/20 text-primary font-bold gap-2 text-xs animate-in slide-in-from-bottom-2"
+                                            >
+                                                <Lock size={14} /> {t('lockAsCharacter')}
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>

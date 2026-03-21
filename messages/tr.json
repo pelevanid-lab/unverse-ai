@@ -219,6 +219,8 @@
     "savedToContainerDesc": "Yapay zeka görseliniz taslak havuzunuza eklendi.",
     "publishSuccess": "Başarılı!",
     "publishSuccessDesc": "Şaheseriniz başarıyla yayınlandı.",
+    "lockAsCharacter": "Karakter Olarak Kilitle",
+    "noCharacterToLock": "Henüz kilitli bir ana karakteriniz yok. Lütfen aşağıdan profil oluşturun veya yeni bir fotoğraf üretip kilitleyin.",
     "publishingError": "Yayın Hatası",
     "publishingErrorDesc": "Yayınlanamadı.",
     "natural": "Doğal",
