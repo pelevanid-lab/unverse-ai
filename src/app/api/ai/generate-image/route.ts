@@ -66,16 +66,76 @@ export async function POST(req: Request) {
         };
     }
 
-    // Digital Twin specialized model (Identity Preservation)
+    // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
     if (cost === 20 && image) {
-      model = "bytedance/flux-pulid";
-      input = {
-        prompt: finalPromptForAI,
-        main_face_image: image,
-        id_weight: 1.0,
-        num_steps: 20
-      };
-    } else if ((cost === 8 || cost === 4) && image) {
+      const falKey = process.env.FAL_API_KEY;
+      if (!falKey) {
+          throw new Error("FAL_API_KEY is missing on server.");
+      }
+
+      const response = await fetch("https://fal.run/fal-ai/flux-pulid", {
+        method: "POST",
+        headers: {
+            "Authorization": `Key ${falKey}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            prompt: finalPromptForAI,
+            reference_image_url: image,
+            id_weight: 1.0,
+            num_inference_steps: 20,
+            guidance_scale: 3.5,
+            image_size: "square_hd"
+        })
+      });
+
+      if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(`Fal.ai Error: ${errData.detail || response.statusText}`);
+      }
+
+      const result = await response.json();
+      const falImageUrl = result.images?.[0]?.url;
+      
+      if (!falImageUrl) {
+          throw new Error("Fal.ai returned no image URL.");
+      }
+
+      // Re-assign to imageUrl for the following storage logic
+      const imageUrl = falImageUrl;
+      
+      // 3. Storage & DB persistence (same as before)
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image from Fal.ai: ${imageResponse.statusText}`);
+      }
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+
+      const fileName = `ai_twin_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+      const imagePath = `creator-media/${userId}/${fileName}`;
+      const storageRef = ref(storage, imagePath);
+      await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
+      const finalUrl = await getDownloadURL(storageRef);
+
+      const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
+          userId,
+          prompt,
+          enhancedPrompt: enhancedPrompt || prompt,
+          mediaUrl: finalUrl,
+          paymentReference: ledgerId,
+          timestamp: serverTimestamp(),
+          satisfactionScore: null
+      });
+
+      return NextResponse.json({ 
+          logId: logDocRef.id, 
+          mediaUrl: finalUrl,
+          prompt: prompt,
+          enhancedPrompt: enhancedPrompt || prompt
+      });
+    }
+ else if ((cost === 8 || cost === 4) && image) {
       // AI Edit / In-painting specialized model
       model = "black-forest-labs/flux-fill-dev";
       input = {
