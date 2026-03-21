@@ -105,7 +105,7 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
         <DialogTitle className="sr-only">{isEditing ? 'Edit Post' : 'View Post'}</DialogTitle>
         <DialogDescription className="sr-only">Manage your published post.</DialogDescription>
         
-        <div className="grid grid-cols-1 md:grid-cols-10 h-full overflow-hidden">
+        <div className="flex flex-col md:grid md:grid-cols-10 h-full overflow-y-auto md:overflow-hidden">
           <div className="md:col-span-6 flex items-center justify-center bg-black/80 overflow-hidden">
             {isImage ? (
               <img src={post.mediaUrl} alt="post" className="max-w-full max-h-full w-auto h-auto object-contain"/>

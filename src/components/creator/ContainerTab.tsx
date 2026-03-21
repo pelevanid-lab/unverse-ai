@@ -116,7 +116,7 @@ export function ContainerTab() {
 
   return (
     <Card className="glass-card border-white/10">
-      <CardHeader className="flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <CardTitle>{t('title')}</CardTitle>
           <p className="text-muted-foreground text-sm">{t('subtitle')}</p>

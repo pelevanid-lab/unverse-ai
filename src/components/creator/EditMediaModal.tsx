@@ -160,7 +160,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
           <DialogTitle className="sr-only">{t('editContent')}</DialogTitle>
           <DialogDescription className="sr-only">{t('configureContent')}</DialogDescription>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 h-full overflow-hidden">
+          <div className="flex flex-col md:grid md:grid-cols-12 h-full overflow-y-auto md:overflow-hidden">
               <div className="md:col-span-7 flex items-center justify-center bg-black/80 overflow-hidden">
                   {media.mediaType === 'image' ? (
                       <img src={media.mediaUrl} alt="Preview" className="max-w-full max-h-full w-auto h-auto object-contain"/>

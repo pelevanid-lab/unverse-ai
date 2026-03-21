@@ -89,10 +89,10 @@ export function Navbar() {
           {isConnected && (
             <Link 
               href="/mypage" 
-              className={`hidden md:flex items-center gap-1.5 text-sm font-medium ${pathname === '/mypage' ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
+              className={`flex items-center gap-1.5 text-sm font-medium ${pathname === '/mypage' ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
             >
-              <UserIcon className="w-4 h-4" />
-              {t('mypage')}
+              <UserIcon className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline-block">{t('mypage')}</span>
             </Link>
           )}
 

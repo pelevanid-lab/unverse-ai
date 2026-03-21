@@ -348,7 +348,7 @@ export function AIStudio() {
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Main Tabs Selection */}
             <Tabs defaultValue="standard" value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid grid-cols-3 bg-black/40 p-1.5 rounded-[2rem] border border-white/5 h-auto mb-8">
+                <TabsList className="flex flex-col sm:grid sm:grid-cols-3 bg-black/40 p-1.5 rounded-[2rem] border border-white/5 h-auto mb-8 gap-2 sm:gap-0">
                     <TabsTrigger value="standard" className="rounded-full py-3 font-bold text-xs gap-2 data-[state=active]:bg-primary">
                         <Wand2 size={16} /> {t('tabStandard')}
                     </TabsTrigger>
