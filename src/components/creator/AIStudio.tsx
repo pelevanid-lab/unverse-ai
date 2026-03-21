@@ -269,18 +269,22 @@ export function AIStudio() {
                     composition,
                     character: (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile,
                     isEditMode: activeTab === 'aiEdit',
-                    referenceImageUrl: imageToUse || undefined
+                    referenceImageUrl: imageToUse || undefined,
+                    outfit: outfitLockEnabled ? lockedOutfit : undefined
                 });
                 finalPromptForGeneration = result.enhancedPrompt;
                 setEnhancedPromptUsed(finalPromptForGeneration);
                 setLastNegativePrompt(result.negativePrompt || null);
                 setIsEnhancingPrompt(false);
             } else {
-                // FALLBACK: Improve prompt structure to ensure scene is not ignored
+                // FALLBACK: Improve prompt structure to ensure scene and outfit are not ignored
                 const char = (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile;
                 if (char) {
-                    const traits = `Adult ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}`;
-                    finalPromptForGeneration = `A professional photorealistic portrait of an adult person with these traits: ${traits}. No children. The scene and action is: ${prompt}. High quality, cinematic.`;
+                    const traits = `Adult ${char.gender}, ${char.hairColor} hair, ${char.eyeColor} eyes, ${char.faceStyle} face`;
+                    const attire = outfitLockEnabled && lockedOutfit ? ` wearing ${lockedOutfit}` : "";
+                    
+                    // SCENE-FIRST Structure: Prioritize the action and environment
+                    finalPromptForGeneration = `SCENE: ${prompt}. SUBJECT: A professional photorealistic adult person with these traits: ${traits}${attire}. Atmospheric lighting, detailed environment, cinematic 8k. NO children.`;
                 }
             }
 

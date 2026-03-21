@@ -23,22 +23,25 @@ export async function POST(req: Request) {
     const styleContext = style && style !== 'none' ? `Style: ${style} atmosphere/lighting` : '';
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
-    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer (for Midjourney/Flux).
-Your job is to take a short, simple user prompt (which might be in Turkish or English) and expand it into a highly detailed, professional, 50-word english prompt for an AI image generator.
+    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer.
+Your job is to take a short, simple user scenario (which might be in Turkish or English) and expand it into a 50-word english prompt.
 
-User's short input: "${prompt}"
+CRITICAL: The User Scenario is the FOUNDATION of the image. You MUST build the environment, background, and action exactly as described by the user. DO NOT default to indoor/studio settings unless specifically asked.
 
-Required Character Constraints:
+User Scenario: "${prompt}"
+
+Subject Attributes:
 - Identity: ${characterContext}
 - ${outfitContext}
 - ${styleContext}
 - ${compositionContext}
 
 Rules:
-1. Translate everything to English perfectly.
-2. Focus heavily on lighting, camera settings (e.g., 85mm lens, f/1.8), render quality (8k, photorealistic, incredibly detailed).
-3. Seamlessly blend the user's idea with the character constraints.
-4. Output ONLY the raw prompt text, no intro or outro, just the final comma-separated prompt string.`;
+1. Translate to English.
+2. The user scenario is the PRIMARY FOCUS. If the user says "beach", the entire background must be a detailed beach.
+3. Character attributes are "locked in" for the subject.
+4. Add professional camera and lighting details suitable for the requested scenario.
+5. Output ONLY the raw prompt text.`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 

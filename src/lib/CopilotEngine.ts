@@ -57,9 +57,9 @@ export function buildPrompt(
     // 1. Identity Traits
     let identity = "";
     if (character) {
-        identity = `${character.gender}, ${character.hairColor} hair, ${character.eyeColor} eyes, ${character.faceStyle} face`;
+        identity = `Adult ${character.gender}, ${character.hairColor} hair, ${character.eyeColor} eyes, ${character.faceStyle} face`;
     } else {
-        identity = "a woman"; // Default if no character
+        identity = "an adult woman"; // Default if no character
     }
 
     // 2. Outfit Lock (User Choice)

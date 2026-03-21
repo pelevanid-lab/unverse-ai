@@ -140,7 +140,8 @@ export class Copilot {
         composition?: string,
         character?: CharacterProfile,
         isEditMode?: boolean,
-        referenceImageUrl?: string
+        referenceImageUrl?: string,
+        outfit?: string
     }): Promise<{ enhancedPrompt: string, originalPrompt: string, negativePrompt?: string }> {
         
         const memoryContext = await this.getMemoryContext();
@@ -182,7 +183,8 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
                 systemInstructions,
                 character: char,
                 style: params.style,
-                composition: params.composition
+                composition: params.composition,
+                outfit: params.outfit
             })
         });
 
