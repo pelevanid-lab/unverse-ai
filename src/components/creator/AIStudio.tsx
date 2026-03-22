@@ -402,41 +402,6 @@ export function AIStudio() {
         }
     };
 
-    const handlePublishDirectly = async () => {
-        if (!imageUrl || !user?.uid || !mediaId) return;
-
-        setPublishing(true);
-        try {
-            await addDoc(collection(db, 'posts'), {
-                creatorId: user.uid,
-                creatorName: user.username,
-                creatorAvatar: user.avatar || '',
-                mediaUrl: imageUrl,
-                mediaType: 'image',
-                content: prompt,
-                contentType: 'public', // Hardcoded to public
-                unlockPrice: 0,
-                createdAt: Date.now(),
-                isAI: true,
-                aiPrompt: prompt,
-                aiEnhancedPrompt: enhancedPromptUsed,
-                likes: 0,
-                unlockCount: 0,
-                limited: null
-            });
-
-            await deleteDoc(doc(db, 'creator_media', mediaId));
-
-            toast({ title: t('publishSuccess'), description: t('publishSuccessDesc') });
-            resetStudio();
-        } catch (error) {
-            console.error("Error publishing AI image:", error);
-            toast({ variant: 'destructive', title: t('publishingError'), description: t('publishingErrorDesc') });
-        } finally {
-            setPublishing(false);
-        }
-    };
-
     const resetStudio = () => {
         setImageUrl(null);
         setMediaId(null);
@@ -615,8 +580,8 @@ export function AIStudio() {
                             <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 self-start md:self-center">
                                 <Coins size={14} className="text-primary" />
                                 <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-                                    {activeTab === 'standard' && (mode === 'consistent' ? t('cost3') : t('cost5'))}
-                                    {activeTab === 'digitalTwin' && (mode === 'consistent' ? t('cost3') : t('cost20'))}
+                                    {activeTab === 'standard' && (mode === 'consistent' ? '5 ULC' : '5 ULC')}
+                                    {activeTab === 'digitalTwin' && (mode === 'consistent' ? '5 ULC' : '20 ULC')}
                                 </span>
                             </div>
                         </div>

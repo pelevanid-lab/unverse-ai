@@ -276,7 +276,7 @@
     "saveProfile": "Save Profile",
     "consistentPersonaActive": "Consistent Persona Active",
     "mainCharacterLocked": "Main Character Locked",
-    "mainCharacterLockedDesc": "Your digital twin is locked. You can now generate new scenes at a discounted price (3 ULC) without uploading a photo.",
+    "mainCharacterLockedDesc": "Your digital twin is locked. You can now generate new scenes at a discounted price (5 ULC) without uploading a photo.",
     "virtualModel": "Virtual Model",
     "selectStylePreset": "Select Style Preset",
     "promptYourVision": "Prompt Your Vision",
@@ -300,7 +300,18 @@
     "publishingBtn": "Publishing...",
     "container": "Container",
     "canvasEmpty": "Canvas is Empty",
-    "canvasEmptyDesc": "Once generated, you can choose to publish your AI art or lock this character for consistent results."
+    "canvasEmptyDesc": "Once generated, you can choose to publish your AI art or lock this character for consistent results.",
+    "tabAnimate": "Animate",
+    "animateDesc": "Animate your images with Fal.ai Kling technology.",
+    "animateBtn": "Animate",
+    "motionPrompt": "Motion Prompt",
+    "motionPromptPlaceholder": "E.g.: Hair waving in the wind, smiling at the camera...",
+    "duration": "Duration",
+    "sec5": "5 Seconds",
+    "sec10": "10 Seconds",
+    "generateVideo": "Generate Video",
+    "selectFromContainer": "Select Image from Container",
+    "noAnimateForVideo": "Videos cannot be re-animated."
   },
   "MyUnlocks": {
     "accessContentTitle": "Access Your Content",

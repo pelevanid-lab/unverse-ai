@@ -5,34 +5,44 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, Upload, Wand2, ChevronLeft, ChevronRight, MessageSquare, Image as ImageIcon, Video } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 
 export default function CopilotStudioPage() {
     const router = useRouter();
+    const t = useTranslations('AIStudio');
 
     const tools = [
         {
-            title: "Copilot Asistan",
-            desc: "Yapay zeka asistanınızla strateji geliştirin ve otomasyonu yönetin.",
+            title: t("tabCopilotAsistan"),
+            desc: t("copilotAsistanDesc"),
             icon: <MessageSquare className="w-6 h-6 text-primary" />,
             href: "/creator/copilot",
             color: "bg-primary/10",
             hover: "hover:border-primary/40"
         },
         {
-            title: "İçerik Yükle",
-            desc: "Bilgisayarınızdan fotoğraf veya video yükleyin, manuel veya AI ile düzenleyin.",
+            title: t("tabIcerikYukle"),
+            desc: t("icerikYukleDesc"),
             icon: <Upload className="w-6 h-6 text-blue-400" />,
             href: "/creator/upload",
             color: "bg-blue-500/10",
             hover: "hover:border-blue-500/40"
         },
         {
-            title: "AI Muse",
-            desc: "Karakterinizi sabitleyin ve kusursuz yapay zeka içerikleri üretin.",
+            title: t("tabAiMuse"),
+            desc: t("aiMuseDesc"),
             icon: <Wand2 className="w-6 h-6 text-fuchsia-400" />,
             href: "/creator/muse",
             color: "bg-fuchsia-500/10",
             hover: "hover:border-fuchsia-500/40"
+        },
+        {
+            title: t("tabAnimate"),
+            desc: t("animateDesc"),
+            icon: <Video className="w-6 h-6 text-amber-400" />,
+            href: "/creator/animate",
+            color: "bg-amber-500/10",
+            hover: "hover:border-amber-500/40"
         }
     ];
 
@@ -48,8 +58,8 @@ export default function CopilotStudioPage() {
                     <ChevronLeft className="w-6 h-6" />
                 </Button>
                 <div>
-                    <h1 className="text-4xl font-headline font-bold gradient-text tracking-tighter">Copilot Stüdyo</h1>
-                    <p className="text-muted-foreground text-sm font-medium mt-1">İçerik Üretme ve Yönetim Merkezi</p>
+                    <h1 className="text-4xl font-headline font-bold gradient-text tracking-tighter">{t("pageTitle")}</h1>
+                    <p className="text-muted-foreground text-sm font-medium mt-1">{t("pageSubtitle")}</p>
                 </div>
             </header>
 
@@ -79,10 +89,9 @@ export default function CopilotStudioPage() {
                     <Sparkles className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                    <h4 className="font-bold text-lg">Neden Copilot Stüdyo?</h4>
+                    <h4 className="font-bold text-lg">{t("whyStudioTitle")}</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        Üretim süreçlerinizi tek bir noktada topladık. İster kendi çekimlerinizi yükleyin, 
-                        ister AI Muse ile hayali karakterler yaratın; Copilot her adımda size asistanlık eder.
+                        {t("whyStudioDesc")}
                     </p>
                 </div>
             </div>

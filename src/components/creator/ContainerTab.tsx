@@ -8,7 +8,8 @@ import { db, storage } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, doc, getDoc } from 'firebase/firestore';
 import { CreatorMedia, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Video, Calendar } from 'lucide-react';
+import { Loader2, Video, Calendar, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { EditMediaModal } from './EditMediaModal';
 import { useTranslations } from 'next-intl';
 
@@ -92,11 +93,35 @@ export function ContainerTab() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {mediaItems.filter(i => i.source === 'ai_auto').map(item => (
-                    <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50 border border-primary/20" onClick={() => setSelectedMedia(item)}>
-                      <img src={item.mediaUrl} alt={item.caption || 'media'} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors" />
+                    <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50 border border-primary/20">
+                      <img 
+                        src={item.mediaUrl} 
+                        alt={item.caption || 'media'} 
+                        className="w-full h-full object-cover" 
+                        onClick={() => setSelectedMedia(item)}
+                      />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />
                       <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary text-white text-[8px] font-bold rounded-full">AI DRAFT</div>
-                       <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+                      
+                      {/* Animate Action for for for Images */}
+                      {item.mediaType !== 'video' && (
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-7 px-2 text-[10px] gap-1 rounded-full shadow-lg"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/creator/animate?imageId=${item.id}`;
+                            }}
+                          >
+                            <Video className="w-3 h-3" />
+                            {t('animateBtn') || "Hareketlendir"}
+                          </Button>
+                        </div>
+                      )}
+
+                       <div className="absolute bottom-0 left-0 right-0 p-2 text-white pointer-events-none">
                           <p className='text-xs font-bold truncate'>{item.caption || 'Yeni Taslak'}</p>
                       </div>
                     </div>
@@ -112,16 +137,53 @@ export function ContainerTab() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {mediaItems.filter(i => i.source !== 'ai_auto').map(item => (
-                  <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50" onClick={() => setSelectedMedia(item)}>
+                  <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50">
                     {item.mediaType === 'image' ? (
-                        <img src={item.mediaUrl} alt={item.caption || 'media'} className="w-full h-full object-cover" />
+                        <img 
+                          src={item.mediaUrl} 
+                          alt={item.caption || 'media'} 
+                          className="w-full h-full object-cover" 
+                          onClick={() => setSelectedMedia(item)}
+                        />
                     ) : (
-                        <video src={item.mediaUrl} muted loop playsInline className="w-full h-full object-cover" />
+                        <video 
+                          src={item.mediaUrl} 
+                          muted 
+                          loop 
+                          playsInline 
+                          className="w-full h-full object-cover" 
+                          onClick={() => setSelectedMedia(item)}
+                          onMouseOver={(e) => e.currentTarget.play()}
+                          onMouseOut={(e) => {
+                            e.currentTarget.pause();
+                            e.currentTarget.currentTime = 0;
+                          }}
+                        />
                     )}
-                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors" />
-                    {item.mediaType === 'video' && <Video className="absolute top-2 left-2 h-5 w-5 text-white" />}
-                    {item.status === 'scheduled' && <Calendar className="absolute top-2 right-2 h-5 w-5 text-white bg-primary/80 p-1 rounded-full" />}
-                     <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />
+                    
+                    {/* Animate Action for for for Images */}
+                    {item.mediaType === 'image' && (
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="h-7 px-2 text-[10px] gap-1 rounded-full shadow-lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `/creator/animate?imageId=${item.id}`;
+                          }}
+                        >
+                          <Video className="w-3 h-3" />
+                          {t('animateBtn') || "Hareketlendir"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {item.mediaType === 'video' && <Video className="absolute top-2 left-2 h-5 w-5 text-white pointer-events-none" />}
+                    {item.status === 'scheduled' && <Calendar className="absolute top-2 right-2 h-5 w-5 text-white bg-primary/80 p-1 rounded-full pointer-events-none" />}
+                    
+                     <div className="absolute bottom-0 left-0 right-0 p-2 text-white pointer-events-none">
                         <p className='text-xs font-bold truncate'>{item.caption || t('untitled')}</p>
                     </div>
                   </div>

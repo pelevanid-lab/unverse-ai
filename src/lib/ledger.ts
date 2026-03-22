@@ -500,7 +500,9 @@ export async function toggleUserFreeze(uid: string, freeze: boolean) {
  * Ratio: 70% Treasury / 30% Burn
  */
 export async function processAiGenerationPayment(userId: string, cost: number, isRegeneration?: boolean): Promise<string> {
-    const finalCost = isRegeneration ? (cost === 8 ? 4 : (cost === 5 ? 3 : cost)) : cost;
+    // 100% Profit Margin: Ensure no generation goes below a 5 ULC base (covers $0.03 cost at $0.015/ULC for 2x margin)
+    // If original cost is 10 (Consistent), regen is 5. If original cost is 5 (Standard), regen is 5.
+    const finalCost = isRegeneration ? Math.max(5, Math.floor(cost / 2)) : cost;
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);

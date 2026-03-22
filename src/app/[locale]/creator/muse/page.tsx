@@ -86,7 +86,7 @@ export default function AIMusePage() {
         setLoading(true)
         try {
             const isRegen = !!previewAvatar
-            const cost = method === 'photo' ? 20 : (isRegen ? 7 : 10)
+            const cost = method === 'photo' ? 30 : (isRegen ? 10 : 15)
             
             if ((user.ulcBalance?.available || 0) < cost) {
                 throw new Error(tCommon("insufficientULCDesc"))
@@ -234,7 +234,7 @@ export default function AIMusePage() {
                     translation: englishPrompt,
                     userId: user.uid,
                     character: user.savedCharacter,
-                    cost: isRegen ? 3 : 5
+                    cost: isRegen ? 5 : 10
                 })
             })
 
@@ -555,7 +555,7 @@ export default function AIMusePage() {
                                 onClick={() => handleGenerateConsistent()}
                             >
                                 {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
-                                {t("generateAction")} (5 ULC)
+                                {t("generateAction")} (10 ULC)
                             </Button>
                         </CardContent>
                     </Card>
@@ -595,7 +595,7 @@ export default function AIMusePage() {
                                                 {t("saveToPool")}
                                             </Button>
                                             <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
-                                                <RefreshCcw size={18} /> {t("regenAction")} (3 ULC)
+                                                <RefreshCcw size={18} /> {t("regenAction")} (5 ULC)
                                             </Button>
                                         </div>
                                     </div>

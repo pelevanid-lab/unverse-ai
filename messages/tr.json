@@ -284,7 +284,7 @@
     "saveProfile": "Profili Kaydet",
     "consistentPersonaActive": "Tutarlı Persona Aktif",
     "mainCharacterLocked": "Ana Karakter Kilitli",
-    "mainCharacterLockedDesc": "Dijital ikiziniz kilitlendi. Artık fotoğraf yüklemeden, indirimli fiyata (3 ULC) yeni sahneler üretebilirsiniz.",
+    "mainCharacterLockedDesc": "Dijital ikiziniz kilitlendi. Artık fotoğraf yüklemeden, indirimli fiyata (5 ULC) yeni sahneler üretebilirsiniz.",
     "virtualModel": "Sanal Model",
     "selectStylePreset": "Tarz Şablonu Seçin",
     "promptYourVision": "Vizyonunuzu Anlatın",
@@ -303,7 +303,18 @@
     "publishingBtn": "Yayınlanıyor...",
     "container": "Havuz",
     "canvasEmpty": "Tuval Boş",
-    "canvasEmptyDesc": "Ürettikten sonra sanatsal eserinizi yayınlamayı seçebilir veya tutarlı sonuçlar için bu karakteri kilitleyebilirsiniz."
+    "canvasEmptyDesc": "Ürettikten sonra sanatsal eserinizi yayınlamayı seçebilir veya tutarlı sonuçlar için bu karakteri kilitleyebilirsiniz.",
+    "tabAnimate": "Hareketlendir",
+    "animateDesc": "Görsellerinizi Fal.ai Kling teknolojisiyle canlandırın.",
+    "animateBtn": "Hareketlendir",
+    "motionPrompt": "Hareket Tarifi",
+    "motionPromptPlaceholder": "Örn: Saçları rüzgarda dalgalanıyor, kameraya gülümsüyor...",
+    "duration": "Süre",
+    "sec5": "5 Saniye",
+    "sec10": "10 Saniye",
+    "generateVideo": "Videoyu Oluştur",
+    "selectFromContainer": "Havuzdan Görsel Seç",
+    "noAnimateForVideo": "Videolar tekrar hareketlendirilemez."
   },
   "MyUnlocks": {
     "accessContentTitle": "İçeriklerinize Erişin",
