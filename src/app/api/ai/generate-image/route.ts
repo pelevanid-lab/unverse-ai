@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask } = json;
+    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask, character, outfit } = json;
     cost = json.cost || 5; // Assign cost from json, default to 5
 
     if (!prompt || !userId) {
@@ -43,14 +43,18 @@ export async function POST(req: Request) {
       auth: rawToken.trim(),
     });
 
-    // 2. FAIL-SAFE PROMPT MERGING (User Instruction 2)
-    // We never rely solely on Gemini. We MERGE the core intent.
-    // NORMALIZATION RULE: Always use English for for the and anchor.
+    // 2. FAIL-SAFE PROMPT MERGING
+    const userOutfit = outfit || '';
     const userSceneEnglish = translation || prompt; 
-    const userOutfit = (prompt.toLowerCase().includes("bikini") || (enhancedPrompt?.toLowerCase().includes("bikini"))) ? "bikini" : ""; 
     
+    // IDENTITY LOCK: Ensure character traits are hard-coded in the foundation
+    const gender = character?.gender || 'female';
+    const hair = character?.hairColor || 'red';
+    const eyes = character?.eyeColor || 'blue';
+    const subjectAnchor = `SUBJECT: A solo ${gender} with ${hair} hair and ${eyes} eyes.`;
+
     // Construct the "Security Anchor" (Strict English ONLY)
-    const securityAnchor = `FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. SCENE: ${userSceneEnglish}.`;
+    const securityAnchor = `1 adult person, FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. ${subjectAnchor} SCENE: ${userSceneEnglish}.`;
     
     let basePrompt = enhancedPrompt || prompt;
     
