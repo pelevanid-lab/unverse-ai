@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
@@ -66,7 +66,9 @@ export async function POST(req: Request) {
     });
 
     if (!geminiResponse.ok) {
-        throw new Error("Gemini Enhancement Failed.");
+        const errText = await geminiResponse.text();
+        console.error("Gemini Enhancement Error Details:", errText);
+        throw new Error(`Gemini Enhancement Failed: ${geminiResponse.statusText}`);
     }
 
     const geminiData = await geminiResponse.json();

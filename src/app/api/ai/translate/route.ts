@@ -24,7 +24,7 @@ export async function POST(req: Request) {
            - Maintain the tone and descriptive quality.
            - Output ONLY the raw translation.`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
@@ -47,7 +47,9 @@ export async function POST(req: Request) {
     });
 
     if (!geminiResponse.ok) {
-        throw new Error("Gemini Translation Failed.");
+        const errText = await geminiResponse.text();
+        console.error("Gemini Translation Error Details:", errText);
+        throw new Error(`Gemini Translation Failed: ${geminiResponse.statusText}`);
     }
 
     const geminiData = await geminiResponse.json();
