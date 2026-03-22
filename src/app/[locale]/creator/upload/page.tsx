@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -33,6 +34,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { ref, uploadString, getDownloadURL } from "firebase/storage"
 
 export default function ContentUploadPage() {
+    const t = useTranslations('Upload')
     const router = useRouter()
     const { toast } = useToast()
     const { user } = useWallet()
@@ -48,12 +50,12 @@ export default function ContentUploadPage() {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const filters = [
-        { name: 'Doğal', value: 'none' },
-        { name: 'Artist', value: 'contrast(1.2) brightness(1.1) saturate(1.2)' },
-        { name: 'Retro', value: 'sepia(0.3) contrast(1.1) brightness(0.9)' },
-        { name: 'Soft', value: 'brightness(1.1) saturate(0.8) blur(0.2px)' },
-        { name: 'Neon', value: 'hue-rotate(15deg) saturate(1.5) contrast(1.2)' },
-        { name: 'Siyah Beyaz', value: 'grayscale(1)' }
+        { name: t('filterNatural'), value: 'none' },
+        { name: t('filterArtist'), value: 'contrast(1.2) brightness(1.1) saturate(1.2)' },
+        { name: t('filterRetro'), value: 'sepia(0.3) contrast(1.1) brightness(0.9)' },
+        { name: t('filterSoft'), value: 'brightness(1.1) saturate(0.8) blur(0.2px)' },
+        { name: t('filterNeon'), value: 'hue-rotate(15deg) saturate(1.5) contrast(1.2)' },
+        { name: t('filterBW'), value: 'grayscale(1)' }
     ]
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +67,7 @@ export default function ContentUploadPage() {
         } else if (file.type.startsWith('video/')) {
             setFileType('video')
         } else {
-            toast({ variant: 'destructive', title: "Desteklenmeyen Dosya", description: "Lütfen fotoğraf veya video yükleyin." })
+            toast({ variant: 'destructive', title: t('unsupportedFile'), description: t('unsupportedFileDesc') })
             return
         }
 
@@ -123,10 +125,10 @@ export default function ContentUploadPage() {
             const data = await res.json()
             setPreviewUrl(data.mediaUrl)
             setEditMode('manual') 
-            toast({ title: "Mükemmel!", description: "AI fotoğrafınızı yeniden yorumladı." })
+            toast({ title: t('aiPerfect'), description: t('aiPerfectDesc') })
         } catch (e: any) {
             console.error("AI Edit failed:", e)
-            toast({ variant: 'destructive', title: "Hata", description: e.message })
+            toast({ variant: 'destructive', title: t('error'), description: e.message })
         } finally {
             setIsAILoading(false)
         }
@@ -218,11 +220,11 @@ export default function ContentUploadPage() {
                 contentType: 'public'
             })
 
-            toast({ title: "Havuza Kaydedildi!", description: "İçeriğiniz artık panelinizde görünüyor." })
+            toast({ title: t('savedSuccess'), description: t('savedSuccessDesc') })
             router.push('/creator?tab=container')
         } catch (e: any) {
             console.error("Save failed:", e)
-            toast({ variant: 'destructive', title: "Kayıt Başarısız", description: e.message })
+            toast({ variant: 'destructive', title: t('saveFailed'), description: e.message })
         } finally {
             setIsSaving(false)
         }
@@ -235,7 +237,7 @@ export default function ContentUploadPage() {
                     <Button variant="ghost" size="icon" onClick={() => router.push('/creator/studio')} className="rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
-                    <h1 className="text-3xl font-headline font-bold">İçerik Yükle</h1>
+                    <h1 className="text-3xl font-headline font-bold">{t('title')}</h1>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -248,8 +250,8 @@ export default function ContentUploadPage() {
                                 <ImageIcon className="w-10 h-10 text-primary" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold">Fotoğraf Yükle</h3>
-                                <p className="text-sm text-muted-foreground">Düzenle, Metin Yaz veya AI ile Güzelleştir</p>
+                                <h3 className="text-xl font-bold">{t('photoTitle')}</h3>
+                                <p className="text-sm text-muted-foreground">{t('photoSubtitle')}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -263,8 +265,8 @@ export default function ContentUploadPage() {
                                 <Video className="w-10 h-10 text-blue-400" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold">Video Yükle</h3>
-                                <p className="text-sm text-muted-foreground">Kısa Videolar ve Hikayeler için</p>
+                                <h3 className="text-xl font-bold">{t('videoTitle')}</h3>
+                                <p className="text-sm text-muted-foreground">{t('videoSubtitle')}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -292,21 +294,21 @@ export default function ContentUploadPage() {
                         <Monitor size={20} className="text-primary" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black tracking-tight uppercase">Düzenleme Merkezi</h1>
+                        <h1 className="text-xl font-black tracking-tight uppercase">{t('editCenter')}</h1>
                         <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">
-                            {fileType === 'image' ? 'Fotoğraf' : 'Video'}: Yüklenen İçerik
+                            {fileType === 'image' ? t('photo') : t('video')}: {t('uploadedContent')}
                         </p>
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={reset} disabled={isSaving || isAILoading} className="rounded-xl font-bold">Vazgeç</Button>
+                    <Button variant="outline" onClick={reset} disabled={isSaving || isAILoading} className="rounded-xl font-bold">{t('cancel')}</Button>
                     <Button 
                         className="rounded-xl font-bold gap-2 px-8"
                         onClick={bakeAndSave}
                         disabled={isSaving || isAILoading}
                     >
                         {isSaving ? <Loader2 className="animate-spin" size={16} /> : (editMode === 'manual' ? <Save size={16} /> : <Wand2 size={16} />)}
-                        Havuza Kaydet
+                        {t('saveToPool')}
                     </Button>
                 </div>
             </header>
@@ -348,16 +350,16 @@ export default function ContentUploadPage() {
                             {isAILoading && (
                                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 text-center z-50">
                                     <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                                    <p className="text-white font-bold tracking-tighter text-xl italic uppercase">AI Yeniden Düzenliyor...</p>
+                                    <p className="text-white font-bold tracking-tighter text-xl italic uppercase">{t('aiEditing')}</p>
                                     <p className="text-xs text-muted-foreground mt-2 max-w-[200px]">
-                                        Arka plan siliniyor ve objeler hayalinize göre yerleşiyor.
+                                        {t('aiEditingDesc')}
                                     </p>
                                 </div>
                             )}
                         </div>
                         <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-bold text-white flex items-center gap-2">
                             {editMode === 'manual' ? <Scissors size={12} className="text-muted-foreground" /> : <Sparkles size={12} className="text-primary animate-pulse" />}
-                            {editMode === 'manual' ? 'MANUEL MOD' : 'AI EDIT MOD (BETA)'}
+                            {editMode === 'manual' ? t('manualMode') : t('aiEditMode')}
                         </div>
                     </Card>
                 </div>
@@ -368,22 +370,22 @@ export default function ContentUploadPage() {
                         <>
                             <Tabs value={editMode} onValueChange={(v) => setEditMode(v as any)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-2 p-1 bg-white/5 border border-white/10 rounded-2xl h-12">
-                                    <TabsTrigger value="manual" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Manuel Edit</TabsTrigger>
-                                    <TabsTrigger value="ai" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white gap-2">AI Edit <Badge className="ml-1 text-[8px] px-1 bg-amber-500 border-none">BETA</Badge></TabsTrigger>
+                                    <TabsTrigger value="manual" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">{t('manualEdit')}</TabsTrigger>
+                                    <TabsTrigger value="ai" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white gap-2">{t('aiEdit')} <Badge className="ml-1 text-[8px] px-1 bg-amber-500 border-none">BETA</Badge></TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="manual" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
                                     {/* Manual controls (rotation, crop, filters) */}
                                     <div className="space-y-4">
-                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Temel Araçlar</h4>
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t('basicTools')}</h4>
                                         <div className="grid grid-cols-2 gap-3">
                                             <Button 
                                                 variant={rotation !== 0 ? 'default' : 'secondary'} 
-                                                onClick={() => setRotation(r => (r + 90) % 360)} 
+                                                onClick={() => setRotation((r: number) => (r + 90) % 360)} 
                                                 className="h-14 rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
                                             >
                                                 <RefreshCcw size={20} className={cn(rotation !== 0 ? "text-white" : "text-muted-foreground")} />
-                                                <span className="text-[10px] font-bold uppercase">DÖNDÜR</span>
+                                                <span className="text-[10px] font-bold uppercase">{t('rotate')}</span>
                                             </Button>
                                             <div className="relative group">
                                                 <Button 
@@ -391,12 +393,12 @@ export default function ContentUploadPage() {
                                                     className="h-14 w-full rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
                                                 >
                                                     <Scissors size={20} className={cn(cropAspect !== null ? "text-white" : "text-muted-foreground")} />
-                                                    <span className="text-[10px] font-bold uppercase">KIRP</span>
+                                                    <span className="text-[10px] font-bold uppercase">{t('crop')}</span>
                                                 </Button>
                                                 
                                                 {/* Simple Hover Menu for Crop */}
                                                 <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-10 grid grid-cols-2 gap-1 text-[10px] font-bold">
-                                                    <button onClick={() => setCropAspect(null)} className={cn("p-1 rounded hover:bg-white/10", !cropAspect && "text-primary")}>YOK</button>
+                                                    <button onClick={() => setCropAspect(null)} className={cn("p-1 rounded hover:bg-white/10", !cropAspect && "text-primary")}>{t('none')}</button>
                                                     <button onClick={() => setCropAspect(1)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1 && "text-primary")}>1:1</button>
                                                     <button onClick={() => setCropAspect(0.8)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 0.8 && "text-primary")}>4:5</button>
                                                     <button onClick={() => setCropAspect(1.777)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1.777 && "text-primary")}>16:9</button>
@@ -406,7 +408,7 @@ export default function ContentUploadPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Filtreler</h4>
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t('filters')}</h4>
                                         <div className="grid grid-cols-3 gap-2">
                                             {filters.map((f) => (
                                                 <button
@@ -431,17 +433,17 @@ export default function ContentUploadPage() {
                                         <div className="flex gap-3 text-amber-500">
                                             <RotateCcw size={18} className="shrink-0 mt-0.5" />
                                             <p className="text-[11px] leading-relaxed">
-                                                AI Edit modunda fotoğrafın üzerinde değişiklik yapmak için profesyonel komutlar kullanabilirsin. Bu işlem **8 ULC** (Regen: 4 ULC) ile ücretlendirilir.
+                                                <span dangerouslySetInnerHTML={{ __html: t.raw('aiEditInfo') }} />
                                             </p>
                                         </div>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">DEĞİŞİM KOMUTU (PROMPT)</h4>
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t('aiPromptLabel')}</h4>
                                         <textarea 
                                             value={aiPrompt}
                                             onChange={(e) => setAiPrompt(e.target.value)}
-                                            placeholder="Arka planı değiştir, saçı kızıl yap..."
+                                            placeholder={t('aiPromptPlaceholder')}
                                             className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
                                         />
                                         
@@ -451,7 +453,7 @@ export default function ContentUploadPage() {
                                             disabled={!aiPrompt || isAILoading}
                                         >
                                             {isAILoading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
-                                            AI İle Yeniden Düzenle (8 ULC)
+                                            {t('aiEditBtn')}
                                         </Button>
                                     </div>
                                 </TabsContent>
@@ -463,8 +465,8 @@ export default function ContentUploadPage() {
                                 <Film size={32} className="text-muted-foreground" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold">Video Modu</h3>
-                                <p className="text-sm text-muted-foreground">Videolar için düzenleme şu an desteklenmemektedir. İçeriği doğrudan havuza kaydedebilirsiniz.</p>
+                                <h3 className="text-lg font-bold">{t('videoModeTitle')}</h3>
+                                <p className="text-sm text-muted-foreground">{t('videoModeDesc')}</p>
                             </div>
                         </div>
                     )}

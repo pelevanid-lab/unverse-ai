@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/use-wallet';
 import { Loader2, MessageSquare, Twitter, Send, Instagram, Play, Users, Award, Shield, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 
@@ -113,7 +113,7 @@ export default function CommunityPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-4">
-                            <Link href={config?.investorPresentationUrl || '#'}>
+                            <Link href="/presentations/investor">
                                 <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 font-bold gap-3 group">
                                     <Play className="w-4 h-4 fill-current"/> {t('exploreInvestor')}
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
@@ -136,7 +136,7 @@ export default function CommunityPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-4">
-                            <Link href={config?.creatorPresentationUrl || '#'}>
+                            <Link href="/presentations/creator">
                                 <Button className="w-full h-14 bg-yellow-400 text-black hover:bg-yellow-500 font-bold gap-3 group">
                                     <Users className="w-4 h-4 fill-current"/> {t('viewCreator')}
                                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>

@@ -39,6 +39,7 @@ export function Navbar() {
   const navLinks = [
     { name: t('discover'), href: '/' },
     { name: t('staking'), href: '/staking' },
+    { name: t('community'), href: '/community' },
     { name: t('tokenomics'), href: '/tokenomics' },
   ];
 

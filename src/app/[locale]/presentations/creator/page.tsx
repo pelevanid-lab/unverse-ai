@@ -1,8 +1,7 @@
-
 'use client';
 
-import PresentationEngine from '@/components/presentation/PresentationEngine';
+import PresentationViewer from '@/components/presentation/PresentationViewer';
 
 export default function CreatorPresentationPage() {
-    return <PresentationEngine type="creator" />;
+    return <PresentationViewer type="creator" />;
 }
