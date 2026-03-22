@@ -338,7 +338,17 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
     try {
         await db.runTransaction(async (transaction) => {
             const userRef = db.collection("users").doc(userId);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
             
+            const isFirstPurchase = !userData?.firstPurchaseBonusClaimed;
+            let bonusAmount = 0;
+            
+            if (isFirstPurchase) {
+                // Calculate 50% bonus, capped at 85 ULC
+                bonusAmount = Math.floor(Math.min(amount * 0.5, 85));
+            }
+
             // 1. Record USDT Entry (Audit)
             const usdtLedgerRef = db.collection("ledger").doc();
             transaction.set(usdtLedgerRef, {
@@ -351,7 +361,7 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
                 timestamp: now
             });
 
-            // 2. Record ULC Entry
+            // 2. Record ULC Entry (Main Purchase)
             const ulcLedgerRef = db.collection("ledger").doc();
             transaction.set(ulcLedgerRef, {
                 toUserId: userId,
@@ -362,9 +372,24 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
                 timestamp: now
             });
 
-            // 3. Update User Balance
+            // 2b. Record Bonus Entry (If applicable)
+            if (bonusAmount > 0) {
+                const bonusLedgerRef = db.collection("ledger").doc();
+                transaction.set(bonusLedgerRef, {
+                    toUserId: userId,
+                    amount: bonusAmount,
+                    currency: "ULC",
+                    type: "first_purchase_bonus",
+                    referenceId: usdtLedgerRef.id, // Link to the same payment
+                    timestamp: now + 1, // Slight offset for order
+                    memo: "50% Welcome Bonus (Capped at 85 ULC)"
+                });
+            }
+
+            // 3. Update User Balance & Flag
             transaction.update(userRef, {
-                'ulcBalance.available': admin.firestore.FieldValue.increment(amount)
+                'ulcBalance.available': admin.firestore.FieldValue.increment(amount + bonusAmount),
+                'firstPurchaseBonusClaimed': true // Set even if bonusAmount was 0 (unexpected) to prevent retries
             });
         });
         

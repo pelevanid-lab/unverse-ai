@@ -73,7 +73,11 @@
     "claimSubmitted": "Claim Request Submitted",
     "claimSubmittedDesc": "Your request to claim {usdt} USDT is pending approval. Claim ID: {id}",
     "claimFailed": "Claim Failed",
-    "defaultError": "An error occurred."
+    "defaultError": "An error occurred.",
+    "firstPurchaseBonus": "FIRST PURCHASE BONUS",
+    "bonusDescription": "Get 50% extra ULC on your first top-up! (Max 85 ULC)",
+    "bonusClaimed": "Bonus Claimed",
+    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)"
   },
   "Creator": {
     "becomeCreatorTitle": "Become a Creator",
@@ -213,7 +217,7 @@
     "promptTooShort": "Prompt too short",
     "promptTooShortDesc": "Please provide more detail. Minimum 3 words or 20 characters required.",
     "insufficientULC": "Insufficient ULC",
-    "insufficientULCDesc": "AI generation costs 3 ULC. Please top up your wallet.",
+    "insufficientULCDesc": "You don't have enough ULC for this generation. Please top up your wallet.",
     "generationFailed": "AI generation failed",
     "generationError": "AI Generation Error",
     "savedToContainer": "Saved to Container",
@@ -455,6 +459,8 @@
     "globalPool": "Global Staking Pool",
     "accumulated": "Accumulated for next payout",
     "totalStaked": "Total Staked",
+    "welcomeBonus": "15 ULC Welcome Bonus",
+    "welcomeBonusDesc": "You've earned 15 ULC to start creating or unlocking content right away!",
     "stakeTokens": "Stake Tokens",
     "lockDesc": "Lock ULC to receive staking rewards.",
     "amountToStake": "Amount to Stake",

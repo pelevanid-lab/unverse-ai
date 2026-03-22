@@ -40,7 +40,7 @@ export async function grantWelcomeBonus(address: string): Promise<void> {
         fromWallet: "SYSTEM_PROMO_POOL",
         toUserId: address,
         toWallet: address,
-        amount: 100,
+        amount: 15, // Reduced from 100 (User Request)
         currency: 'ULC',
         type: 'welcome_bonus',
         timestamp: Date.now(),
@@ -49,12 +49,12 @@ export async function grantWelcomeBonus(address: string): Promise<void> {
     // 2. Update User Profile
     batch.update(userDocRef, {
         welcomeBonusClaimed: true,
-        'ulcBalance.available': increment(100)
+        'ulcBalance.available': increment(15)
     });
 
     // 3. Update Global Promo Pool
     batch.update(configRef, {
-        'pools.promo': increment(-100)
+        'pools.promo': increment(-15)
     });
 
     await batch.commit();

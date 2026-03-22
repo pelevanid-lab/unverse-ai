@@ -167,15 +167,20 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // First Purchase Bonus Logic
+    const isFirstPurchase = !user?.firstPurchaseBonusClaimed;
+    const bonusAmount = isFirstPurchase ? Math.floor(Math.min(ulcAmount * 0.5, 85)) : 0;
+    const totalWithBonus = ulcAmount + bonusAmount;
+
     // Sync amounts (1 ULC = 0.015 USDT)
     const handleUlcChange = (val: string) => {
-        const num = Number(val);
+        const num = Math.max(0, Number(val));
         setUlcAmount(num);
         setUsdtAmount(Number((num * ULC_PRICE_USDT).toFixed(4)));
     };
 
     const handleUsdtChange = (val: string) => {
-        const num = Number(val);
+        const num = Math.max(0, Number(val));
         setUsdtAmount(num);
         setUlcAmount(Number((num / ULC_PRICE_USDT).toFixed(0)));
     };
@@ -190,72 +195,116 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     };
 
     return (
-        <Card className="glass-card lg:col-span-5 relative">
-            <Link href="/payment-wallets" className="absolute top-4 right-4 z-10">
-                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-2 sm:px-4 h-9" title={t('paymentWallets')}>
-                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline text-xs font-medium">{t('paymentWallets')}</span>
+        <Card className="glass-card lg:col-span-12 relative overflow-hidden group border-white/5">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl opacity-50 group-hover:bg-primary/10 transition-colors" />
+            
+            <Link href="/payment-wallets" className="absolute top-6 right-6 z-10">
+                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-4 h-10 border border-white/5" title={t('paymentWallets')}>
+                    <Settings className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">{t('paymentWallets')}</span>
                 </Button>
             </Link>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">{t('buyUlc')}</CardTitle>
-                <CardDescription>
+
+            <CardHeader className="pb-8">
+                <div className="flex items-center gap-3 mb-2">
+                    <CardTitle className="text-2xl font-bold font-headline">{t('buyUlc')}</CardTitle>
+                    {isFirstPurchase && (
+                        <Badge className="bg-gradient-to-r from-primary/80 to-primary text-white border-none px-3 py-1 shadow-lg shadow-primary/20 animate-pulse">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            {t('firstPurchaseBonus')}
+                        </Badge>
+                    )}
+                </div>
+                <CardDescription className="text-base">
                     {t('buyUlcDesc')}
-                    <br/>
-                    <span className="text-primary font-bold">1 ULC = {ULC_PRICE_USDT} USDT</span>
+                    {isFirstPurchase && (
+                        <span className="block mt-2 text-primary font-medium flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+                            {t('bonusDescription')}
+                        </span>
+                    )}
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <div className="space-y-2">
-                        <Label>{t('ulcAmount')}</Label>
-                        <div className="relative">
+
+            <CardContent className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-11 gap-4 items-center bg-white/5 p-6 rounded-3xl border border-white/5">
+                    <div className="md:col-span-5 space-y-3">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase opacity-70 tracking-tighter">{t('ulcAmount')}</Label>
+                        <div className="relative group">
                             <Input
                                 type="number"
                                 value={ulcAmount}
                                 onChange={(e) => handleUlcChange(e.target.value)}
-                                className="font-bold pl-12"
+                                className="h-16 text-3xl font-bold pl-16 bg-black/20 border-white/10 focus:border-primary/50 transition-all rounded-2xl"
                                 min="1"
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">ULC</div>
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-primary/40 font-black text-xl select-none group-focus-within:text-primary transition-colors">ULC</div>
                         </div>
                     </div>
-                    <div className="hidden md:flex items-center justify-center pb-2">
-                        <ArrowRightLeft className="text-muted-foreground w-5 h-5 rotate-90 md:rotate-0" />
+
+                    <div className="md:col-span-1 flex items-center justify-center pt-6">
+                        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/5 flex items-center justify-center shadow-inner">
+                            <ArrowRightLeft className="text-muted-foreground w-4 h-4 rotate-90 md:rotate-0 opacity-50" />
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label>{t('usdtCost')}</Label>
-                        <div className="relative">
+
+                    <div className="md:col-span-5 space-y-3">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase opacity-70 tracking-tighter">{t('usdtCost')}</Label>
+                        <div className="relative group">
                             <Input
                                 type="number"
                                 value={usdtAmount}
                                 onChange={(e) => handleUsdtChange(e.target.value)}
-                                className="font-bold pl-14"
+                                className="h-16 text-3xl font-bold pl-20 bg-black/20 border-white/10 focus:border-primary/50 transition-all rounded-2xl"
                                 min="0.01"
                             />
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 text-xs font-bold">USDT</div>
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-green-500/40 font-black text-xl select-none group-focus-within:text-green-500 transition-colors">USDT</div>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <Label className="text-sm font-medium">{t('selectNetwork')}</Label>
-                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-6">
-                        <div className="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-                            <RadioGroupItem value="TON" id="ton" />
-                            <Label htmlFor="ton" className="cursor-pointer font-bold">TON</Label>
+                <div className="space-y-4">
+                    <Label className="text-sm font-bold uppercase tracking-widest text-muted-foreground opacity-50">{t('selectNetwork')}</Label>
+                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="grid grid-cols-2 gap-4">
+                        <div className={`flex items-center space-x-3 px-6 py-4 rounded-2xl border transition-all cursor-pointer ${selectedNetwork === 'TON' ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 hover:bg-white/10'}`} onClick={() => setSelectedNetwork('TON')}>
+                            <RadioGroupItem value="TON" id="ton" className="border-primary text-primary" />
+                            <div className="flex flex-col">
+                                <Label htmlFor="ton" className="cursor-pointer font-bold text-lg">TON</Label>
+                                <span className="text-[10px] uppercase font-bold opacity-40">Native Jetton</span>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-                            <RadioGroupItem value="TRON" id="tron" />
-                            <Label htmlFor="tron" className="cursor-pointer font-bold">TRON</Label>
+                        <div className={`flex items-center space-x-3 px-6 py-4 rounded-2xl border transition-all cursor-pointer ${selectedNetwork === 'TRON' ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 hover:bg-white/10'}`} onClick={() => setSelectedNetwork('TRON')}>
+                            <RadioGroupItem value="TRON" id="tron" className="border-primary text-primary" />
+                            <div className="flex flex-col">
+                                <Label htmlFor="tron" className="cursor-pointer font-bold text-lg">TRON</Label>
+                                <span className="text-[10px] uppercase font-bold opacity-40">USDT-TRC20</span>
+                            </div>
                         </div>
                     </RadioGroup>
                 </div>
 
-                <Button onClick={handlePurchase} disabled={isProcessing || !user || !systemConfig || usdtAmount <= 0} className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20">
-                    {isProcessing ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> : <DollarSign className="w-5 h-5 mr-2" />}
-                    {t('payButton', { usdt: usdtAmount, ulc: ulcAmount })}
+                <Button 
+                    onClick={handlePurchase} 
+                    disabled={isProcessing || !user || !systemConfig || usdtAmount <= 0} 
+                    className="w-full h-16 text-xl font-bold shadow-xl shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.01] active:scale-[0.99] transition-all rounded-2xl group"
+                >
+                    {isProcessing ? (
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                        <div className="flex items-center justify-center gap-2">
+                            <DollarSign className="w-6 h-6" />
+                            {isFirstPurchase ? (
+                                <span>{t('payButton', { usdt: usdtAmount, ulc: totalWithBonus })} <span className="text-sm font-normal opacity-70">({ulcAmount} + {bonusAmount} Bonus)</span></span>
+                            ) : (
+                                <span>{t('payButton', { usdt: usdtAmount, ulc: ulcAmount })}</span>
+                            )}
+                        </div>
+                    )}
                 </Button>
+                
+                <p className="text-center text-[10px] text-muted-foreground uppercase font-bold tracking-widest opacity-30">
+                    Secure on-chain transaction • Instant delivery
+                </p>
             </CardContent>
         </Card>
     );

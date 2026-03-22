@@ -49,6 +49,7 @@ export interface UserProfile {
     totalEarnings?: number;
     totalSpent?: number;
     welcomeBonusClaimed?: boolean;
+    firstPurchaseBonusClaimed?: boolean;
     unlockedPostIds?: string[];
     activeSubscriptionIds?: string[];
     paymentWallets?: {

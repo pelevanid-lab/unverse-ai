@@ -73,7 +73,11 @@
     "claimSubmitted": "Çekim Talebi Alındı",
     "claimSubmittedDesc": "{usdt} USDT çekim talebiniz onay bekliyor. Talep ID: {id}",
     "claimFailed": "Çekim Başarısız",
-    "defaultError": "Bir hata oluştu."
+    "defaultError": "Bir hata oluştu.",
+    "firstPurchaseBonus": "İLK ALIM BONUSU",
+    "bonusDescription": "İlk yüklemenizde %50 ekstra ULC hediye! (Maks 85 ULC)",
+    "bonusClaimed": "Bonus Kullanıldı",
+    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)"
   },
   "Creator": {
     "becomeCreatorTitle": "Yaratıcı Ol",
@@ -213,7 +217,7 @@
     "promptTooShort": "İstem çok kısa",
     "promptTooShortDesc": "Lütfen daha fazla detay verin. Minimum 3 kelime veya 20 karakter gerekli.",
     "insufficientULC": "Yetersiz ULC",
-    "insufficientULCDesc": "Yapay zeka üretimi 3 ULC tutar cüzdanınıza bakiye yükleyin.",
+    "insufficientULCDesc": "Yapay zeka üretimi için yeterli bakiyeniz yok. Lütfen cüzdanınıza yükleme yapın.",
     "generationFailed": "Yapay zeka üretimi başarısız",
     "generationError": "Üretim Hatası",
     "savedToContainer": "Havuza Kaydedildi",
@@ -458,6 +462,8 @@
     "globalPool": "Küresel Stake Havuzu",
     "accumulated": "Bir sonraki ödeme için biriken",
     "totalStaked": "Toplam Stake Edilen",
+    "welcomeBonus": "15 ULC Hoşgeldin Bonusu",
+    "welcomeBonusDesc": "Hemen içerik üretmek veya kilit açmak için 15 ULC kazandınız!",
     "stakeTokens": "Token Stake Et",
     "lockDesc": "Staking ödülleri almak için ULC kilitleyin.",
     "amountToStake": "Stake Edilecek Miktar",

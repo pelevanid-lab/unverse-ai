@@ -36,8 +36,8 @@ export const creatorCopilotFlow = ai.defineFlow(
       2. If it's Premium or Limited, write a separate "Teaser" (a hook to make people want to unlock).
       3. Suggest a fair price in ULC (Unlock Currency). 
          - Note: 1 ULC = 0.015 USDT. 
-         - High quality premium posts usually range from 10 to 100 ULC.
-         - Rare limited editions can go from 100 to 1000 ULC.
+         - High quality premium posts usually range from 5 to 50 ULC.
+         - Rare limited editions can go from 50 to 500 ULC.
       4. Provide a very short explanation for the price.
 
       Return the result in structured JSON format.
