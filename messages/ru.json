@@ -115,7 +115,21 @@
     "uploadMedia": "Загрузить Медиа",
     "emptyStateTitle": "Ваш контейнер пуст.",
     "emptyStateDesc": "Загрузите фото и видео, чтобы начать.",
-    "untitled": "Без названия"
+    "untitled": "Без названия",
+    "tabAnimate": "Анимация",
+    "animateDesc": "Оживите свои изображения с помощью технологии Fal.ai Kling.",
+    "animateBtn": "Анимировать",
+    "motionPrompt": "Промпт движения",
+    "motionPromptPlaceholder": "Напр.: Волосы развеваются на ветру, улыбается в камеру...",
+    "duration": "Длительность",
+    "sec5": "5 Секунд",
+    "sec10": "10 Секунд",
+    "generateVideo": "Создать видео",
+    "selectFromContainer": "Выбрать из контейнера",
+    "noAnimateForVideo": "Видео нельзя анимировать повторно.",
+    "animateSuccess": "Видео успешно создано и добавлено в библиотеку.",
+    "yourMedia": "Ваши медиа",
+    "aiDrafts": "ИИ Черновики"
   },
   "Published": {
     "title": "Опубликованный Контент",

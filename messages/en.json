@@ -119,7 +119,21 @@
     "uploadMedia": "Upload Media",
     "emptyStateTitle": "Your container is empty.",
     "emptyStateDesc": "Upload photos and videos to get started.",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "tabAnimate": "Animate",
+    "animateDesc": "Bring your images to life with Fal.ai Kling technology.",
+    "animateBtn": "Animate",
+    "motionPrompt": "Motion Prompt",
+    "motionPromptPlaceholder": "e.g. Hair waving in the wind, smiling at camera...",
+    "duration": "Duration",
+    "sec5": "5 Seconds",
+    "sec10": "10 Seconds",
+    "generateVideo": "Generate Video",
+    "selectFromContainer": "Select from Container",
+    "noAnimateForVideo": "Videos cannot be re-animated.",
+    "animateSuccess": "Video successfully generated and added to Container.",
+    "yourMedia": "Your Media",
+    "aiDrafts": "AI Drafts"
   },
   "Published": {
     "title": "Published Content",
