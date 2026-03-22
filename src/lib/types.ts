@@ -8,7 +8,7 @@ export interface CharacterProfile {
     id: string;
     name: string;
     gender: 'female' | 'male' | 'other';
-    ageRange: string;
+    ageRange?: string;
     hairColor: string;
     eyeColor: string;
     faceStyle: string;

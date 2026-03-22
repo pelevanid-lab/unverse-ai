@@ -4,24 +4,25 @@ import { useState, useEffect } from 'react'
 import { useWallet } from '@/hooks/use-wallet'
 import { db } from '@/lib/firebase'
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, AlertCircle, Check, Upload } from "lucide-react"
+import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import Image from 'next/image'
 import { CharacterProfile } from '@/lib/types'
-import { processAiGenerationPayment } from '@/lib/ledger'
+import { useTranslations } from 'next-intl'
 
 export default function AIMusePage() {
     const router = useRouter()
     const { user } = useWallet()
     const { toast } = useToast()
+    const t = useTranslations('Muse')
+    const tCommon = useTranslations('AIStudio')
     
     const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady'>('selection')
     const [loading, setLoading] = useState(false)
@@ -63,54 +64,60 @@ export default function AIMusePage() {
             const cost = method === 'photo' ? 20 : (isRegen ? 7 : 10)
             
             if ((user.ulcBalance?.available || 0) < cost) {
-                throw new Error("Yetersiz ULC bakiyesi.")
+                throw new Error(tCommon("insufficientULCDesc"))
             }
 
-            // 1. Get English Prompt & Attributes (if prompt method)
-            let englishPrompt = promptDraft
-            let attributes = null
+            let finalAvatar = previewAvatar
+            let attributes = extractedAttributes
 
             if (method === 'prompt') {
-                // Translation & Attribute extraction in in in parallel
-                const [transRes, parseRes] = await Promise.all([
-                    fetch('/api/ai/translate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: promptDraft })
-                    }),
-                    fetch('/api/ai/parse-character', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: promptDraft })
-                    })
-                ])
-                
+                // 1. Translate
+                const transRes = await fetch('/api/ai/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: promptDraft })
+                })
                 const transData = await transRes.json()
-                englishPrompt = transData.translation || promptDraft
+                const englishPrompt = transData.translation || promptDraft
+
+                // 2. Generate
+                const genResponse = await fetch('/api/ai/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: englishPrompt,
+                        userId: user.uid,
+                        cost: cost,
+                        isMasterPreview: true
+                    })
+                })
+                if (!genResponse.ok) throw new Error(tCommon("generationFailed"))
+                const genData = await genResponse.json()
+                finalAvatar = genData.mediaUrl
+
+                // 3. Multi-modal Parse (Description + Visual)
+                const parseRes = await fetch('/api/ai/parse-character', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptDraft, imageUrl: finalAvatar })
+                })
+                attributes = await parseRes.json()
+            } else {
+                // Photo Method
+                finalAvatar = refImage || ""
+                const parseRes = await fetch('/api/ai/parse-character', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageUrl: finalAvatar })
+                })
                 attributes = await parseRes.json()
             }
 
-            // 2. Generate Initial Master Avatar
-            const genResponse = await fetch('/api/ai/generate-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: englishPrompt,
-                    userId: user.uid,
-                    cost: cost,
-                    isMasterPreview: true // Flag for for for internal logic if if if if if needed
-                })
-            })
-
-            if (!genResponse.ok) throw new Error("Görsel üretimi başarısız.")
-            
-            const genData = await genResponse.json()
-            setPreviewAvatar(genData.mediaUrl)
-            if (attributes) setExtractedAttributes(attributes)
-            
-            toast({ title: "Karakter Hazır!", description: "Görüşünüzü inceleyip sabitleyebilirsiniz." })
+            setPreviewAvatar(finalAvatar)
+            setExtractedAttributes(attributes)
+            toast({ title: tCommon("characterSaved"), description: t("readyToFix") })
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Hata", description: err.message })
+            toast({ variant: 'destructive', title: tCommon("errorTitle"), description: err.message })
         } finally {
             setLoading(false)
         }
@@ -124,13 +131,12 @@ export default function AIMusePage() {
                 id: 'main',
                 name: charName || "AI Muse",
                 gender: extractedAttributes?.gender || 'female',
-                ageRange: extractedAttributes?.ageRange || '20-25',
-                hairColor: extractedAttributes?.hairColor || 'blonde',
-                eyeColor: extractedAttributes?.eyeColor || 'blue',
-                faceStyle: extractedAttributes?.faceStyle || 'casual',
-                bodyStyle: extractedAttributes?.bodyStyle || 'slim',
+                hairColor: extractedAttributes?.hairColor || 'unknown',
+                eyeColor: extractedAttributes?.eyeColor || 'unknown',
+                faceStyle: extractedAttributes?.faceStyle || 'natural',
+                bodyStyle: extractedAttributes?.bodyStyle || 'natural',
                 height: extractedAttributes?.height || 'average',
-                vibe: extractedAttributes?.vibe || 'friendly',
+                vibe: extractedAttributes?.vibe || 'natural',
                 characterPromptBase: promptDraft,
                 referenceImageUrl: previewAvatar,
                 createdAt: Date.now()
@@ -139,19 +145,19 @@ export default function AIMusePage() {
             const userRef = doc(db, 'users', user.uid)
             await updateDoc(userRef, { savedCharacter: character })
 
-            toast({ title: "Karakter Sabitlendi!", description: "Tebrikler! Artık bu avatar üzerinden üretim yapacaksınız." })
+            toast({ title: t("fixSuccess"), description: t("fixSuccessDesc") })
             setStep('steady')
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Hata", description: "Kayıt başarısız." })
+            toast({ variant: 'destructive', title: tCommon("errorTitle"), description: tCommon("saveFailed") })
         } finally {
             setLoading(false)
         }
     }
+
     const handleGenerateConsistent = async (isRegen: boolean = false) => {
         if (!user?.uid || !genPrompt.trim()) return
         setGenerating(true)
         try {
-            // 1. Translation for Firewall Bypass
             const transResponse = await fetch('/api/ai/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -160,7 +166,6 @@ export default function AIMusePage() {
             const transData = await transResponse.json()
             const englishPrompt = transData.translation || genPrompt
 
-            // 2. Generation with English Translation
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -175,14 +180,14 @@ export default function AIMusePage() {
 
             if (!response.ok) {
                 const err = await response.json()
-                throw new Error(err.error || "Üretim başarısız.")
+                throw new Error(err.error || tCommon("generationError"))
             }
 
             const data = await response.json()
             setLastResult(data.mediaUrl)
-            toast({ title: "Görsel Hazır!", description: "Havuza kaydetmeyi unutmayın." })
+            toast({ title: tCommon("publishSuccess"), description: tCommon("savedToContainerDesc") })
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Üretim Hatası", description: err.message })
+            toast({ variant: 'destructive', title: tCommon("generationError"), description: err.message })
         } finally {
             setGenerating(false)
         }
@@ -200,22 +205,19 @@ export default function AIMusePage() {
                 createdAt: Date.now(),
                 status: 'draft'
             })
-            toast({ title: "Havuza Kaydedildi!", description: "İçeriğiniz artık yönetilmeye hazır." })
+            toast({ title: tCommon("savedToContainer"), description: tCommon("savedToContainerDesc") })
             router.push('/creator/container')
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Kaydetme Hatası", description: err.message })
+            toast({ variant: 'destructive', title: tCommon("saveFailed"), description: err.message })
         } finally {
             setSaving(false)
         }
     }
 
-    const handleRegenerate = () => {
-        // Just trigger the same flow, will cost 3 ULC if we pass the right flag
-        handleGenerateConsistent(true)
-    }
+    const handleRegenerate = () => handleGenerateConsistent(true)
 
     const handleResetCharacter = async () => {
-        if (!confirm("Karakterinizi sıfırlamak istediğinize emin misiniz? Bu işlem geri alınamaz.")) return
+        if (!confirm(t("resetConfirm"))) return
         if (!user?.uid) return
         try {
             const userRef = doc(db, 'users', user.uid)
@@ -224,12 +226,13 @@ export default function AIMusePage() {
             setRefImage(null)
             setCharName('')
             setPromptDraft('')
+            setPreviewAvatar(null)
+            setExtractedAttributes(null)
         } catch (e) {
-            toast({ variant: 'destructive', title: "Hata", description: "Sıfırlama başarısız." })
+            toast({ variant: 'destructive', title: tCommon("errorTitle"), description: tCommon("updateFailed") })
         }
     }
 
-    // --- RENDER SELECTION ---
     if (step === 'selection') {
         return (
             <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
@@ -238,16 +241,15 @@ export default function AIMusePage() {
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <div>
-                        <h1 className="text-4xl font-headline font-bold">AI Muse Onboarding</h1>
-                        <p className="text-muted-foreground text-sm font-medium">İlk adım: AI Karakterinizi Oluşturun</p>
+                        <h1 className="text-4xl font-headline font-bold">{t("onboardingTitle")}</h1>
+                        <p className="text-muted-foreground text-sm font-medium">{t("onboardingSubtitle")}</p>
                     </div>
                 </header>
 
                 <div className="bg-primary/5 border border-primary/20 rounded-3xl p-6 flex gap-4">
                     <Info className="text-primary shrink-0 mt-1" />
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        Sistemde içerik üretmek için önce bir **AI Avatar** sabitlemeniz gerekir. 
-                        Bu avatar sizin dijital ikiziniz veya markanızın yüzü olacak ve tüm üretimlerde tutarlılık sağlayacaktır.
+                        {t("onboardingDesc")}
                     </p>
                 </div>
 
@@ -258,8 +260,8 @@ export default function AIMusePage() {
                                 <Camera className="text-primary w-8 h-8" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold">Fotoğrafınla Oluştur</h3>
-                                <p className="text-sm text-muted-foreground">Kendi fotoğrafını yükle, AI dijital ikizini yaratsın.</p>
+                                <h3 className="text-xl font-bold">{t("createWithPhoto")}</h3>
+                                <p className="text-sm text-muted-foreground">{t("createWithPhotoDesc")}</p>
                                 <Badge className="bg-primary/20 text-primary border-primary/30 mt-2">20 ULC</Badge>
                             </div>
                         </CardContent>
@@ -271,8 +273,8 @@ export default function AIMusePage() {
                                 <Wand2 className="text-fuchsia-400 w-8 h-8" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold">AI Senin İçin Oluştursun</h3>
-                                <p className="text-sm text-muted-foreground">Hayalindeki karakteri tarif et, AI sıfırdan yaratsın.</p>
+                                <h3 className="text-xl font-bold">{t("aiCreate")}</h3>
+                                <p className="text-sm text-muted-foreground">{t("aiCreateDesc")}</p>
                                 <Badge className="bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30 mt-2">10 ULC</Badge>
                             </div>
                         </CardContent>
@@ -282,7 +284,6 @@ export default function AIMusePage() {
         )
     }
 
-    // --- RENDER WIZARD (PHOTO OR PROMPT) ---
     if (step === 'photo' || step === 'prompt') {
         return (
             <div className="max-w-2xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in slide-in-from-right-4">
@@ -290,29 +291,29 @@ export default function AIMusePage() {
                     <Button variant="ghost" size="icon" onClick={() => setStep('selection')} className="rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
-                    <h1 className="text-2xl font-headline font-bold">{step === 'photo' ? 'Dijital İkiz Oluştur' : 'Sıfırdan Karakter Yarat'}</h1>
+                    <h1 className="text-2xl font-headline font-bold">{step === 'photo' ? t("createWithPhoto") : t("aiCreate")}</h1>
                 </header>
 
                 <Card className="glass-card border-white/10 p-6 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Karakter Adı</Label>
-                            <Input placeholder="Örn: Milla AI" value={charName} onChange={e => setCharName(e.target.value)} className="bg-black/20 border-white/10 h-12 rounded-xl" />
+                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("characterName")}</Label>
+                            <Input placeholder={t("charNamePlaceholder")} value={charName} onChange={e => setCharName(e.target.value)} className="bg-black/20 border-white/10 h-12 rounded-xl" />
                         </div>
 
                         {previewAvatar ? (
                              <div className="space-y-4 animate-in zoom-in-95 duration-500">
-                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Önizleme</Label>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("preview")}</Label>
                                 <div className="aspect-square rounded-3xl overflow-hidden glass-card border-primary/20 relative group">
                                     <img src={previewAvatar} className="w-full h-full object-cover" alt="Preview" />
                                     <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-4 text-center">
                                          <p className="text-[10px] font-bold text-primary mb-1 uppercase">
-                                            {extractedAttributes?.hairColor} SAÇ • {extractedAttributes?.eyeColor} GÖZ
+                                            {extractedAttributes?.hairColor || '---'} {t("hair")} • {extractedAttributes?.eyeColor || '---'} {t("eyes")}
                                          </p>
                                          <p className="text-[9px] text-white font-medium mb-1">
                                             {extractedAttributes?.bodyStyle} • {extractedAttributes?.height}
                                          </p>
-                                         <p className="text-[8px] text-white/60">AI TARAFINDAN ÖZELLİKLER ÇIKARILDI</p>
+                                         <p className="text-[8px] text-white/60">{t("aiExtracted")}</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -322,14 +323,14 @@ export default function AIMusePage() {
                                         onClick={() => handleCreateCharacter(step)}
                                         disabled={loading}
                                     >
-                                        <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} /> Yeniden ({step === 'photo' ? '20' : '7'} ULC)
+                                        <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} /> {t("regenAction")} ({step === 'photo' ? '20' : '7'} ULC)
                                     </Button>
                                     <Button 
                                         className="h-12 rounded-2xl font-bold gap-2 bg-primary text-white" 
                                         onClick={handleCommitCharacter}
                                         disabled={loading}
                                     >
-                                        <Check className="w-4 h-4" /> Karakteri Sabitle
+                                        <Check className="w-4 h-4" /> {t("fixCharacter")}
                                     </Button>
                                 </div>
                              </div>
@@ -337,7 +338,7 @@ export default function AIMusePage() {
                             <>
                                 {step === 'photo' ? (
                                     <div className="space-y-4">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Referans Fotoğraf</Label>
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("referencePhoto")}</Label>
                                         <div 
                                             className="aspect-square rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
                                             onClick={() => document.getElementById('char-upload')?.click()}
@@ -347,7 +348,7 @@ export default function AIMusePage() {
                                             ) : (
                                                 <>
                                                     <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-                                                    <p className="text-xs text-muted-foreground">Net bir yüz fotoğrafı yükleyin</p>
+                                                    <p className="text-xs text-muted-foreground">{t("uploadInstruction")}</p>
                                                 </>
                                             )}
                                         </div>
@@ -355,9 +356,9 @@ export default function AIMusePage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Karakter Tarifi</Label>
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("description")}</Label>
                                         <Textarea 
-                                            placeholder="Saç rengi, göz rengi, genel tarz..." 
+                                            placeholder={t("descriptionPlaceholder")} 
                                             className="bg-black/20 border-white/10 min-h-[120px] rounded-2xl resize-none"
                                             value={promptDraft}
                                             onChange={e => setPromptDraft(e.target.value)}
@@ -371,7 +372,7 @@ export default function AIMusePage() {
                                     onClick={() => handleCreateCharacter(step)}
                                 >
                                     {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                    {step === 'photo' ? 'Karakteri Oluştur (20 ULC)' : 'Karakteri Oluştur (10 ULC)'}
+                                    {t("createCharacter")} ({step === 'photo' ? '20' : '10'} ULC)
                                 </Button>
                             </>
                         )}
@@ -381,7 +382,7 @@ export default function AIMusePage() {
         )
     }
 
-    // --- RENDER STEADY STATE (CONSISTENT PRODUCTION) ---
+    // STEADY STATE
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
              <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-10 border-white/10">
@@ -391,19 +392,18 @@ export default function AIMusePage() {
                     </Button>
                     <div>
                         <h1 className="text-4xl font-headline font-bold flex items-center gap-3">
-                            AI Muse <Badge className="bg-primary text-white">FIXED</Badge>
+                            AI Muse <Badge className="bg-primary text-white">{t("fixedBadge")}</Badge>
                         </h1>
-                        <p className="text-muted-foreground text-sm font-medium">Karakteriniz Sabitlendi - Tutarlı Üretime Hazır</p>
+                        <p className="text-muted-foreground text-sm font-medium">{t("characterFixed")}</p>
                     </div>
                 </div>
 
                 <Button variant="outline" size="sm" className="rounded-xl font-bold border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={handleResetCharacter}>
-                    <RefreshCcw className="w-4 h-4 mr-2" /> Karakteri Sıfırla
+                    <RefreshCcw className="w-4 h-4 mr-2" /> {t("resetCharacter")}
                 </Button>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Fixed Avatar Sidebar */}
                 <div className="space-y-6">
                     <Card className="glass-card border-primary/20 bg-primary/5 overflow-hidden">
                         <div className="aspect-square relative flex items-center justify-center bg-black/40">
@@ -415,32 +415,32 @@ export default function AIMusePage() {
                                     <p className="text-[10px] font-bold uppercase">MASTER AVATAR</p>
                                 </div>
                             )}
-                            <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">
-                                AKTİF
+                            <div className="absolute top-4 right-4 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg uppercase">
+                                {t("digitalTwinActive")}
                             </div>
                         </div>
                         <CardContent className="p-6 space-y-4">
                             <div>
-                                <h3 className="text-xl font-bold">{user?.savedCharacter?.name || "Adsız Muse"}</h3>
-                                <p className="text-xs text-muted-foreground">Bu karakter tüm üretimlerde ana referanstır.</p>
+                                <h3 className="text-xl font-bold">{user?.savedCharacter?.name || "---"}</h3>
+                                <p className="text-xs text-muted-foreground">{t("mainRef")}</p>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Göz Rengi</p>
-                                    <p className="text-xs font-bold">{user?.savedCharacter?.eyeColor || "Mavi"}</p>
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">{t("eyes")}</p>
+                                    <p className="text-xs font-bold">{user?.savedCharacter?.eyeColor || t("unknown")}</p>
                                 </div>
                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Saç Rengi</p>
-                                    <p className="text-xs font-bold">{user?.savedCharacter?.hairColor || "Sarışın"}</p>
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">{t("hair")}</p>
+                                    <p className="text-xs font-bold">{user?.savedCharacter?.hairColor || t("unknown")}</p>
                                 </div>
                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Vücut</p>
-                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.bodyStyle || "Doğal"}</p>
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">{t("body")}</p>
+                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.bodyStyle || t("natural")}</p>
                                 </div>
                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Boy</p>
-                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.height || "Orta"}</p>
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">{t("height")}</p>
+                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.height || t("natural")}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -449,36 +449,34 @@ export default function AIMusePage() {
                     <Card className="bg-black/20 border-white/10 rounded-3xl p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <Lock className="text-primary w-5 h-5" />
-                            <h4 className="font-bold">Copilot Entegrasyonu</h4>
+                            <h4 className="font-bold">{t("copilotIntegration")}</h4>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                            Bu avatarınız artık **Copilot Asistan** sayfanızda da kimlik olarak belirecek ve 
-                            otomatik taslak üretimlerinde bu karakterin fiziksel özellikleri korunacaktır.
+                            {t("copilotIntegrationDesc")}
                         </p>
                     </Card>
                 </div>
 
-                {/* Secure Production Area */}
                 <div className="lg:col-span-2 space-y-6">
                     <Card className="glass-card border-white/10">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
-                                <span className="flex items-center gap-2 italic"><Sparkles className="text-primary" /> Tutarlı Üretim</span>
+                                <span className="flex items-center gap-2 italic"><Sparkles className="text-primary" /> {t("consistentProd")}</span>
                                 <Badge variant="outline" className="text-xs font-bold bg-primary/10 text-primary border-primary/20">5 ULC</Badge>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-3">
-                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sahne veya Eylem Tarifi</Label>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("actionPrompt")}</Label>
                                 <Textarea 
                                     className="min-h-[150px] bg-black/40 border-white/10 rounded-3xl resize-none p-6 text-lg"
-                                    placeholder="Örn: Ormanda gün batımında yürüyüş yaparken, üzerinde spor kıyafetleri var..."
+                                    placeholder={t("actionPromptPlaceholder")}
                                     value={genPrompt}
                                     onChange={e => setGenPrompt(e.target.value)}
                                 />
                                 <div className="flex items-center gap-2 bg-primary/5 p-3 rounded-2xl border border-primary/20">
                                     <Check className="text-primary w-4 h-4" />
-                                    <p className="text-[10px] text-muted-foreground">Karakterinizin fiziksel özellikleri (saç, göz, yüz hattı) otomatik olarak koruma altına alınacak.</p>
+                                    <p className="text-[10px] text-muted-foreground">{t("actionDesc")}</p>
                                 </div>
                             </div>
 
@@ -488,12 +486,11 @@ export default function AIMusePage() {
                                 onClick={() => handleGenerateConsistent()}
                             >
                                 {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
-                                Görseli Üret (5 ULC)
+                                {t("generateAction")} (5 ULC)
                             </Button>
                         </CardContent>
                     </Card>
 
-                    {/* Result display */}
                     <div className="grid grid-cols-1 gap-4">
                         {lastResult ? (
                             <Card className="glass-card border-primary/20 bg-black/40 overflow-hidden group relative">
@@ -503,16 +500,16 @@ export default function AIMusePage() {
                                 <div className="p-6 flex gap-4 bg-black/60 backdrop-blur-md">
                                     <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
                                         {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
-                                        Havuza Kaydet
+                                        {t("saveToPool")}
                                     </Button>
                                     <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
-                                        <RefreshCcw size={18} /> Üretimi Yinele (3 ULC)
+                                        <RefreshCcw size={18} /> {t("regenAction")} (3 ULC)
                                     </Button>
                                 </div>
                             </Card>
                         ) : (
                             <Card className="glass-card border-dashed border-white/10 bg-white/[0.02] h-60 flex items-center justify-center text-muted-foreground text-sm italic">
-                                Henüz bir üretim yapılmadı. Yukarıdaki butona basarak başlayın!
+                                {t("noProdYet")}
                             </Card>
                         )}
                     </div>
