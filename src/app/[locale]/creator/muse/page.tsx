@@ -97,11 +97,22 @@ export default function AIMusePage() {
         if (!user?.uid || !genPrompt.trim()) return
         setGenerating(true)
         try {
+            // 1. Translation for for for Firewall Bypass
+            const transResponse = await fetch('/api/ai/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: genPrompt })
+            })
+            const transData = await transResponse.json()
+            const englishPrompt = transData.translation || genPrompt
+
+            // 2. Generation with with with English Translation
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: genPrompt,
+                    translation: englishPrompt,
                     userId: user.uid,
                     character: user.savedCharacter,
                     cost: 5
