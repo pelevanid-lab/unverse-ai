@@ -139,9 +139,9 @@ export default function AIMusePage() {
         setSaving(true)
         try {
             await addDoc(collection(db, 'creator_media'), {
-                userId: user.uid,
-                url: lastResult,
-                type: 'image',
+                creatorId: user.uid,
+                mediaUrl: lastResult,
+                mediaType: 'image',
                 category: 'ai_muse',
                 createdAt: Date.now(),
                 status: 'draft'
