@@ -785,5 +785,11 @@
     "savedSuccess": "Saved to Pool!",
     "savedSuccessDesc": "Your content is now visible in your dashboard.",
     "saveFailed": "Save Failed"
+  },
+  "Moderation": {
+    "accountFrozen": "ACCOUNT SUSPENDED",
+    "frozenDesc": "This account and its content are currently inaccessible due to a violation of our community guidelines or account suspension.",
+    "backToDiscover": "Back to Discover",
+    "supportCenter": "Support Center"
   }
 }

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Crown, CheckCircle, Calendar, Loader2, ChevronLeft, Lock, Globe, Clock, MessageSquare } from 'lucide-react';
 import { PostGrid } from '@/components/profile/PostGrid';
+import FrozenStateUI from '@/components/profile/FrozenStateUI';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { checkSubscription } from '@/lib/access';
 import { useTranslations } from 'next-intl';
@@ -162,7 +163,17 @@ export default function PublicProfilePage() {
   );
 
   const isSelf = currentUser?.uid === uid;
-  const { username, bio, avatar, isCreator, creatorData, createdAt } = profile;
+  const { username, bio, avatar, isCreator, creatorData, createdAt, isFrozen } = profile;
+
+  // Protect Frozen Profiles: Only allow the user themselves or content if NOT frozen
+  if (isFrozen && !isSelf) {
+      return (
+          <div className="pt-20">
+              <FrozenStateUI username={username || 'User'} />
+          </div>
+      );
+  }
+
   const { coverImage, subscriptionPriceMonthly } = creatorData || {};
 
   const publicPosts = posts.filter(p => p.contentType === 'public');

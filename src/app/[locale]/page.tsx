@@ -36,10 +36,14 @@ export default function DiscoverPage() {
           orderBy('createdAt', 'desc'),
           limit(100)
         );
+        // Fetch frozen user IDs for for for filtering
+        const frozenSnap = await getDocs(query(collection(db, 'users'), where('isFrozen', '==', true)));
+        const frozenIds = new Set(frozenSnap.docs.map(d => d.id));
+
         const postsSnap = await getDocs(postsQuery);
         const publicPosts = postsSnap.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as ContentPost))
-            .filter(post => post.contentType === 'public');
+            .filter(post => post.contentType === 'public' && !frozenIds.has(post.creatorId));
 
         setPosts(publicPosts);
 
@@ -48,7 +52,7 @@ export default function DiscoverPage() {
         const promos = usersSnap.docs
             .map(docSnap => {
                 const userData = docSnap.data() as UserProfile;
-                if (!userData.promoCard) return null;
+                if (!userData.promoCard || userData.isFrozen) return null;
                 return {
                     ...userData.promoCard,
                     // Dynamic Sync: Always use the latest profile avatar (top-level or auth fallback)

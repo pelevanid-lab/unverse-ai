@@ -792,5 +792,11 @@
     "savedSuccess": "Havuza Kaydedildi!",
     "savedSuccessDesc": "İçeriğiniz artık panelinizde görünüyor.",
     "saveFailed": "Kayıt Başarısız"
+  },
+  "Moderation": {
+    "accountFrozen": "HESAP ASKIYA ALINDI",
+    "frozenDesc": "Bu hesap topluluk kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
+    "backToDiscover": "Keşfet'e Dön",
+    "supportCenter": "Destek Merkezi"
   }
 }

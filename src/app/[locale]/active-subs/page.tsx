@@ -35,7 +35,9 @@ export default function ActiveSubsPage() {
         const creatorsQuery = query(collection(db, 'users'), where('uid', 'in', creatorUids));
         const creatorSnaps = await getDocs(creatorsQuery);
         
-        const subsData = creatorSnaps.docs.map(d => ({ ...d.data() } as UserProfile));
+        const subsData = creatorSnaps.docs
+            .map(d => ({ ...d.data() } as UserProfile))
+            .filter(profile => !profile.isFrozen);
         setActiveSubs(subsData);
 
       } catch (error) {

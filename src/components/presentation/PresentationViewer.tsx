@@ -84,7 +84,7 @@ export default function PresentationViewer({ type }: { type: 'investor' | 'creat
         <div className="fixed inset-0 bg-[#060606] flex items-center justify-center text-white/30 italic px-10 text-center">
             <div className="space-y-4">
                 <p>No slides found for {type} presentation (v3).</p>
-                <p className="text-xs opacity-50">Please add slides in the Admin Panel -> Presentations tab.</p>
+                <p className="text-xs opacity-50">Please add slides in the Admin Panel {"->"} Presentations tab.</p>
             </div>
         </div>
     );
