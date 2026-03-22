@@ -206,6 +206,7 @@
     "delete": "Sil"
   },
   "AIStudio": {
+    "errorTitle": "Hata",
     "feedbackReceived": "Geri Bildirim Alındı",
     "feedbackReceivedDesc": "Teşekkürler! Modellerimizi geliştirmek için kullanacağız.",
     "characterSaved": "Karakter Kaydedildi",
@@ -604,6 +605,7 @@
     "capped": "Sınırlı"
   },
   "Muse": {
+    "errorTitle": "Hata",
     "height": "Boy",
     "body": "Vücut",
     "unknown": "Bilinmiyor",

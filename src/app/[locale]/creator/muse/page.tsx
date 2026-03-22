@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useWallet } from '@/hooks/use-wallet'
-import { db } from '@/lib/firebase'
+import { db, storage } from '@/lib/firebase'
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore'
+import { ref, uploadString, getDownloadURL } from 'firebase/storage'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -104,7 +105,13 @@ export default function AIMusePage() {
                 attributes = await parseRes.json()
             } else {
                 // Photo Method
-                finalAvatar = refImage || ""
+                if (!refImage) throw new Error(t("uploadInstruction"))
+                
+                // Upload to Storage first to get a URL (Safe for Firestore and and and and Gemini)
+                const storageRef = ref(storage, `char-refs/${user.uid}/${Date.now()}.png`)
+                await uploadString(storageRef, refImage.split(',')[1], 'base64', { contentType: 'image/png' })
+                finalAvatar = await getDownloadURL(storageRef)
+
                 const parseRes = await fetch('/api/ai/parse-character', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

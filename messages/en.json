@@ -206,6 +206,7 @@
     "delete": "Delete"
   },
   "AIStudio": {
+    "errorTitle": "Error",
     "feedbackReceived": "Feedback Received",
     "feedbackReceivedDesc": "Thanks! We'll use this to improve our models.",
     "characterSaved": "Character Saved",
@@ -601,6 +602,7 @@
     "capped": "Capped"
   },
   "Muse": {
+    "errorTitle": "Error",
     "height": "Height",
     "body": "Body",
     "unknown": "Unknown",

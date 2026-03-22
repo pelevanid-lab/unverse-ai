@@ -202,6 +202,7 @@
     "delete": "Удалить"
   },
   "AIStudio": {
+    "errorTitle": "Ошибка",
     "feedbackReceived": "Отзыв Получен",
     "feedbackReceivedDesc": "Спасибо! Мы используем это для улучшения.",
     "characterSaved": "Персонаж Сохранен",
@@ -598,6 +599,7 @@
     "capped": "Ограниченно"
   },
   "Muse": {
+    "errorTitle": "Ошибка",
     "height": "Рост",
     "body": "Телосложение",
     "unknown": "Неизвестно",
