@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Clock, Lock, CheckCircle2, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor } from 'lucide-react';
+import { Sparkles, Clock, Lock, CheckCircle2, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, updateDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -23,6 +23,7 @@ import { getDailyStrategySuggestions } from '@/lib/CopilotEngine';
 import { Copilot } from '@/lib/copilot';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from '@/components/ui/CountdownTimer';
+import { SupportChatAi } from '@/components/creator/SupportChatAi';
 
 export default function CopilotPage() {
     const t = useTranslations('AIStudio');
@@ -43,6 +44,12 @@ export default function CopilotPage() {
     });
 
     const [suggestions, setSuggestions] = useState<{ title: string, content: string }[]>([]);
+    const [isSaved, setIsSaved] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [containerCount, setContainerCount] = useState(0);
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [mediaPool, setMediaPool] = useState<CreatorMedia[]>([]);
+    const [showSupport, setShowSupport] = useState(false);
 
     useEffect(() => {
         if (user?.aiCreatorModeConfig) {
@@ -72,6 +79,19 @@ export default function CopilotPage() {
         };
 
         fetchLastDrop();
+
+        const fetchContainer = async () => {
+            const q = query(
+                collection(db, 'creator_media'),
+                where('creatorId', '==', user.uid),
+                where('status', '==', 'draft'),
+                orderBy('createdAt', 'desc')
+            );
+            const snap = await getDocs(q);
+            setContainerCount(snap.size);
+            setMediaPool(snap.docs.map(d => ({ id: d.id, ...d.data() } as CreatorMedia)));
+        };
+        fetchContainer();
     }, [user?.uid]);
 
     // 🤖 Auto-Pilot Logic: Trigger initial/daily draft if active (Fixed 8 AM Drop)
@@ -164,13 +184,61 @@ export default function CopilotPage() {
             await updateDoc(userRef, {
                 aiCreatorModeConfig: config
             });
+            setIsSaved(true);
             toast({ title: "Intelligence Updated", description: "Persona parameters have been hardcoded into the engine." });
             // re-trigger suggestions
             setSuggestions(getDailyStrategySuggestions(config.personaName, config.niche));
+            setTimeout(() => setIsSaved(false), 3000);
         } catch (err) {
             toast({ variant: "destructive", title: "Update Failed", description: "Communication with the nucleus was lost." });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleResetIntelligence = async () => {
+        if (!confirm("Are you sure you want to reset your AI persona? This will clear all learned parameters.")) return;
+        setResetLoading(true);
+        try {
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, {
+                aiCreatorModeConfig: null,
+                aiCreatorModeActivatedAt: Date.now() // Restart learning timeline
+            });
+            setConfig({ personaName: '', niche: '', tone: '', targetAudience: '', vibe: '' });
+            toast({ title: "Neural Reset Complete", description: "The core has been wiped. Awaiting new instructions." });
+        } catch (err) {
+            toast({ variant: "destructive", title: "Reset Failed", description: "Neural dampeners are active." });
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    const handleAutoSchedule = async () => {
+        if (containerCount < 7) return;
+        setIsScheduling(true);
+        try {
+            // Logic: Schedule 7 items over 14 days (Every 2 days)
+            const itemsToSchedule = mediaPool.slice(0, 7);
+            const now = Date.now();
+            const dayInMs = 24 * 60 * 60 * 1000;
+
+            const promises = itemsToSchedule.map((item, index) => {
+                const scheduledTime = now + (index * 2 * dayInMs); // Spread: Day 0, 2, 4, 6, 8, 10, 12
+                return updateDoc(doc(db, 'creator_media', item.id), {
+                    status: 'scheduled',
+                    scheduledFor: scheduledTime
+                });
+            });
+
+            await Promise.all(promises);
+            toast({ title: "Calendar Optimized", description: "7 items have been spread across the next 14 days." });
+            setContainerCount(prev => prev - 7);
+            setMediaPool(prev => prev.slice(7));
+        } catch (err) {
+            toast({ variant: "destructive", title: "Scheduling Error", description: "Failed to sync with the calendar." });
+        } finally {
+            setIsScheduling(false);
         }
     };
 
@@ -225,7 +293,7 @@ export default function CopilotPage() {
                         <p className="text-xs font-mono font-bold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
                      </div>
                      <div className="h-10 w-px bg-white/10 hidden md:block" />
-                     <Button variant="outline" className="rounded-full border-white/10 px-6 gap-2 bg-white/5 hover:bg-white/10">
+                     <Button variant="outline" onClick={() => setShowSupport(true)} className="rounded-full border-white/10 px-6 gap-2 bg-white/5 hover:bg-white/10">
                         <Sparkles size={14} className="text-primary" />
                         <span>Support Center</span>
                      </Button>
@@ -288,8 +356,36 @@ export default function CopilotPage() {
                                 </Button>
                             ) : (
                                 <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground/60 border-t border-white/5 pt-4 uppercase tracking-tighter">
-                                    <CheckCircle2 size={14} className="text-green-500" />
                                     <span>{t('neuralStable')}</span>
+                                </div>
+                            )}
+
+                            {/* Learning Progress */}
+                            {isActive && (
+                                <div className="mt-6 space-y-3 pt-6 border-t border-white/5">
+                                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        <span>Neural Learning Process</span>
+                                        <span className="text-primary">{Math.min(100, Math.floor((Date.now() - (user.aiCreatorModeActivatedAt || Date.now())) / (1000 * 60 * 60 * 24 * 30) * 100))}%</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${Math.min(100, Math.floor((Date.now() - (user.aiCreatorModeActivatedAt || Date.now())) / (1000 * 60 * 60 * 24 * 30) * 100))}%` }}
+                                            className="h-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                                        />
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                       <p className="text-[9px] text-muted-foreground opacity-50 uppercase font-medium">Evolution sequence in progress...</p>
+                                       <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            onClick={handleResetIntelligence}
+                                            disabled={resetLoading}
+                                            className="h-6 text-[8px] font-black text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-full"
+                                        >
+                                           {resetLoading ? <Loader2 size={8} className="animate-spin" /> : "RESET INTELLIGENCE"}
+                                       </Button>
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
@@ -459,6 +555,60 @@ export default function CopilotPage() {
                 </div>
             </div>
 
+            {/* 2-Week Calendar Grid */}
+            <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Mission Calendar</span></h2>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Strategic Content Deployment Grid</p>
+                    </div>
+                    {containerCount >= 7 ? (
+                        <Button 
+                            onClick={handleAutoSchedule} 
+                            disabled={isScheduling}
+                            className="rounded-full bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 px-6 gap-2"
+                        >
+                            {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <Calendar size={14} />}
+                            Auto-Schedule 2 Weeks
+                        </Button>
+                    ) : (
+                        <Badge variant="outline" className="opacity-40 border-dashed border-white/20 px-4 py-2">
+                            Need {7 - containerCount} more items for Auto-Schedule
+                        </Badge>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-7 gap-4">
+                    {Array.from({ length: 14 }).map((_, i) => (
+                        <div key={i} className={cn(
+                            "aspect-square rounded-[1.5rem] border flex flex-col items-center justify-center gap-2 transition-all relative group",
+                            i % 2 === 0 && containerCount >= (i/2 + 1) && i < 14 ? "bg-primary/5 border-primary/20" : "bg-white/[0.02] border-white/5 opacity-50"
+                        )}>
+                            <span className="text-[10px] font-black opacity-30">DAY {i + 1}</span>
+                            {i % 2 === 0 && containerCount >= (i/2 + 1) && i < 14 ? (
+                                <div className="relative">
+                                     <CheckCircle2 size={16} className="text-primary animate-in zoom-in duration-500" />
+                                     <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                                </div>
+                            ) : (
+                                <Clock size={16} className="opacity-10" />
+                            )}
+                            
+                            {/* Visual Indicator for scheduled slots */}
+                            {i % 2 === 0 && i < 14 && (
+                                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary/40 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                            )}
+                        </div>
+                    ))}
+                </div>
+                
+                {containerCount < 7 && (
+                    <p className="text-center text-[10px] font-bold text-muted-foreground border border-dashed border-white/10 rounded-2xl py-8 uppercase tracking-widest">
+                        Sana içerik takvimi oluşturmam için konteynere en az 7 içerik bırak
+                    </p>
+                )}
+            </section>
+
             {/* Bottom Alert */}
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -478,6 +628,12 @@ export default function CopilotPage() {
                     </p>
                 </div>
             </motion.div>
+
+            <AnimatePresence>
+                {showSupport && (
+                    <SupportChatAi onClose={() => setShowSupport(false)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

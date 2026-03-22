@@ -241,6 +241,7 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
 
         const memoryContext = await this.getMemoryContext();
         const systemInstructions = `Generate a catchy, professional social media caption for this AI-generated image.
+DAİMİ DİLİN TÜRKÇE OLMALI (Your response must always be in Turkish).
 Original Idea: "${params.originalPrompt || 'Beautiful scene'}"
 Content Type: ${params.contentType} (Note: Create exclusivity for premium/limited)
 

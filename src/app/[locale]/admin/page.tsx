@@ -10,7 +10,7 @@ import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, U
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest, VestingSchedule } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,7 +27,11 @@ export default function AdminDashboard() {
   const [claims, setClaims] = useState<ClaimRequest[]>([]);
   const [vestingSchedules, setVestingSchedules] = useState<VestingSchedule[]>([]);
   const [loading, setLoading] = useState<string | boolean>(false);
-  const [editConfig, setEditConfig] = useState<{ cost: number, treasury: number, burn: number }>({ cost: 3, treasury: 7, burn: 3 });
+  const [editConfig, setEditConfig] = useState<{ cost: number, treasury: number, burn: number;
+    last_manual_fix_v3_at?: number;
+    v3StatsResetAt?: number;
+    platform_subscription_fee_split?: number;
+ }>({ cost: 3, treasury: 7, burn: 3 });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -144,6 +148,32 @@ export default function AdminDashboard() {
       toast({ variant: "destructive", title: "Allocation Failed", description: e.message });
     }
     setLoading(false);
+  };
+  
+  const handleResetV3Stats = async () => {
+    if (!config || config.v3StatsResetAt) return;
+    setLoading('reset-stats');
+    try {
+        const statsRef = doc(db, 'config', 'stats');
+        const sysRef = doc(db, 'config', 'system');
+        
+        // 1. Clear accumulators
+        await updateDoc(sysRef, { 
+            totalTreasuryUSDT: 0, 
+            totalBuybackStakingUSDT: 0,
+            v3StatsResetAt: Date.now() 
+        });
+        await setDoc(statsRef, { 
+            totalTreasuryULC: 0, 
+            totalBurnedULC: 0 
+        }, { merge: true });
+
+        toast({ title: "Stats Reset Successfully", description: "Post-Seal/V3 era started." });
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Reset Failed", description: e.message });
+    } finally {
+        setLoading(false);
+    }
   };
 
   if (!isConnected) return <div className="min-h-[60vh] flex items-center justify-center">Connect Wallet to Continue</div>;
@@ -407,6 +437,31 @@ export default function AdminDashboard() {
                 <Button onClick={handleGenesisAllocation} disabled={!!loading} className="w-full h-12 bg-yellow-400 text-black font-bold gap-2">
                    {loading === 'genesis' ? <Loader2 className="animate-spin"/> : <><Sparkles className="w-4 h-4"/> Claim Admin Allocation (50k ULC)</>}
                 </Button>
+
+                <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 col-span-1 md:col-span-2 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-bold text-orange-400 uppercase">V3 Era Initialization</p>
+                            <p className="text-[10px] opacity-60">Reset live counters (Revenue, Burn) for a clean V3 start.</p>
+                        </div>
+                        {config?.v3StatsResetAt && <Badge className="bg-green-500/20 text-green-400 border-green-500/30">COMPLETED</Badge>}
+                    </div>
+                    
+                    <Button 
+                        onClick={() => {
+                            if(window.confirm("RESET V3 STATS? This will clear total revenue and burn counters for the current era. This is a one-time operation.")) {
+                                handleResetV3Stats();
+                            }
+                        }} 
+                        disabled={!!loading || !!config?.v3StatsResetAt} 
+                        className={cn(
+                            "w-full h-10 font-bold transition-all",
+                            config?.v3StatsResetAt ? "bg-muted text-muted-foreground opacity-50 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-900/20"
+                        )}
+                    >
+                        {loading === 'reset-stats' ? <Loader2 className="animate-spin"/> : config?.v3StatsResetAt ? 'V3 STATS PROTECTED' : 'RESET V3 LIVE STATS'}
+                    </Button>
+                </div>
              </CardContent>
            </Card>
 

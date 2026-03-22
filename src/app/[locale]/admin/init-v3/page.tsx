@@ -57,7 +57,8 @@ export default function InitV3() {
                 totalTreasuryUSDT: 0,
                 totalBuybackStakingUSDT: 0,
                 totalStakedULC: 0,
-                totalPresaleSold: 0
+                totalPresaleSold: 0,
+                v3StatsResetAt: Date.now()
             };
 
             await setDoc(configRef, newConfig);

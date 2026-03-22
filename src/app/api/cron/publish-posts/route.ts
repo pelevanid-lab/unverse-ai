@@ -1,47 +1,74 @@
 
 import { NextResponse } from 'next/server';
-import { collection, query, where, getDocs, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export async function GET() {
   try {
-    const now = new Date();
+    const now = Date.now();
 
-    // Query for posts that are scheduled and have not been published yet.
+    // 1. Query for scheduled media in the container
     const q = query(
-      collection(db, 'posts'), 
-      where('isPublished', '==', false), 
-      where('scheduledFor', '!=', null),
+      collection(db, 'creator_media'), 
+      where('status', '==', 'scheduled'), 
+      where('scheduledFor', '<=', now)
     );
     
-    const scheduledPostsSnap = await getDocs(q);
+    const scheduledSnap = await getDocs(q);
 
-    if (scheduledPostsSnap.empty) {
-      return NextResponse.json({ message: 'No scheduled posts are pending.' });
+    if (scheduledSnap.empty) {
+      return NextResponse.json({ message: 'No scheduled media pending.' });
     }
 
-    // Filter for posts scheduled for now or any time in the past.
-    const postsToPublish = scheduledPostsSnap.docs.filter(doc => {
-        const postData = doc.data();
-        const scheduledFor = postData.scheduledFor.toDate();
-        return scheduledFor <= now;
-    });
+    let publishedCount = 0;
 
-    if(postsToPublish.length === 0){
-        return NextResponse.json({ message: 'No posts to publish at this time.' });
+    // 2. Process each scheduled item
+    for (const mediaDoc of scheduledSnap.docs) {
+        const mediaData = mediaDoc.data();
+        
+        // Fetch creator profile for post metadata
+        const userSnap = await getDoc(doc(db, 'users', mediaData.creatorId));
+        if (!userSnap.exists()) {
+            console.error(`Creator ${mediaData.creatorId} not found for media ${mediaDoc.id}`);
+            continue;
+        }
+        const creator = userSnap.data();
+
+        const postData = {
+            creatorId: mediaData.creatorId,
+            creatorName: creator.username,
+            creatorAvatar: creator.avatar,
+            mediaUrl: mediaData.mediaUrl,
+            mediaType: mediaData.mediaType,
+            content: mediaData.caption || '',
+            contentType: mediaData.contentType || 'public',
+            unlockPrice: mediaData.priceULC || 0,
+            createdAt: now,
+            likes: 0,
+            unlockCount: 0,
+            earningsULC: 0,
+            ...(mediaData.isAI && {
+                isAI: true,
+                aiPrompt: mediaData.aiPrompt || mediaData.prompt,
+                aiEnhancedPrompt: mediaData.aiEnhancedPrompt || mediaData.enhancedPrompt
+            }),
+            ...(mediaData.contentType === 'limited' && {
+                limited: {
+                    totalSupply: mediaData.limited?.totalSupply || 100,
+                    soldCount: 0,
+                    price: mediaData.limited?.price || mediaData.priceULC || 0
+                }
+            })
+        };
+
+        // Create the post
+        await addDoc(collection(db, 'posts'), postData);
+        // Delete from container
+        await deleteDoc(mediaDoc.ref);
+        publishedCount++;
     }
 
-    // Use a batch to update all posts in one go.
-    const batch = postsToPublish.map(doc => {
-        return updateDoc(doc.ref, { 
-            isPublished: true, 
-            createdAt: Timestamp.now() // Set createdAt to the current time when publishing
-        });
-    });
-    
-    await Promise.all(batch);
-
-    return NextResponse.json({ message: `Successfully published ${batch.length} posts.` });
+    return NextResponse.json({ message: `Successfully published ${publishedCount} posts.` });
 
   } catch (error: any) {
     console.error('Cron job failed:', error.message);

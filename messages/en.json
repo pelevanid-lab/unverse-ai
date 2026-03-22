@@ -4,10 +4,11 @@
     "explore": "Explore",
     "feed": "The Feed",
     "description": "Accessing the public layer of the sovereign creator economy.",
-    "rate": "Universal Rate",
+    "rate": "Floor Price",
     "noContent": "No public content available yet.",
     "syncing": "Syncing Sovereign Feed...",
-    "updateName": "THE EVOLUTION"
+    "updateName": "THE EVOLUTION",
+    "title": "Discover Unverse"
   },
   "Navbar": {
     "connect": "Connect Wallet",

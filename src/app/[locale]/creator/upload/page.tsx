@@ -40,6 +40,8 @@ export default function ContentUploadPage() {
     const { user } = useWallet()
     const [fileType, setFileType] = useState<'image' | 'video' | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [mediaCount, setMediaCount] = useState(0)
+    const [isLimitReached, setIsLimitReached] = useState(false)
     const [editMode, setEditMode] = useState<'manual' | 'ai'>('manual')
     const [rotation, setRotation] = useState(0)
     const [activeFilter, setActiveFilter] = useState('none')
@@ -48,6 +50,29 @@ export default function ContentUploadPage() {
     const [isSaving, setIsSaving] = useState(false)
     const [isAILoading, setIsAILoading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Check media limit on load
+    useEffect(() => {
+        if (!user?.uid) return;
+        const fetchCount = async () => {
+            const { query, collection, where, getDocs } = await import('firebase/firestore');
+            const q = query(
+                collection(db, 'creator_media'),
+                where('creatorId', '==', user.uid)
+            );
+            const snap = await getDocs(q);
+            setMediaCount(snap.size);
+            if (snap.size >= 60) {
+                setIsLimitReached(true);
+                toast({ 
+                    variant: 'destructive', 
+                    title: "Konteyner Dolu (60/60)", 
+                    description: "Maksimum 60 medya sınırına ulaştınız. Yeni yükleme yapmak için eskilerini silin veya paylaşın." 
+                });
+            }
+        };
+        fetchCount();
+    }, [user?.uid]);
 
     const filters = [
         { name: t('filterNatural'), value: 'none' },
@@ -59,6 +84,14 @@ export default function ContentUploadPage() {
     ]
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (isLimitReached) {
+            toast({ 
+                variant: 'destructive', 
+                title: "Limit Aşıldı", 
+                description: "En fazla 60 medya saklayabilirsiniz. Lütfen yer açın." 
+            });
+            return;
+        }
         const file = e.target.files?.[0]
         if (!file) return
 

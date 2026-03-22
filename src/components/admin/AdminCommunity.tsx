@@ -52,20 +52,29 @@ export default function AdminCommunity() {
             const configSnap = await getDoc(doc(db, 'config', 'community'));
             if (configSnap.exists()) setConfig(configSnap.data());
 
-            // 2. Fetch Program Creators
+            // 2. Fetch All Creators for global stats
+            const allCreatorsSnap = await getDocs(query(collection(db, 'users'), where('isCreator', '==', true)));
+            const allCreators = allCreatorsSnap.docs.map(d => d.data() as UserProfile);
+
+            // 3. Fetch Program Creators for table
             const q = query(collection(db, 'users'), where('creatorInFirst100Program', '==', true));
             const userSnaps = await getDocs(q);
             const creatorsList = userSnaps.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
             setCreators(creatorsList);
 
-            // 3. Fetch Global Stats
+            // 4. Fetch Global Stats
             const sysSnap = await getDoc(doc(db, 'config', 'system'));
             const sysData = sysSnap.data();
+            
+            // Fetch high-frequency stats
+            const statsSnap = await getDoc(doc(db, 'config', 'stats'));
+            const statsData = statsSnap.data();
+
             setStats({
-                totalUnlocks: (creatorsList.reduce((acc, curr) => acc + (curr.totalUniquePremiumUnlocks || 0), 0)),
+                totalUnlocks: (allCreators.reduce((acc, curr) => acc + (curr.totalUniquePremiumUnlocks || 0), 0)),
                 totalRevenue: sysData?.totalTreasuryUSDT || 0,
-                totalBurned: sysData?.totalBurntULC || 0,
-                activeCreators: creatorsList.length
+                totalBurned: statsData?.totalBurnedULC || 0,
+                activeCreators: allCreators.length
             });
 
         } catch (e) {

@@ -51,13 +51,10 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
   const copilot = new Copilot(user?.uid || '');
 
-  // 🚀 Smart Flow: Auto-generate caption if empty when modal opens (Images only)
+  // 🚀 Smart Flow: Auto-check for monetization suggestions (Images only)
   useEffect(() => {
     if (user?.uid) {
       copilot.init().then(() => {
-        if (!caption && media.mediaUrl && media.mediaType === 'image') {
-          handleGenerateCaption();
-        }
         // Get suggestion for this media (V2)
         const suggestion = copilot.getMonetizationSuggestion(media.prompt || media.aiPrompt || "", !!media.isAI);
         setMonetizationSuggestion(suggestion);
@@ -232,8 +229,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                     disabled={isGeneratingCaption || media.mediaType !== 'image'}
                     className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full disabled:opacity-30"
                   >
-                    {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                    {isGeneratingCaption ? t('generating') || 'Generating...' : t('generateCaption')}
+                    {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    {caption ? "Açıklamayı İyileştir" : "Açıklama Oluştur"}
                   </Button>
                 </div>
                 <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t('captionPlaceholder')} className="bg-input/50 resize-none h-24" maxLength={280} />

@@ -631,9 +631,9 @@ export async function processAiCreatorActivation(userId: string): Promise<string
             throw new Error("ALREADY_ACTIVE");
         }
 
-        // Logic: First time is FREE. Subsequent activations are 5 ULC.
+        // Logic: First time is FREE. Subsequent activations are 10 ULC.
         const firstTime = !userData.aiCreatorModeActivatedAt;
-        const finalCost = firstTime ? 0 : 5;
+        const finalCost = firstTime ? 0 : 10;
 
         const balance = userData.ulcBalance?.available || 0;
         if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
@@ -678,7 +678,7 @@ export async function processAiCreatorActivation(userId: string): Promise<string
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorGeneration(userId: string): Promise<string> {
-    const cost = 1;
+    const cost = 2;
     return await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', userId);
         const userSnap = await transaction.get(userRef);

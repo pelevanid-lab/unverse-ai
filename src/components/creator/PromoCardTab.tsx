@@ -76,7 +76,8 @@ export function PromoCardTab() {
             ctaText: promo.ctaText || 'Subscribe',
             creatorId: user.uid,
             creatorName: user.username,
-            creatorAvatar: user.avatar || '',
+            // Sync current avatar to promo card on save to ensure data consistency
+            creatorAvatar: user.avatar || (user as any).photoURL || '',
             updatedAt: Date.now()
         };
 

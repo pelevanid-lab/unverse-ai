@@ -21,6 +21,11 @@ export function ContainerTab() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
+  const [brokenItems, setBrokenItems] = useState<Set<string>>(new Set());
+
+  const handleItemError = (id: string) => {
+    setBrokenItems(prev => new Set(prev).add(id));
+  };
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -92,13 +97,14 @@ export function ContainerTab() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {mediaItems.filter(i => i.source === 'ai_auto').map(item => (
+                    {mediaItems.filter(i => i.source === 'ai_auto' && !brokenItems.has(i.id)).map(item => (
                     <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50 border border-primary/20">
                       <img 
                         src={item.mediaUrl} 
                         alt={item.caption || 'media'} 
                         className="w-full h-full object-cover" 
                         onClick={() => setSelectedMedia(item)}
+                        onError={() => handleItemError(item.id)}
                       />
                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />
                       <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary text-white text-[8px] font-bold rounded-full">AI DRAFT</div>
@@ -118,7 +124,7 @@ export function ContainerTab() {
                 <h3 className="text-sm font-bold uppercase tracking-wider">{t('yourMedia') || "Sizin İçerikleriniz"}</h3>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {mediaItems.filter(i => i.source !== 'ai_auto').map(item => (
+                {mediaItems.filter(i => i.source !== 'ai_auto' && !brokenItems.has(i.id)).map(item => (
                   <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50">
                     {item.mediaType === 'image' ? (
                       <img 
@@ -126,11 +132,13 @@ export function ContainerTab() {
                         alt={item.caption || 'media'} 
                         className="w-full h-full object-cover" 
                         onClick={() => setSelectedMedia(item)}
+                        onError={() => handleItemError(item.id)}
                       />
                     ) : (
                         <div onClick={() => setSelectedMedia(item)}>
                           <VideoPreview 
                             src={item.mediaUrl} 
+                            onError={() => handleItemError(item.id)}
                           />
                         </div>
                     )}

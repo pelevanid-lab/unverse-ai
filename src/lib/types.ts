@@ -142,6 +142,7 @@ export interface SystemConfig {
     genesis_initialized?: boolean;
     isSealed?: boolean;
     last_manual_fix_v3_at?: number;
+    v3StatsResetAt?: number;
     platform_subscription_fee_split?: number;
     // Community & Social
     community?: {

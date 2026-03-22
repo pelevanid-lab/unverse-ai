@@ -4,10 +4,11 @@
     "explore": "İncele",
     "feed": "Akış",
     "description": "Egemen yaratıcı ekonomisinin açık katmanına erişiliyor.",
-    "rate": "Evrensel Kur",
+    "rate": "Taban Fiyat",
     "noContent": "Henüz açık içerik mevcut değil.",
     "syncing": "Kozmik Akış Senkronize Ediliyor...",
-    "updateName": "EVRİM"
+    "updateName": "EVRİM",
+    "title": "Keşfet Unverse"
   },
   "Navbar": {
     "connect": "Cüzdan Bağla",
