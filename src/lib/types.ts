@@ -16,6 +16,8 @@ export interface CharacterProfile {
     vibe: string;
     characterPromptBase: string;
     referenceImageUrl?: string;
+    referenceImageUrls?: string[];
+    identitySeed?: number;
     height?: string;
     persona_id?: string;
     persona_prompt?: string;

@@ -13,8 +13,12 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask, character, outfit } = json;
-    cost = json.cost || 5; // Assign cost from json, default to 5
+    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask, character, outfit, imageUrls, isMasterPreview, seed } = json;
+    cost = json.cost || 5; 
+
+    // 1. IDENTITY ANCHORS (Digital Twin 3.0)
+    const STRONG_IDENTITY_POSITIVE = "same exact person from reference images, identical facial structure, same bone structure, same proportions, highly consistent identity, no facial deviation, preserve identity, realistic human face, no distortion, natural skin texture";
+    const STRONG_IDENTITY_NEGATIVE = "different person, different face, altered facial structure, distorted face, inconsistent identity, face morphing, low similarity, plastic skin, cartoonish, blurry face";
 
     if (!prompt || !userId) {
       return NextResponse.json({ error: 'Prompt and userId are required' }, { status: 400 });
@@ -68,7 +72,8 @@ export async function POST(req: Request) {
         basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
     }
 
-    let finalPromptForAI = `${securityAnchor} ${basePrompt}`;
+    const identityPrefix = (cost === 3 || cost === 20) ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
+    let finalPromptForAI = `${identityPrefix}${securityAnchor} ${basePrompt}`;
     
     // Dynamic Negative Prompt based on requested profile & scene
     let negativeFils = "child, kid, toddler, teenager, underage, portrait, close-up, cropped, headshot, macro, room, indoors, studio, apartment, office, domestic, ceiling, wall";
@@ -79,7 +84,8 @@ export async function POST(req: Request) {
         negativeFils += ", woman, female";
     }
 
-    const userNegativePrompt = negativePrompt ? `${negativePrompt}, ${negativeFils}` : negativeFils;
+    const identityNegativeAnchor = (cost === 3 || cost === 20) ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
+    const userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
     
     // Solo Subject Enforcement
     if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
@@ -136,11 +142,15 @@ export async function POST(req: Request) {
     };
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
-    if ((cost === 3 || cost === 20) && image) {
+    const imageToUseForTwin = image || character?.referenceImageUrl;
+    if ((cost === 3 || cost === 20) && imageToUseForTwin) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");
       }
+
+      // Use character's saved seed if if available for for consistency, else use passed seed or or or random
+      const finalSeed = seed || character?.identitySeed || Math.floor(Math.random() * 1000000000);
 
       const response = await fetch("https://fal.run/fal-ai/flux-pulid", {
         method: "POST",
@@ -150,9 +160,12 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
             prompt: finalPromptForAI,
-            reference_image_url: image,
-            num_inference_steps: 28,
-            guidance_scale: 3.5
+            reference_image_url: imageToUseForTwin, // Use primary image as as as main reference
+            num_inference_steps: 40,
+            guidance_scale: 8.5,
+            id_weight: 1.0,
+            seed: finalSeed,
+            negative_prompt: userNegativePrompt
         })
       });
 

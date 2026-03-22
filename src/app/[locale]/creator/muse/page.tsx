@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload } from "lucide-react"
+import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star } from "lucide-react"
+import { Copilot } from '@/lib/copilot'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -40,6 +41,9 @@ export default function AIMusePage() {
     // Steady State (Generation)
     const [genPrompt, setGenPrompt] = useState('')
     const [lastResult, setLastResult] = useState<string | null>(null)
+    const [logId, setLogId] = useState<string | null>(null)
+    const [satisfactionScore, setSatisfactionScore] = useState<number | null>(null)
+    const [uploadedRefUrls, setUploadedRefUrls] = useState<string[]>([])
 
     useEffect(() => {
         if (user?.savedCharacter) {
@@ -60,6 +64,22 @@ export default function AIMusePage() {
         }
         reader.readAsDataURL(file)
     }
+
+    const handleSatisfactionScore = async (score: number) => {
+        if (!logId || !user?.uid) return;
+        setSatisfactionScore(score);
+        try {
+            const copilot = new Copilot(user.uid);
+            await copilot.init();
+            await copilot.logInteraction({
+                id: logId,
+                satisfactionScore: score
+            });
+            toast({ title: tCommon('feedbackReceived'), description: tCommon('feedbackReceivedDesc') });
+        } catch (e) {
+            console.error("Score update failed:", e);
+        }
+    };
 
     const handleCreateCharacter = async (method: 'photo' | 'prompt') => {
         if (!user?.uid) return
@@ -128,6 +148,7 @@ export default function AIMusePage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ imageUrls: uploadedUrls })
                 })
+                setUploadedRefUrls(uploadedUrls)
                 attributes = await parseRes.json()
 
                 // 2. Generate the "Master AI Portrait" (This is is is is the and and and user's AI Twin)
@@ -176,6 +197,8 @@ export default function AIMusePage() {
                 vibe: extractedAttributes?.vibe || 'natural',
                 characterPromptBase: promptDraft,
                 referenceImageUrl: previewAvatar,
+                referenceImageUrls: uploadedRefUrls, // DIGITAL TWIN 3.0: FULL IDENTITY SET
+                identitySeed: Math.floor(Math.random() * 1000000000), // DIGITAL TWIN 3.0: SEED LOCK
                 createdAt: Date.now()
             }
 
@@ -222,6 +245,8 @@ export default function AIMusePage() {
 
             const data = await response.json()
             setLastResult(data.mediaUrl)
+            setLogId(data.logId)
+            setSatisfactionScore(null)
             toast({ title: tCommon("publishSuccess"), description: tCommon("savedToContainerDesc") })
         } catch (err: any) {
             toast({ variant: 'destructive', title: tCommon("generationError"), description: err.message })
@@ -541,15 +566,39 @@ export default function AIMusePage() {
                                 <div className="aspect-square w-full flex items-center justify-center">
                                     <img src={lastResult} className="w-full h-full object-contain" alt="Generated" />
                                 </div>
-                                <div className="p-6 flex gap-4 bg-black/60 backdrop-blur-md">
-                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
-                                        {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
-                                        {t("saveToPool")}
-                                    </Button>
-                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
-                                        <RefreshCcw size={18} /> {t("regenAction")} (3 ULC)
-                                    </Button>
-                                </div>
+                                    <div className="p-6 space-y-4 bg-black/60 backdrop-blur-md">
+                                        {/* Satisfaction Rating */}
+                                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 space-y-3">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase text-center tracking-widest">{tCommon('satisfaction')}</p>
+                                            <div className="flex justify-center gap-2">
+                                                {[1, 2, 3, 4, 5].map((score) => (
+                                                    <Button
+                                                        key={score}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled={!logId}
+                                                        onClick={() => handleSatisfactionScore(score)}
+                                                        className={cn(
+                                                            "h-10 w-10 rounded-xl transition-all",
+                                                            satisfactionScore === score ? "bg-primary text-white" : "hover:bg-white/10 text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        <Star className={cn("w-5 h-5", satisfactionScore && satisfactionScore >= score ? "fill-current" : "")} />
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4">
+                                            <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
+                                                {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
+                                                {t("saveToPool")}
+                                            </Button>
+                                            <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
+                                                <RefreshCcw size={18} /> {t("regenAction")} (3 ULC)
+                                            </Button>
+                                        </div>
+                                    </div>
                             </Card>
                         ) : (
                             <Card className="glass-card border-dashed border-white/10 bg-white/[0.02] h-60 flex items-center justify-center text-muted-foreground text-sm italic">
