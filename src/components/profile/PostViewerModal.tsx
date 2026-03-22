@@ -36,6 +36,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [serialNumber, setSerialNumber] = useState<number | null>(null);
   const overlayTimeout = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const isOwner = currentUser?.uid === creator.uid;
   const isUnlocked = unlockedPostIds.includes(post.id);
@@ -43,10 +44,19 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   
   // Use secure URL if available, fallback to post.mediaUrl if public
   const mediaUrl = secureMediaUrl || (post.contentType === 'public' ? post.mediaUrl : null);
-  const isImage = mediaUrl && (mediaUrl.includes('.webp') || mediaUrl.includes('.png') || mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('image'));
+  const isImage = post.mediaType === 'image' || (!post.mediaType && mediaUrl && (mediaUrl.includes('.webp') || mediaUrl.includes('.png') || mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('image')));
   
   const isSoldOut = post.contentType === 'limited' && post.limited && post.limited.soldCount >= post.limited.totalSupply;
   const currentPrice = post.contentType === 'limited' ? post.limited?.price : post.unlockPrice;
+
+  // Handle explicit video playback when source is loaded
+  useEffect(() => {
+    if (mediaUrl && !isImage && videoRef.current) {
+        videoRef.current.play().catch(err => {
+            console.error("Autoplay failed:", err);
+        });
+    }
+  }, [mediaUrl, isImage]);
 
   useEffect(() => {
     async function fetchSecureMedia() {
@@ -196,7 +206,16 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                 isImage ? (
                     <img src={mediaUrl} alt="Content" className="object-contain block max-w-full max-h-full transition-all duration-700 animate-in fade-in" />
                 ) : (
-                    <video src={mediaUrl} controls autoPlay muted loop className="object-contain block max-w-full max-h-full transition-all duration-700 animate-in fade-in" />
+                    <video 
+                        ref={videoRef}
+                        src={mediaUrl} 
+                        controls 
+                        autoPlay 
+                        muted 
+                        loop 
+                        playsInline
+                        className="object-contain block max-w-full max-h-full transition-all duration-700 animate-in fade-in" 
+                    />
                 )
             ))}
             

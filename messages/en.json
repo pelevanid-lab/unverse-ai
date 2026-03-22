@@ -106,6 +106,12 @@
     "backToDashboard": "Back to Creator Panel"
   },
   "Container": {
+    "title": "Pool",
+    "subtitle": "Manage your productions and drafts.",
+    "yourMedia": "Your Media",
+    "aiDrafts": "AI Drafts",
+    "emptyStateTitle": "Pool is Empty",
+    "emptyStateDesc": "Content you produce or upload will appear here.",
     "errorTitle": "Error",
     "profileLoadError": "Could not load your user profile.",
     "unsupportedFileType": "Unsupported File Type",
@@ -114,11 +120,8 @@
     "uploadComplete": "Upload Complete",
     "uploadCompleteDesc": "Your media is now in the container.",
     "uploadError": "Upload Error",
-    "title": "Container",
-    "subtitle": "Prepare your media for publishing.",
     "uploadMedia": "Upload Media",
-    "aiDrafts": "AI Drafts",
-    "emptyStateTitle": "Container is Empty"
+    "untitled": "Untitled"
   },
   "Published": {
     "title": "Published Content",

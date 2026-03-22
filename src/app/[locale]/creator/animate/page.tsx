@@ -39,6 +39,12 @@ export default function AnimatePage() {
         }
     }, [selectedImageId])
 
+    useEffect(() => {
+        if (user?.uid && showPicker && containerItems.length === 0) {
+            fetchContainerItems();
+        }
+    }, [user?.uid, showPicker]);
+
     const fetchSelectedImage = async (id: string) => {
         try {
             const docSnap = await getDoc(doc(db, 'creator_media', id))
@@ -58,11 +64,16 @@ export default function AnimatePage() {
             const q = query(
                 collection(db, 'creator_media'),
                 where('creatorId', '==', user.uid),
-                where('mediaType', '==', 'image')
+                where('mediaType', '==', 'image'),
+                where('status', 'in', ['draft', 'scheduled'])
             )
             const snap = await getDocs(q)
             const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia))
-                                    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                                    .sort((a, b) => {
+                                        const dateA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
+                                        const dateB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
+                                        return dateB - dateA;
+                                    });
             setContainerItems(items)
         } catch (e) {
             console.error("Error loading container:", e)

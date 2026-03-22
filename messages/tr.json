@@ -106,6 +106,14 @@
     "backToDashboard": "Panel'e Dön"
   },
   "Container": {
+    "title": "Havuz",
+    "subtitle": "Üretimlerinizi ve taslaklarınızı yönetin.",
+    "yourMedia": "Sizin İçerikleriniz",
+    "aiDrafts": "Yapay Zeka Taslakları",
+    "emptyStateTitle": "Havuzunuz Boş",
+    "emptyStateDesc": "Ürettiğiniz veya yüklediğiniz içerikler burada görünecek.",
+    "errorTitle": "Hata",
+    "profileLoadError": "Profil yüklenemedi.",
     "untitled": "İsimsiz",
     "tabAnimate": "Hareketlendir",
     "animateDesc": "Görsellerinizi Fal.ai Kling teknolojisiyle canlandırın.",
@@ -118,10 +126,7 @@
     "generateVideo": "Videoyu Oluştur",
     "selectFromContainer": "Havuzdan Görsel Seç",
     "noAnimateForVideo": "Videolar tekrar hareketlendirilemez.",
-    "animateSuccess": "Video başarıyla üretildi ve havuza eklendi.",
-    "yourMedia": "Sizin İçerikleriniz",
-    "aiDrafts": "Yapay Zeka Taslakları",
-    "emptyStateTitle": "Havuzunuz Boş"
+    "animateSuccess": "Video başarıyla üretildi ve havuza eklendi."
   },
   "Published": {
     "title": "Yayınlanan İçerik",

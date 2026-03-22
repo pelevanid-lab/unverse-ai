@@ -75,6 +75,17 @@
     "claimFailed": "Сбой Вывода",
     "defaultError": "Произошла ошибка."
   },
+  "Container": {
+    "title": "Пул",
+    "subtitle": "Управляйте вашими работами и черновиками.",
+    "yourMedia": "Ваши медиа",
+    "aiDrafts": "ИИ Черновики",
+    "emptyStateTitle": "Пул пуст",
+    "emptyStateDesc": "Созданный или загруженный контент появится здесь.",
+    "errorTitle": "Ошибка",
+    "profileLoadError": "Не удалось загрузить профиль.",
+    "untitled": "Без названия"
+  },
   "Creator": {
     "becomeCreatorTitle": "Стать Автором",
     "becomeCreatorDesc": "Начните свой путь на Unverse, делитесь контентом и зарабатывайте напрямую от своих поклонников через подписки и доступы.",
@@ -100,20 +111,6 @@
     "messagesTab": "Сообщения",
     "messagesDesc": "Прямые чаты с фанатами",
     "backToDashboard": "Вернуться в панель"
-  },
-  "Container": {
-    "errorTitle": "Ошибка",
-    "profileLoadError": "Не удалось загрузить ваш профиль пользователя.",
-    "unsupportedFileType": "Неподдерживаемый Тип Файла",
-    "unsupportedFileTypeDesc": "Пожалуйста, загрузите файлы JPG, PNG, WEBP, MP4, MOV или WEBM.",
-    "uploadFailed": "Сбой Загрузки",
-    "uploadComplete": "Загрузка Завершена",
-    "uploadCompleteDesc": "Ваш медиафайл теперь в контейнере.",
-    "uploadError": "Ошибка Загрузки",
-    "title": "Загрузить Контент",
-    "subtitle": "Подготовьте медиа для публикации.",
-    "uploadMedia": "Загрузить Медиа",
-    "emptyStateTitle": "Контейнер пуст"
   },
   "Published": {
     "title": "Опубликованный Контент",

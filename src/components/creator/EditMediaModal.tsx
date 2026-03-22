@@ -210,20 +210,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
         <div className="flex flex-col md:grid md:grid-cols-12 h-full overflow-y-auto md:overflow-hidden">
           <div className="md:col-span-7 flex items-center justify-center bg-black/80 overflow-hidden relative group">
             {media.mediaType === 'image' ? (
-              <>
-                <img src={media.mediaUrl} alt="Preview" className="max-w-full max-h-full w-auto h-auto object-contain" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-                  <Button 
-                    onClick={() => {
-                      window.location.href = `/creator/animate?imageId=${media.id}`;
-                    }}
-                    className="gap-2 rounded-full font-bold shadow-2xl"
-                  >
-                    <Sparkles className="w-5 h-5" />
-                    Hareketlendir (60 ULC)
-                  </Button>
-                </div>
-              </>
+              <img src={media.mediaUrl} alt="Preview" className="max-w-full max-h-full w-auto h-auto object-contain" />
             ) : (
               <video src={media.mediaUrl} controls autoPlay className="max-w-full max-h-full w-auto h-auto" />
             )}
