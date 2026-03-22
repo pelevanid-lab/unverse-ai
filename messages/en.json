@@ -106,6 +106,12 @@
     "promoCardDesc": "Edit feed appearance",
     "messagesTab": "Messages",
     "messagesDesc": "Direct supporter chats",
+    "milestoneProgramTitle": "First-100 Reward Program",
+    "milestoneProgramDesc": "Join the elite first 100 creators to unlock exclusive ULC rewards and performance milestones.",
+    "joinProgramNow": "Join Program & Claim 200 ULC",
+    "milestoneProgressTitle": "Creator Reward Progress",
+    "nextMilestoneIn": "Next 200 ULC in {count} unique buyers",
+    "milestoneRuleHint": "Each buyer must be an active subscriber with a min. 10 USDT plan.",
     "backToDashboard": "Back to Creator Panel"
   },
   "Container": {
@@ -656,7 +662,18 @@
     "buybackNote": "Drops below this price are dynamically prevented via the protocol's automated buyback mechanism.",
     "militaryPrice": "M-Floor [LIVE]",
     "targetCapLabel": "Target Market Cap",
-    "remainingSupplyLabel": "Remaining Supply"
+    "remainingSupplyLabel": "Remaining Supply",
+    "creatorProgramTitle": "First-100 Creator Incentive Program",
+    "creatorProgramSubtitle": "Join the elite first 100 creators and earn up to 1,000 ULC in performance rewards.",
+    "welcomeRewardTitle": "Welcome Bonus",
+    "welcomeRewardDesc": "Get 200 ULC immediately upon joining (60 Promo / 140 Locked).",
+    "milestoneRewardsTitle": "Milestone Rewards",
+    "milestoneRewardsDesc": "+200 ULC for every 20 unique premium unlocks from active subscribers.",
+    "totalPotentialTitle": "Total Potential",
+    "totalPotentialDesc": "Scale your earnings up to 1,000 ULC per creator.",
+    "howToJoinTitle": "Ready to Start?",
+    "howToJoinDesc": "Switch to Creator Mode and join the program from your dashboard. Only the first 100 verified creators are eligible.",
+    "joinProgramButton": "Apply for First-100"
   },
   "Muse": {
     "errorTitle": "Error",

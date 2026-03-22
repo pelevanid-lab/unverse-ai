@@ -11,7 +11,7 @@ import {
     ArrowRight, Zap, Coins, Flame, Gem, TrendingUp, 
     Lock, Shield, BarChart3, ChevronRight, Info,
     DollarSign, Loader2, ArrowRightLeft, Database, Sparkles,
-    Link as LinkIcon, ShieldAlert
+    Link as LinkIcon, ShieldAlert, Award
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -340,6 +340,70 @@ export default function TokenomicsPage() {
                 </div>
             </Card>
           </Link>
+      </section>
+
+      <section className="max-w-5xl mx-auto px-4 py-8">
+        <Card className="glass-card border-pink-500/30 overflow-hidden relative shadow-2xl shadow-pink-500/10 group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 blur-[100px] rounded-full -z-10 group-hover:bg-pink-500/20 transition-all duration-700" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full -z-10" />
+          
+          <CardHeader className="text-center md:text-left">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/20 scale-110">
+                    <Award className="text-white w-10 h-10" />
+                </div>
+                <div className="space-y-1">
+                    <Badge className="bg-pink-500 text-black font-bold mb-2">LIMITED: FIRST 100 CREATORS</Badge>
+                    <CardTitle className="text-4xl md:text-5xl font-headline font-bold">
+                        {t('creatorProgramTitle')}
+                    </CardTitle>
+                    <CardDescription className="text-lg">
+                        {t('creatorProgramSubtitle')}
+                    </CardDescription>
+                </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3 hover:bg-white/10 transition-colors">
+                    <Sparkles className="text-pink-400 w-6 h-6" />
+                    <h4 className="text-xl font-bold font-headline">{t('welcomeRewardTitle')}</h4>
+                    <p className="text-3xl font-headline font-bold text-pink-500">200 ULC</p>
+                    <p className="text-xs text-muted-foreground">{t('welcomeRewardDesc')}</p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3 hover:bg-white/10 transition-colors">
+                    <TrendingUp className="text-purple-400 w-6 h-6" />
+                    <h4 className="text-xl font-bold font-headline">{t('milestoneRewardsTitle')}</h4>
+                    <p className="text-3xl font-headline font-bold text-purple-500">+200 ULC</p>
+                    <p className="text-xs text-muted-foreground">{t('milestoneRewardsDesc')}</p>
+                </div>
+
+                <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-600/20 border border-pink-500/30 space-y-3">
+                    <Gem className="text-pink-400 w-6 h-6" />
+                    <h4 className="text-xl font-bold font-headline">{t('totalPotentialTitle')}</h4>
+                    <p className="text-3xl font-headline font-bold text-white">1,000 ULC</p>
+                    <p className="text-xs text-muted-foreground">{t('totalPotentialDesc')}</p>
+                </div>
+            </div>
+
+            <div className="mt-12 flex flex-col md:flex-row items-center justify-between p-8 rounded-3xl bg-white/5 border border-white/10 gap-8">
+                <div className="space-y-2">
+                    <h3 className="text-2xl font-headline font-bold">{t('howToJoinTitle')}</h3>
+                    <p className="text-sm text-muted-foreground max-w-md">
+                        {t('howToJoinDesc')}
+                    </p>
+                </div>
+                <Link href="/creator/container">
+                    <Button size="lg" className="h-14 px-10 rounded-2xl bg-pink-500 hover:bg-pink-600 text-black font-bold text-lg gap-2 shadow-xl shadow-pink-500/20 group">
+                        {t('joinProgramButton')}
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                </Link>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Striking Data Section */}

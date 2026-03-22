@@ -106,6 +106,12 @@
     "promoCardDesc": "Akış görünümünü düzenleyin",
     "messagesTab": "Mesajlar",
     "messagesDesc": "Doğrudan destekçi sohbetleri",
+    "milestoneProgramTitle": "İlk-100 Ödül Programı",
+    "milestoneProgramDesc": "Özel ULC ödüllerini ve performans milestone'larını açmak için ilk 100 yaratıcı arasına katılın.",
+    "joinProgramNow": "Programa Katıl ve 200 ULC Al",
+    "milestoneProgressTitle": "Yaratıcı Ödül İlerlemesi",
+    "nextMilestoneIn": "{count} benzersiz alıcı sonra +200 ULC",
+    "milestoneRuleHint": "Her alıcı aktif bir abone olmalı ve min. 10 USDT planına sahip olmalıdır.",
     "backToDashboard": "Panel'e Dön"
   },
   "Container": {
@@ -192,6 +198,7 @@
     "configureContent": "İçerik tipinizi ve fiyatlandırmanızı yapılandırın.",
     "caption": "Açıklama",
     "generateCaption": "Copilot: Açıklama Üret",
+    "generating": "Oluşturuluyor...",
     "captionPlaceholder": "Ne düşünüyorsun?",
     "contentType": "İçerik Tipi",
     "public": "Herkese Açık",
@@ -662,7 +669,18 @@
     "buybackNote": "Bu fiyatın altına düşüşler, protokolün otomatik buy back mekanizmasıyla dinamik olarak engellenmektedir.",
     "militaryPrice": "Askari Fiyat [CANLI]",
     "targetCapLabel": "Hedef Market Değeri",
-    "remainingSupplyLabel": "Kalan Arz"
+    "remainingSupplyLabel": "Kalan Arz",
+    "creatorProgramTitle": "İlk 100 Yaratıcı Teşvik Programı",
+    "creatorProgramSubtitle": "Seçkin ilk 100 yaratıcı arasına katılın ve 1.000 ULC'ye kadar performans ödülü kazanın.",
+    "welcomeRewardTitle": "Hoş Geldin Bonusu",
+    "welcomeRewardDesc": "Katıldığınız anda 200 ULC kazanın (60 Promo / 140 Kilitli).",
+    "milestoneRewardsTitle": "Milestone Ödülleri",
+    "milestoneRewardsDesc": "Aktif abonelerden gelen her 20 benzersiz premium kilit açma için +200 ULC.",
+    "totalPotentialTitle": "Toplam Potansiyel",
+    "totalPotentialDesc": "Kazancınızı yaratıcı başına 1.000 ULC'ye kadar ölçeklendirin.",
+    "howToJoinTitle": "Başlamaya Hazır mısınız?",
+    "howToJoinDesc": "Yaratıcı Moduna geçin ve panelinizden programa katılın. Sadece ilk 100 doğrulanmış yaratıcı uygundur.",
+    "joinProgramButton": "İlk 100'e Başvur"
   },
   "Muse": {
     "errorTitle": "Hata",

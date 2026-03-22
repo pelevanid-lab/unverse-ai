@@ -88,6 +88,15 @@ export interface UserProfile {
     aiCreatorModeLastChargedAt?: number;
     aiCreatorModeLastRunAt?: number;
     aiPreferences?: AIPreference;
+
+    // Creator Milestone Program (First 100)
+    creatorProgramIndex?: number | null;
+    creatorInFirst100Program?: boolean;
+    creatorWelcomeRewardGranted?: boolean;
+    uniquePremiumUnlockBuyerIds?: string[];
+    totalUniquePremiumUnlocks?: number;
+    milestoneRewardCount?: number;
+    totalMilestoneRewardULC?: number;
 }
 
 export interface PromoCard {
@@ -167,6 +176,11 @@ export interface SystemConfig {
     presaleCompleted?: boolean;
     tokenLaunchCompleted?: boolean;
     marketLiquidityReady?: boolean;
+
+    // Creator Milestone Pool Stats
+    totalCreatorRewardsULC?: number;
+    totalPromoPoolDistributedULC?: number;
+    totalCreatorIncentiveDistributedULC?: number;
 }
 
 export interface SystemStats {
@@ -199,6 +213,8 @@ export type LedgerEntryType =
     | 'vesting_created'
     | 'genesis_allocation'
     | 'premium_unlock_earning'
+    | 'creator_welcome_reward'
+    | 'creator_milestone_reward'
     | 'presale_purchase';
 
 export interface VestingSchedule {

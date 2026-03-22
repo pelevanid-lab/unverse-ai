@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest, VestingSchedule } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { AdminMilestones } from '@/components/admin/AdminMilestones';
 
 export default function AdminDashboard() {
   const { user, isConnected, walletAddress } = useWallet();
@@ -173,6 +174,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="staking">Staking</TabsTrigger>
           <TabsTrigger value="vesting">Vesting</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
+          <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
@@ -340,6 +342,10 @@ export default function AdminDashboard() {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="milestones">
+          <AdminMilestones />
         </TabsContent>
 
         <TabsContent value="setup" className="space-y-6">

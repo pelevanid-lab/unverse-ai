@@ -103,22 +103,27 @@ export const publishScheduledPosts = onSchedule("every 15 minutes", async (event
     logger.info(`Starting scheduled publish check at ${now.toDate().toISOString()} (${nowMs})`);
 
     const query = db.collection("creator_media")
-      .where("status", "==", "scheduled")
-      .where("scheduledFor", "<=", nowMs);
+      .where("status", "==", "scheduled");
       
     const snapshot = await query.get();
     
-    if (snapshot.empty) {
-        logger.info("No scheduled posts to publish at this time.");
+    // In-memory filter to bypass missing composite index requirement
+    const postsToPublish = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.scheduledFor && data.scheduledFor <= nowMs;
+    });
+
+    if (postsToPublish.length === 0) {
+        logger.info("No scheduled posts to publish at this time (after temporal filtering).");
         return;
     }
     
     const postsCollection = db.collection("posts");
     const batch = db.batch();
     
-    logger.info(`Found ${snapshot.docs.length} posts to publish.`);
+    logger.info(`Found ${postsToPublish.length} posts to publish after temporal filtering.`);
     
-    snapshot.docs.forEach(doc => {
+    postsToPublish.forEach(doc => {
         const mediaData = doc.data();
       
         const newPostData = {
@@ -164,6 +169,17 @@ export const publishScheduledPosts = onSchedule("every 15 minutes", async (event
  * Securely handles Premium/Limited Content Unlock.
  * Split: 85% Creator, 10% Treasury, 5% Staking (Burn/Reward)
  */
+async function checkSubscriptionInternal(db: admin.firestore.Firestore, userId: string, creatorId: string): Promise<boolean> {
+    const q = await db.collection("subscriptions")
+        .where("userId", "==", userId)
+        .where("creatorId", "==", creatorId)
+        .where("status", "==", "active")
+        .where("expiresAt", ">", Date.now())
+        .limit(1)
+        .get();
+    return !q.empty;
+}
+
 export const unlockContent = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
     // 1. Auth Check
     if (!request.auth) {
@@ -260,6 +276,83 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
                 'ulcBalance.available': admin.firestore.FieldValue.increment(creatorShare),
                 totalEarnings: admin.firestore.FieldValue.increment(creatorShare)
             });
+
+            // 2b. Creator Milestone Rewards System (First 100)
+            const creatorSnap = await transaction.get(creatorRef);
+            const creatorData = creatorSnap.data();
+
+            if (creatorData?.creatorInFirst100Program) {
+                const subPrice = creatorData.creatorData?.subscriptionPriceMonthly || 0;
+                // Rule: Price >= 10 USDT
+                if (subPrice >= 10) {
+                    const uniqueBuyers = creatorData.uniquePremiumUnlockBuyerIds || [];
+                    if (!uniqueBuyers.includes(userId)) {
+                        const isSubscribed = await checkSubscriptionInternal(db, userId, creatorData.uid || postData?.creatorId);
+                        if (isSubscribed) {
+                            // Valid unique unlock found!
+                            const newTotalUnlocks = (creatorData.totalUniquePremiumUnlocks || 0) + 1;
+                            const currentRewards = creatorData.totalMilestoneRewardULC || 0;
+                            
+                            transaction.update(creatorRef, {
+                                uniquePremiumUnlockBuyerIds: admin.firestore.FieldValue.arrayUnion(userId),
+                                totalUniquePremiumUnlocks: admin.firestore.FieldValue.increment(1)
+                            });
+
+                            // Milestone check (every 20 unique buyers)
+                            if (newTotalUnlocks % 20 === 0 && currentRewards < 1000) {
+                                const rewardAmount = 200;
+                                const promoPortion = 60;
+                                const incentivePortion = 140;
+
+                                // Grant Reward
+                                transaction.update(creatorRef, {
+                                    'ulcBalance.available': admin.firestore.FieldValue.increment(promoPortion),
+                                    'ulcBalance.locked': admin.firestore.FieldValue.increment(incentivePortion),
+                                    totalMilestoneRewardULC: admin.firestore.FieldValue.increment(rewardAmount),
+                                    milestoneRewardCount: admin.firestore.FieldValue.increment(1)
+                                });
+
+                                // Create Vesting Schedule (140 ULC, 24m duration, 0 cliff)
+                                const scheduleRef = db.collection("vesting_schedules").doc();
+                                transaction.set(scheduleRef, {
+                                    userId: postData?.creatorId,
+                                    totalAmount: incentivePortion,
+                                    startTime: now,
+                                    duration: 24 * 30 * 24 * 60 * 60 * 1000,
+                                    cliff: 0,
+                                    releasedAmount: 0,
+                                    description: `Milestone Reward (${newTotalUnlocks} Unique Unlocks)`,
+                                    poolId: "creators",
+                                    createdAt: now
+                                });
+
+                                // Global Pool Stats
+                                transaction.update(configSnap.ref, {
+                                    "pools.promo": admin.firestore.FieldValue.increment(-promoPortion),
+                                    "pools.creators": admin.firestore.FieldValue.increment(-incentivePortion),
+                                    totalCreatorRewardsULC: admin.firestore.FieldValue.increment(rewardAmount),
+                                    totalPromoPoolDistributedULC: admin.firestore.FieldValue.increment(promoPortion),
+                                    totalCreatorIncentiveDistributedULC: admin.firestore.FieldValue.increment(incentivePortion)
+                                });
+
+                                // Ledger
+                                transaction.set(db.collection("ledger").doc(), {
+                                    type: "creator_milestone_reward",
+                                    toUserId: postData?.creatorId,
+                                    amount: rewardAmount,
+                                    currency: "ULC",
+                                    timestamp: now,
+                                    metadata: { 
+                                        milestoneUnlockCount: newTotalUnlocks,
+                                        promoPoolPortion: promoPortion,
+                                        incentivePoolPortion: incentivePortion
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
 
             // 3. Update Post Stats
             if (postData?.contentType === 'limited') {
@@ -1038,6 +1131,93 @@ export const executeBuyback = onCall({ memory: "256MiB" }, async (request: Calla
         });
     } catch (error: any) {
         logger.error("Buyback execution error:", error);
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+/**
+ * JOIN CREATOR PROGRAM (First 100)
+ * Grants Welcome Reward & Sets eligibility for milestones.
+ */
+export const joinCreatorProgram = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+    
+    const userId = request.auth.uid;
+    const db = admin.firestore();
+    const now = Date.now();
+
+    try {
+        return await db.runTransaction(async (transaction) => {
+            const userRef = db.collection("users").doc(userId);
+            const userSnap = await transaction.get(userRef);
+            if (!userSnap.exists) throw new HttpsError("not-found", "Profile not found.");
+            
+            const userData = userSnap.data();
+            if (!userData?.isCreator) throw new HttpsError("failed-precondition", "Must be a creator.");
+            if (userData?.creatorInFirst100Program) throw new HttpsError("already-exists", "Already joined.");
+
+            const configRef = db.collection("config").doc("system");
+            const configSnap = await transaction.get(configRef);
+            const config = configSnap.data();
+
+            const currentCount = config?.creatorProgramCount || 0;
+            if (currentCount >= 100) throw new HttpsError("resource-exhausted", "Program limit reached.");
+
+            const rewardAmount = 200;
+            const promoPortion = 60;
+            const incentivePortion = 140;
+
+            // 1. Join Program & Grant Reward
+            transaction.update(userRef, {
+                creatorInFirst100Program: true,
+                creatorProgramIndex: currentCount + 1,
+                creatorWelcomeRewardGranted: true,
+                totalMilestoneRewardULC: admin.firestore.FieldValue.increment(rewardAmount),
+                'ulcBalance.available': admin.firestore.FieldValue.increment(promoPortion),
+                'ulcBalance.locked': admin.firestore.FieldValue.increment(incentivePortion)
+            });
+
+            // 2. Create Vesting Schedule (140 ULC, 24m duration, 0 cliff)
+            const scheduleRef = db.collection("vesting_schedules").doc();
+            transaction.set(scheduleRef, {
+                userId,
+                totalAmount: incentivePortion,
+                startTime: now,
+                duration: 24 * 30 * 24 * 60 * 60 * 1000,
+                cliff: 0,
+                releasedAmount: 0,
+                description: "Creator Welcome Reward (First 100 Plan)",
+                poolId: "creators",
+                createdAt: now
+            });
+
+            // 3. Update Global Config & Stats
+            transaction.update(configRef, {
+                creatorProgramCount: admin.firestore.FieldValue.increment(1),
+                "pools.promo": admin.firestore.FieldValue.increment(-promoPortion),
+                "pools.creators": admin.firestore.FieldValue.increment(-incentivePortion),
+                totalCreatorRewardsULC: admin.firestore.FieldValue.increment(rewardAmount),
+                totalPromoPoolDistributedULC: admin.firestore.FieldValue.increment(promoPortion),
+                totalCreatorIncentiveDistributedULC: admin.firestore.FieldValue.increment(incentivePortion)
+            });
+
+            // 4. Ledger
+            transaction.set(db.collection("ledger").doc(), {
+                type: "creator_welcome_reward",
+                toUserId: userId,
+                amount: rewardAmount,
+                currency: "ULC",
+                timestamp: now,
+                metadata: { 
+                    promoPoolPortion: promoPortion,
+                    incentivePoolPortion: incentivePortion
+                }
+            });
+
+            return { success: true, reward: rewardAmount };
+        });
+    } catch (error: any) {
+        logger.error("joinCreatorProgram error:", error);
         throw new HttpsError("internal", error.message);
     }
 });

@@ -13,6 +13,7 @@ import { Link } from '@/i18n/routing';
 import { CreatorTabs } from '@/components/creator/CreatorTabs';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { CreatorMilestoneCard } from '@/components/creator/CreatorMilestoneCard';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   const router = useRouter();
@@ -134,7 +135,8 @@ export default function CreatorPanel() {
         </div>
       </header>
 
-        <div className="flex flex-col gap-4 max-w-2xl mx-auto pt-8">
+        <div className="flex flex-col gap-6 max-w-2xl mx-auto pt-8">
+            <CreatorMilestoneCard user={user} />
             {/* 1. Havuz (Container) - Moved to top as requested */}
             <Link href="/creator/container" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">

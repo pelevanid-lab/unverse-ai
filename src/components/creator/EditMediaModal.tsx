@@ -158,7 +158,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
     setLoadingAction('schedule');
     try {
       const finalScheduleTime = new Date(scheduledFor);
-      finalScheduleTime.setMinutes(0, 0, 0);
+      // No longer resetting minutes to 0, 0, 0 to allow 15-min precision
+      finalScheduleTime.setSeconds(0, 0);
 
       await updateDoc(doc(db, 'creator_media', media.id), {
         status: 'scheduled',
@@ -388,13 +389,34 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                       setScheduledFor(newDate);
                     }}
                   >
-                    <SelectTrigger className="w-24 h-11 bg-input/30">
-                      <SelectValue placeholder={t('hour')} />
+                    <SelectTrigger className="w-20 h-11 bg-input/30">
+                      <SelectValue placeholder="HH" />
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 24 }, (_, i) => (
                         <SelectItem key={i} value={String(i)}>
-                          {String(i).padStart(2, '0')}:00
+                          {String(i).padStart(2, '0')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xl self-center opacity-50">:</span>
+                  <Select
+                    value={scheduledFor ? String(scheduledFor.getMinutes()) : undefined}
+                    onValueChange={(value) => {
+                      const min = parseInt(value, 10);
+                      const newDate = scheduledFor ? new Date(scheduledFor) : new Date();
+                      newDate.setMinutes(min);
+                      setScheduledFor(newDate);
+                    }}
+                  >
+                    <SelectTrigger className="w-20 h-11 bg-input/30">
+                      <SelectValue placeholder="MM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[0, 15, 30, 45].map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          {String(m).padStart(2, '0')}
                         </SelectItem>
                       ))}
                     </SelectContent>
