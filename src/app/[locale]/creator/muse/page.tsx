@@ -57,7 +57,7 @@ export default function AIMusePage() {
         if (!user?.uid) return
         setLoading(true)
         try {
-            const cost = method === 'photo' ? 20 : 5
+            const cost = method === 'photo' ? 20 : 10
             if ((user.ulcBalance?.available || 0) < cost) {
                 throw new Error("Yetersiz ULC bakiyesi.")
             }
@@ -67,7 +67,7 @@ export default function AIMusePage() {
             const character: CharacterProfile = {
                 id: 'main',
                 name: charName || "AI Muse",
-                gender: 'female', // Default or from form
+                gender: 'female',
                 ageRange: '20-25',
                 hairColor: 'blonde',
                 eyeColor: 'blue',
@@ -75,8 +75,11 @@ export default function AIMusePage() {
                 bodyStyle: 'slim',
                 vibe: 'friendly',
                 characterPromptBase: promptDraft,
-                referenceImageUrl: refImage || undefined,
                 createdAt: Date.now()
+            }
+
+            if (refImage) {
+                character.referenceImageUrl = refImage
             }
 
             await processAiGenerationPayment(user.uid, cost)
@@ -126,7 +129,7 @@ export default function AIMusePage() {
 
             const data = await response.json()
             setLastResult(data.mediaUrl)
-            toast({ title: "Görsel Üretildi!", description: "Havuzda yayınlanmayı bekliyor." })
+            toast({ title: "Görsel Hazır!", description: "Havuza kaydetmeyi unutmayın." })
         } catch (err: any) {
             toast({ variant: 'destructive', title: "Üretim Hatası", description: err.message })
         } finally {
@@ -219,7 +222,7 @@ export default function AIMusePage() {
                             <div className="space-y-2">
                                 <h3 className="text-xl font-bold">AI Senin İçin Oluştursun</h3>
                                 <p className="text-sm text-muted-foreground">Hayalindeki karakteri tarif et, AI sıfırdan yaratsın.</p>
-                                <Badge className="bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30 mt-2">5 ULC</Badge>
+                                <Badge className="bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30 mt-2">10 ULC</Badge>
                             </div>
                         </CardContent>
                     </Card>
@@ -283,7 +286,7 @@ export default function AIMusePage() {
                         onClick={() => handleCreateCharacter(step)}
                     >
                         {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                        Karakteri Sabitle ({step === 'photo' ? '20' : '5'} ULC)
+                        Karakteri Sabitle ({step === 'photo' ? '20' : '10'} ULC)
                     </Button>
                 </Card>
             </div>
