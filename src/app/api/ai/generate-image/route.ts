@@ -72,7 +72,7 @@ export async function POST(req: Request) {
         basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
     }
 
-    const identityPrefix = (cost === 3 || cost === 20) ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
+    const identityPrefix = (cost === 3 || cost === 20 || (cost === 5 && character)) ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
     let finalPromptForAI = `${identityPrefix}${securityAnchor} ${basePrompt}`;
     
     // Dynamic Negative Prompt based on requested profile & scene
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
         negativeFils += ", woman, female";
     }
 
-    const identityNegativeAnchor = (cost === 3 || cost === 20) ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
+    const identityNegativeAnchor = (cost === 3 || cost === 20 || (cost === 5 && character)) ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
     const userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
     
     // Solo Subject Enforcement
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
     const imageToUseForTwin = image || character?.referenceImageUrl;
-    if ((cost === 3 || cost === 20) && imageToUseForTwin) {
+    if ((cost === 3 || cost === 20 || (cost === 5 && character)) && imageToUseForTwin) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");
