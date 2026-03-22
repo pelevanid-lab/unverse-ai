@@ -93,6 +93,36 @@ export default function AIMusePage() {
         }
     }
 
+    const handleGenerateConsistent = async () => {
+        if (!user?.uid || !genPrompt.trim()) return
+        setGenerating(true)
+        try {
+            const response = await fetch('/api/ai/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: genPrompt,
+                    userId: user.uid,
+                    character: user.savedCharacter,
+                    cost: 5
+                })
+            })
+
+            if (!response.ok) {
+                const err = await response.json()
+                throw new Error(err.error || "Üretim başarısız.")
+            }
+
+            const data = await response.json()
+            setLastResult(data.mediaUrl)
+            toast({ title: "Görsel Üretildi!", description: "Havuzda yayınlanmayı bekliyor." })
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Üretim Hatası", description: err.message })
+        } finally {
+            setGenerating(false)
+        }
+    }
+
     const handleResetCharacter = async () => {
         if (!confirm("Karakterinizi sıfırlamak istediğinize emin misiniz? Bu işlem geri alınamaz.")) return
         if (!user?.uid) return
@@ -316,18 +346,38 @@ export default function AIMusePage() {
                                 </div>
                             </div>
 
-                            <Button className="w-full h-16 rounded-3xl font-bold text-xl gap-3 shadow-xl shadow-primary/20" disabled={generating || !genPrompt.trim()}>
+                            <Button 
+                                className="w-full h-16 rounded-3xl font-bold text-xl gap-3 shadow-xl shadow-primary/20" 
+                                disabled={generating || !genPrompt.trim()}
+                                onClick={handleGenerateConsistent}
+                            >
                                 {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
                                 Görseli Üret (5 ULC)
                             </Button>
                         </CardContent>
                     </Card>
 
-                    {/* Result placeholder */}
+                    {/* Result display */}
                     <div className="grid grid-cols-1 gap-4">
-                        <Card className="glass-card border-dashed border-white/10 bg-white/[0.02] h-60 flex items-center justify-center text-muted-foreground text-sm italic">
-                            Henüz bir üretim yapılmadı. Yukarıdaki butona basarak başlayın!
-                        </Card>
+                        {lastResult ? (
+                            <Card className="glass-card border-primary/20 bg-black/40 overflow-hidden group relative">
+                                <div className="aspect-square w-full flex items-center justify-center">
+                                    <img src={lastResult} className="w-full h-full object-contain" alt="Generated" />
+                                </div>
+                                <div className="p-6 flex gap-4 bg-black/60 backdrop-blur-md">
+                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={() => router.push('/creator/container')}>
+                                        <Save size={18} /> Havuza Git
+                                    </Button>
+                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={() => setLastResult(null)}>
+                                        <RefreshCcw size={18} /> Yeni Üretim
+                                    </Button>
+                                </div>
+                            </Card>
+                        ) : (
+                            <Card className="glass-card border-dashed border-white/10 bg-white/[0.02] h-60 flex items-center justify-center text-muted-foreground text-sm italic">
+                                Henüz bir üretim yapılmadı. Yukarıdaki butona basarak başlayın!
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>
