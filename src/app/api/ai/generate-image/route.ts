@@ -136,7 +136,7 @@ export async function POST(req: Request) {
     };
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
-    if (cost === 3 && image) {
+    if ((cost === 3 || cost === 20) && image) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");

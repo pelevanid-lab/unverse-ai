@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
     try {
-        const { prompt, imageUrl } = await req.json();
+        const { prompt, imageUrl, imageUrls } = await req.json();
         const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
 
         if (!apiKey) {
@@ -11,7 +11,10 @@ export async function POST(req: Request) {
 
         const systemPrompt = `
       You are an expert character attribute extractor. 
-      Analyze the input (text description and/or image) and extract the following physical traits:
+      Analyze the input (text description and/or images) and extract the following physical traits.
+      If multiple images are provided (e.g. front and sides), combine them to form a single consistent identity.
+      
+      Attributes:
       - gender (male/female)
       - hairColor (e.g., "Red", "Blonde", "Black")
       - eyeColor (e.g., "Blue", "Green", "Brown")
@@ -22,9 +25,9 @@ export async function POST(req: Request) {
 
       RULES:
       1. Always return valid JSON. No markdown backticks.
-      2. If a trait is missing or or unclear, use "Natural" for bodyStyle, "Average" for height, and "Unknown" for others.
+      2. If a trait is missing or unclear, use "Natural" for bodyStyle, "Average" for height, and "Unknown" for others.
       3. For Turkish inputs like "Kızıl saç", map to "Red". "Dolgun hatlı" map to "Curvy". "Uzun boylu" map to "Tall".
-      4. If an image is provided, PRIORITIZE visual evidence for hair/eyes/body over text descriptions.
+      4. If images are provided, PRIORITIZE visual evidence for hair/eyes/body/face over text descriptions.
       5. Return ONLY the JSON object.
     `;
 
@@ -37,9 +40,11 @@ export async function POST(req: Request) {
             contents[0].parts.push({ text: `Description: ${prompt}` });
         }
 
-        if (imageUrl) {
+        const finalImageUrls = imageUrls || (imageUrl ? [imageUrl] : []);
+
+        for (const url of finalImageUrls) {
             try {
-                const imageResp = await fetch(imageUrl);
+                const imageResp = await fetch(url);
                 const buffer = await imageResp.arrayBuffer();
                 contents[0].parts.push({
                     inline_data: {

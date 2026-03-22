@@ -32,7 +32,7 @@ export default function AIMusePage() {
     
     // Character Creation State
     const [charName, setCharName] = useState('')
-    const [refImage, setRefImage] = useState<string | null>(null)
+    const [refImages, setRefImages] = useState<(string | null)[]>([null, null, null])
     const [promptDraft, setPromptDraft] = useState('')
     const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
     const [extractedAttributes, setExtractedAttributes] = useState<any>(null)
@@ -49,11 +49,15 @@ export default function AIMusePage() {
         }
     }, [user?.savedCharacter])
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const file = e.target.files?.[0]
         if (!file) return
         const reader = new FileReader()
-        reader.onloadend = () => setRefImage(reader.result as string)
+        reader.onloadend = () => {
+            const newImages = [...refImages]
+            newImages[index] = reader.result as string
+            setRefImages(newImages)
+        }
         reader.readAsDataURL(file)
     }
 
@@ -104,20 +108,45 @@ export default function AIMusePage() {
                 })
                 attributes = await parseRes.json()
             } else {
-                // Photo Method
-                if (!refImage) throw new Error(t("uploadInstruction"))
-                
-                // Upload to Storage first to get a URL (Safe for Firestore and and and and Gemini)
-                const storageRef = ref(storage, `char-refs/${user.uid}/${Date.now()}.png`)
-                await uploadString(storageRef, refImage.split(',')[1], 'base64', { contentType: 'image/png' })
-                finalAvatar = await getDownloadURL(storageRef)
+                // Photo Method - Needs all 3 for best result (front, left, right)
+                const uploadedUrls: string[] = []
+                for (let i = 0; i < refImages.length; i++) {
+                    const img = refImages[i]
+                    if (img) {
+                        const storageRef = ref(storage, `char-refs/${user.uid}/${Date.now()}-${i}.png`)
+                        await uploadString(storageRef, img.split(',')[1], 'base64', { contentType: 'image/png' })
+                        const url = await getDownloadURL(storageRef)
+                        uploadedUrls.push(url)
+                    }
+                }
 
+                if (uploadedUrls.length < 3) throw new Error(t("uploadPhotosDesc"))
+
+                // 1. Multi-modal Parse (All images combined)
                 const parseRes = await fetch('/api/ai/parse-character', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: finalAvatar })
+                    body: JSON.stringify({ imageUrls: uploadedUrls })
                 })
                 attributes = await parseRes.json()
+
+                // 2. Generate the "Master AI Portrait" (This is is is is the and and and user's AI Twin)
+                const genPrompt = `PROFESSIONAL PORTRAIT, high-quality, high detail, masterpiece. Subject: 1 adult person, identical face to reference. Identity traits: ${attributes.hairColor} hair, ${attributes.eyeColor} eyes, ${attributes.faceStyle} face shape, ${attributes.bodyStyle} body.`
+                
+                const genResponse = await fetch('/api/ai/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: genPrompt,
+                        userId: user.uid,
+                        image: uploadedUrls[0], // Use front-facing as as as as as as as the and and mainly used image_prompt
+                        cost: cost,
+                        isMasterPreview: true
+                    })
+                })
+                if (!genResponse.ok) throw new Error(tCommon("generationFailed"))
+                const genData = await genResponse.json()
+                finalAvatar = genData.mediaUrl
             }
 
             setPreviewAvatar(finalAvatar)
@@ -230,7 +259,7 @@ export default function AIMusePage() {
             const userRef = doc(db, 'users', user.uid)
             await updateDoc(userRef, { savedCharacter: null })
             setStep('selection')
-            setRefImage(null)
+            setRefImages([null, null, null])
             setCharName('')
             setPromptDraft('')
             setPreviewAvatar(null)
@@ -345,21 +374,28 @@ export default function AIMusePage() {
                             <>
                                 {step === 'photo' ? (
                                     <div className="space-y-4">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("referencePhoto")}</Label>
-                                        <div 
-                                            className="aspect-square rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
-                                            onClick={() => document.getElementById('char-upload')?.click()}
-                                        >
-                                            {refImage ? (
-                                                <img src={refImage} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <>
-                                                    <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-                                                    <p className="text-xs text-muted-foreground">{t("uploadInstruction")}</p>
-                                                </>
-                                            )}
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("referencePhotos")}</Label>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {['front', 'left', 'right'].map((side, i) => (
+                                                <div key={side} className="space-y-2">
+                                                    <div 
+                                                        className="aspect-[3/4] rounded-2xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
+                                                        onClick={() => document.getElementById(`upload-${side}`)?.click()}
+                                                    >
+                                                        {refImages[i] ? (
+                                                            <img src={refImages[i]!} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <>
+                                                                <Camera className="w-6 h-6 text-muted-foreground mb-1" />
+                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t(side)}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <input id={`upload-${side}`} type="file" className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(e, i)} />
+                                                </div>
+                                            ))}
                                         </div>
-                                        <input id="char-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                                        <p className="text-[10px] text-muted-foreground text-center">{t("uploadPhotosDesc")}</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -375,7 +411,7 @@ export default function AIMusePage() {
                                 
                                 <Button 
                                     className="w-full h-14 rounded-2xl font-bold text-lg gap-2 mt-4" 
-                                    disabled={loading || (step === 'photo' && !refImage) || (step === 'prompt' && !promptDraft) || !charName}
+                                    disabled={loading || (step === 'photo' && refImages.some(img => !img)) || (step === 'prompt' && !promptDraft) || !charName}
                                     onClick={() => handleCreateCharacter(step)}
                                 >
                                     {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
