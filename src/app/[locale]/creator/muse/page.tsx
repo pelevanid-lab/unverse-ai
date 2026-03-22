@@ -139,7 +139,8 @@ export default function AIMusePage() {
                     body: JSON.stringify({
                         prompt: genPrompt,
                         userId: user.uid,
-                        image: uploadedUrls[0], // Use front-facing as as as as as as as the and and mainly used image_prompt
+                        image: uploadedUrls[0],
+                        character: attributes, // Crucial: PASS EXTRACTED IDENTITY
                         cost: cost,
                         isMasterPreview: true
                     })

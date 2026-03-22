@@ -48,14 +48,14 @@ export async function POST(req: Request) {
     const userSceneEnglish = translation || prompt; 
     
     // IDENTITY LOCK: Ensure character traits are hard-coded in the foundation
-    const gender = character?.gender || 'female';
-    const hair = character?.hairColor || 'red';
-    const eyes = character?.eyeColor || 'blue';
+    const gender = character?.gender || 'person';
+    const hair = character?.hairColor || '';
+    const eyes = character?.eyeColor || '';
     const body = character?.bodyType || character?.bodyStyle || 'natural';
     const height = character?.height || 'average';
     const vibe = character?.vibe || 'natural';
     
-    const subjectAnchor = `SUBJECT: A solo ${gender} with ${hair} hair, ${eyes} eyes, ${body} body type, and ${height} height. Vibe: ${vibe}.`;
+    const subjectAnchor = `SUBJECT: A solo ${gender}${hair ? `, with ${hair} hair` : ''}${eyes ? `, ${eyes} eyes` : ''}, ${body} body type, and ${height} height. Vibe: ${vibe}.`;
 
     // Construct the "Security Anchor" (Strict English ONLY)
     const securityAnchor = `1 adult person, FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. ${subjectAnchor} SCENE: ${userSceneEnglish}.`;
