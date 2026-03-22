@@ -99,8 +99,36 @@ export async function POST(req: Request) {
         };
     }
 
+    // 4. LINGUISTIC FIREWALL & VALIDATION (User Instruction 4)
+    const containsTurkish = (text: string) => {
+        const trChars = /[ğüşıöçĞÜŞİÖÇ]/;
+        return trChars.test(text);
+    };
+
+    if (containsTurkish(finalPromptForAI)) {
+        console.error("Linguistic Firewall Triggered: Turkish remnants detected.", finalPromptForAI);
+        throw new Error("Linguistic Firewall: Non-English characters detected in final prompt. Please try again.");
+    }
+
+    // SHARED LOGGING HELPER
+    const createAuditLog = async (imageUrl: string) => {
+        const logData = {
+          userId,
+          prompt: prompt, // Original User Input
+          translatedPrompt: translation || prompt, 
+          enhancedPrompt: enhancedPrompt || "",
+          finalAuditPrompt: finalPromptForAI,
+          mediaUrl: imageUrl,
+          paymentReference: ledgerId,
+          timestamp: serverTimestamp(),
+          satisfactionScore: null,
+          tags: ["standard", "english-pivot"]
+        };
+        return await addDoc(collection(db, 'ai_generation_logs'), logData);
+    };
+
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
-    if (cost === 20 && image) {
+    if (cost === 3 && image) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");
@@ -113,12 +141,10 @@ export async function POST(req: Request) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            prompt: `A high-quality professional portrait of the subject person from the reference image. The person is ${finalPromptForAI}. Photorealistic, cinematic lighting, 8k.`,
+            prompt: finalPromptForAI,
             reference_image_url: image,
-            id_weight: 1.25, // Increased for stronger likeness
-            num_inference_steps: 30, // Higher steps for quality
-            guidance_scale: 3.5,
-            image_size: "square_hd"
+            num_inference_steps: 28,
+            guidance_scale: 3.5
         })
       });
 
@@ -128,20 +154,14 @@ export async function POST(req: Request) {
       }
 
       const result = await response.json();
-      const falImageUrl = result.images?.[0]?.url;
-      
-      if (!falImageUrl) {
+      const imageUrl = result.images?.[0]?.url;
+
+      if (!imageUrl) {
           throw new Error("Fal.ai returned no image URL.");
       }
 
-      // Re-assign to imageUrl for the following storage logic
-      const imageUrl = falImageUrl;
-      
-      // 3. Storage & DB persistence (same as before)
+      // 3. Storage & DB persistence
       const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-          throw new Error(`Failed to fetch image from Fal.ai: ${imageResponse.statusText}`);
-      }
       const imageBuffer = await imageResponse.arrayBuffer();
       const imageBase64 = Buffer.from(imageBuffer).toString('base64');
 
@@ -151,28 +171,17 @@ export async function POST(req: Request) {
       await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
       const finalUrl = await getDownloadURL(storageRef);
 
-      const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
-          userId,
-          prompt,
-          enhancedPrompt: enhancedPrompt || prompt,
-          mediaUrl: finalUrl,
-          paymentReference: ledgerId,
-          timestamp: serverTimestamp(),
-          satisfactionScore: null
-      });
+      const logDocRef = await createAuditLog(finalUrl);
 
       return NextResponse.json({ 
           logId: logDocRef.id, 
           mediaUrl: finalUrl,
-          prompt: prompt,
-          enhancedPrompt: enhancedPrompt || prompt
+          finalAuditPrompt: finalPromptForAI 
       });
     // AI Edit / In-painting specialized model - NOW POWERED BY FAL.AI
     } else if ((cost === 8 || cost === 4) && image) {
       const falKey = process.env.FAL_API_KEY;
-      if (!falKey) {
-          throw new Error("FAL_API_KEY is missing on server.");
-      }
+      if (!falKey) throw new Error("FAL_API_KEY missing.");
 
       // We use Fal's dedicated in-painting model for superior background control
       const response = await fetch("https://fal.run/fal-ai/flux-general/inpainting", {
@@ -197,13 +206,8 @@ export async function POST(req: Request) {
       }
 
       const result = await response.json();
-      const falImageUrl = result.images?.[0]?.url;
+      const imageUrl = result.images?.[0]?.url;
       
-      if (!falImageUrl) {
-          throw new Error("Fal.ai Edit returned no image URL.");
-      }
-
-      const imageUrl = falImageUrl;
       const imageResponse = await fetch(imageUrl);
       const imageBuffer = await imageResponse.arrayBuffer();
       const imageBase64 = Buffer.from(imageBuffer).toString('base64');
@@ -214,21 +218,12 @@ export async function POST(req: Request) {
       await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
       const finalUrl = await getDownloadURL(storageRef);
 
-      const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
-          userId,
-          prompt,
-          enhancedPrompt: enhancedPrompt || prompt,
-          mediaUrl: finalUrl,
-          paymentReference: ledgerId,
-          timestamp: serverTimestamp(),
-          satisfactionScore: null
-      });
+      const logDocRef = await createAuditLog(finalUrl);
 
       return NextResponse.json({ 
           logId: logDocRef.id, 
           mediaUrl: finalUrl,
-          prompt: prompt,
-          enhancedPrompt: enhancedPrompt || prompt
+          finalAuditPrompt: finalPromptForAI
       });
     }
 
@@ -259,22 +254,12 @@ export async function POST(req: Request) {
 
     // 🚀 NEW: Create entry in ai_generation_logs for tracking and feedback
     // No mediaId here as we are not auto-saving to creator_media anymore
-    const logDocRef = await addDoc(collection(db, 'ai_generation_logs'), {
-        userId,
-        prompt,
-        enhancedPrompt: enhancedPrompt || prompt,
-        finalAuditPrompt: finalAuditPrompt, // Forensic log
-        mediaUrl: finalUrl,
-        paymentReference: ledgerId,
-        timestamp: serverTimestamp(),
-        satisfactionScore: null // Initialize as null
-    });
+    const logDocRef = await createAuditLog(finalUrl);
 
     return NextResponse.json({ 
-        logId: logDocRef.id, // Return logId to client for feedback update
-        mediaUrl: finalUrl,
-        prompt: prompt,
-        enhancedPrompt: enhancedPrompt || prompt
+      mediaUrl: finalUrl, 
+      logId: logDocRef.id,
+      finalAuditPrompt: finalPromptForAI 
     });
 
   } catch (error: any) {

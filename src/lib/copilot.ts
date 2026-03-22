@@ -132,6 +132,27 @@ export class Copilot {
     }
 
     /**
+     * Translates any language into natural descriptive English for for AI processing.
+     */
+    async translatePrompt(prompt: string): Promise<string> {
+        if (!prompt) return "";
+        try {
+            const response = await fetch('/api/ai/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: prompt, targetLang: 'en' })
+            });
+
+            if (!response.ok) throw new Error("Translation service failed.");
+            const data = await response.json();
+            return data.translation || prompt;
+        } catch (err) {
+            console.warn("Translation Error, using original:", err);
+            return prompt;
+        }
+    }
+
+    /**
      * Smart Flow: Enhances an image prompt with character traits, styles, and memory.
      */
     async generateImagePrompt(params: {

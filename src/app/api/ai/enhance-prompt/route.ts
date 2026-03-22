@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Gemini API key is not configured.' }, { status: 500 });
     }
 
-    // Build the context for the Prompt Engineer persona
+    // Build the context for for the and Prompt Engineer persona
     let characterContext = "A person";
     if (character) {
         characterContext = `Gender: ${character.gender || 'female'}, Hair: ${character.hairColor || 'blonde'}, Eyes: ${character.eyeColor || 'blue'}, Face: ${character.faceStyle || 'cute'}`;
@@ -23,42 +23,37 @@ export async function POST(req: Request) {
     const styleContext = style && style !== 'none' ? `Style: ${style} atmosphere/lighting` : '';
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
-    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer and Translator.
-
-OUTPUT STRUCTURE (MANDATORY):
-TRANSLATION: [Translate the User Scenario below into 1 clean English sentence. DO NOT ADD DETAILS HERE.]
-ENHANCEMENT: [A 50-word cinematic expansion of the scenario including camera, lighting, and mood.]
-
-CRITICAL RULES:
-1. TRANSLATION MUST capture the user's core action/location (e.g., "lying on a beach").
-2. ENHANCEMENT MUST include the Subject Attributes provided.
-3. Use Wide-Angle lens descriptors.
-4. ABSOLUTELY NO TURKISH.
-
-User Scenario to translate: "${prompt}"
-
-Subject Attributes:
-- Identity: ${characterContext}
-- Outfit: ${outfitContext}
-- Style: ${styleContext}
-
-Output ONLY the two tagged blocks.`;
+    const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer. 
+    Your job is to expand this English scenario into a 50-word cinematic prompt.
+    
+    MANDATORY: 
+    - Describe a "full body shot, head to toe" view.
+    - Focus on on clothing details and environment.
+    - Use Wide-Angle lens descriptors (e.g. 35mm).
+    
+    User Scenario (in English): "${prompt}"
+    
+    Subject Attributes:
+    - Identity: ${characterContext}
+    - Outfit: ${outfitContext}
+    - Style: ${styleContext}
+    
+    Output ONLY the raw prompt text.`;
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
         parts: [{ text: finalSystemPrompt }]
       }],
       generationConfig: {
-        temperature: 0.8, // Slightly higher for for creativity
+        temperature: 0.8,
         maxOutputTokens: 300,
       },
       safetySettings: [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
         { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
         { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
       ]
@@ -71,36 +66,21 @@ Output ONLY the two tagged blocks.`;
     });
 
     if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.text();
-      console.error("Gemini API Error (Enhance):", errorData);
-      throw new Error("Failed to enhance prompt with Gemini.");
+        throw new Error("Gemini Enhancement Failed.");
     }
 
     const geminiData = await geminiResponse.json();
-    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const RawEnhancedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!rawText) {
+    if (!RawEnhancedText) {
       throw new Error("Received empty response from Gemini.");
     }
 
-    // Surgical extraction using Regex
-    const translationMatch = rawText.match(/TRANSLATION:\s*([^\n\r]*)/i);
-    const enhancementMatch = rawText.match(/ENHANCEMENT:\s*([\s\S]*)/i);
-    
-    let translation = translationMatch ? translationMatch[1].trim() : "";
-    let enhancedPrompt = enhancementMatch ? enhancementMatch[1].trim() : rawText.trim();
-
-    // Clean up if tags were mixed in in enhancement
-    enhancedPrompt = enhancedPrompt.replace(/TRANSLATION:.*$/im, '').trim();
-
-    // If translation is empty, try a a a last-ditch fallback (first sentence)
-    if (!translation) {
-        translation = enhancedPrompt.split(/[.!?]/)[0].trim();
-    }
+    // Clean up any remaining tags if Gemini hallucinated them
+    const finalEnhancedText = RawEnhancedText.replace(/TRANSLATION:.*$/im, '').replace(/ENHANCEMENT:/i, '').trim();
 
     return NextResponse.json({ 
-        enhancedPrompt: enhancedPrompt,
-        translation: translation 
+        enhancedPrompt: finalEnhancedText
     });
 
   } catch (error: any) {

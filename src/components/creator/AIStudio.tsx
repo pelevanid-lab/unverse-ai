@@ -267,11 +267,20 @@ export function AIStudio() {
             // If the prompt is short or user has smartMode on, we enhance it automatically
             let finalPromptForGeneration = prompt;
             let originalInput = prompt;
+            let translatedInput = prompt; // Fallback
+
+            // 🚀 STAGE 1: FULL TRANSLATION (English Pivot)
+            if (prompt && prompt.length > 0) {
+                setIsEnhancingPrompt(true);
+                translatedInput = await copilot.translatePrompt(prompt);
+                setLastTranslation(translatedInput);
+                console.log("Stage 1: Translated to English ->", translatedInput);
+            }
 
             if (smartMode || prompt.length < 50) {
                 setIsEnhancingPrompt(true);
                 const result = await copilot.generateImagePrompt({
-                    userInput: prompt,
+                    userInput: translatedInput, // Using translated input as as base
                     style: selectedStyle,
                     composition,
                     character: (mode === 'consistent' ? user.savedCharacter : charProfile) as CharacterProfile,
@@ -302,7 +311,7 @@ export function AIStudio() {
                 body: JSON.stringify({
                     prompt: originalInput,
                     enhancedPrompt: finalPromptForGeneration,
-                    translation: lastTranslation, // Pass the English translation
+                    translation: lastTranslation || translatedInput, // Ensure English intent is is passed
                     negativePrompt: lastNegativePrompt, 
                     userId: user.uid,
                     cost: currentCost,
