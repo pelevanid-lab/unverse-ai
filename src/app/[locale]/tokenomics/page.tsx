@@ -11,7 +11,7 @@ import {
     ArrowRight, Zap, Coins, Flame, Gem, TrendingUp, 
     Lock, Shield, BarChart3, ChevronRight, Info,
     DollarSign, Loader2, ArrowRightLeft, Database, Sparkles,
-    Link as LinkIcon
+    Link as LinkIcon, ShieldAlert
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { 
     getSystemConfig, 
-    confirmPresalePurchaseAction 
+    confirmPresalePurchaseAction,
+    calculateProtocolFloorPrice
 } from '@/lib/ledger';
 import { SystemConfig } from '@/lib/types';
 import { useTranslations } from 'next-intl';
@@ -31,6 +32,8 @@ import {
     calculateUlcForUsdt, 
     PRESALE_TOTAL_ALLOCATION 
 } from '@/lib/presale';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function TokenomicsPage() {
   const t = useTranslations('Tokenomics');
@@ -45,8 +48,17 @@ export default function TokenomicsPage() {
   const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const [stats, setStats] = useState<any>(null);
+  
   useEffect(() => {
     getSystemConfig().then(setSystemConfig);
+    
+    // Live Stats for for for floor price
+    const unsubStats = onSnapshot(doc(db, 'config', 'stats'), (snap) => {
+        if (snap.exists()) setStats(snap.data());
+    });
+
+    return () => unsubStats();
   }, []);
 
   const presaleSold = systemConfig?.totalPresaleSold || 0;
@@ -232,6 +244,67 @@ export default function TokenomicsPage() {
                 </CardContent>
             </Card>
         </div>
+
+        {/* Dynamic Floor Price Tracking */}
+        {systemConfig?.isSealed && (
+            <div className="mt-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+                <Card className="glass-card border-blue-500/30 overflow-hidden relative shadow-2xl shadow-blue-500/10">
+                    <div className="absolute top-0 right-0 p-4">
+                        <Badge className="bg-blue-500 text-black font-bold animate-pulse">
+                            {t('militaryPrice')}
+                        </Badge>
+                    </div>
+                    
+                    <CardHeader className="text-left pb-2">
+                        <CardTitle className="text-2xl font-headline font-bold text-blue-400 flex items-center gap-2">
+                            <Shield className="fill-blue-400" /> {t('dynamicFloorPrice')}
+                        </CardTitle>
+                        <CardDescription>
+                            {t('buybackMechanism')}
+                        </CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-6 text-left">
+                        <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/10 flex flex-col items-center justify-center text-center space-y-2">
+                            <p className="text-xs font-bold text-blue-400/70 uppercase tracking-widest">{t('militaryPrice')}</p>
+                            <h3 className="text-5xl font-headline font-bold text-blue-400">
+                                ${calculateProtocolFloorPrice(systemConfig, stats?.totalBurnedULC || 0).toFixed(6)}
+                            </h3>
+                            <p className="text-[10px] text-muted-foreground opacity-60">
+                                {t('targetCapLabel')}: $15,000,000 USD
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('remainingSupplyLabel')}</p>
+                                <p className="text-lg font-bold font-headline text-primary">
+                                    {( (systemConfig.initialSupplyAtSeal || 1000000000) - (stats?.totalBurnedULC || 0) ).toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('deflationTitle')}</p>
+                                <p className="text-lg font-bold font-headline text-red-500">
+                                    {(stats?.totalBurnedULC || 0).toLocaleString()} <span className="text-[10px]">BURNED</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex gap-4 items-center">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                                <ShieldAlert className="text-blue-400 w-5 h-5" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-bold text-blue-400 leading-none">{t('buybackMechanism')}</p>
+                                <p className="text-[10px] text-muted-foreground leading-tight">
+                                    {t('buybackNote')}
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
       </section>
 
       {/* Guide Links Section */}

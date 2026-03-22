@@ -73,7 +73,10 @@
     "claimSubmitted": "Заявка на Вывод Отправлена",
     "claimSubmittedDesc": "Ваша заявка на вывод {usdt} USDT ожидает одобрения. ID заявки: {id}",
     "claimFailed": "Сбой Вывода",
-    "defaultError": "Произошла ошибка."
+    "defaultError": "Произошла ошибка.",
+    "dynamicFloorPrice": "Динамическая минимальная цена",
+    "buybackMechanism": "Защита обратного выкупа",
+    "militaryPrice": "М-Цена [ЖИВО]"
   },
   "Container": {
     "title": "Пул",
@@ -634,7 +637,13 @@
     "audit": "Аудит",
     "verified": "Проверенный",
     "supply": "Предложение",
-    "capped": "Ограниченно"
+    "capped": "Ограниченно",
+    "dynamicFloorPrice": "Динамическая минимальная цена",
+    "buybackMechanism": "Защита обратного выкупа",
+    "buybackNote": "Падение ниже этой цены динамически предотвращается механизмом автоматического обратного выкупа.",
+    "militaryPrice": "М-Цена [ЖИВО]",
+    "targetCapLabel": "Целевая капитализация",
+    "remainingSupplyLabel": "Оставшееся предложение"
   },
   "Muse": {
     "errorTitle": "Ошибка",

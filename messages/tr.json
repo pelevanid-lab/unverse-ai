@@ -77,7 +77,10 @@
     "firstPurchaseBonus": "İLK ALIM BONUSU",
     "bonusDescription": "İlk yüklemenizde %50 ekstra ULC hediye! (Maks 85 ULC)",
     "bonusClaimed": "Bonus Kullanıldı",
-    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)"
+    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)",
+    "dynamicFloorPrice": "Dinamik Protokol Askari Fiyat",
+    "buybackMechanism": "Buyback Koruması",
+    "militaryPrice": "Askari Fiyat [CANLI]"
   },
   "Creator": {
     "becomeCreatorTitle": "Yaratıcı Ol",
@@ -653,7 +656,13 @@
     "audit": "Denetim",
     "verified": "Onaylı",
     "supply": "Arz",
-    "capped": "Sınırlı"
+    "capped": "Sınırlı",
+    "dynamicFloorPrice": "Dinamik Protokol Askari Fiyat",
+    "buybackMechanism": "Buyback Koruması",
+    "buybackNote": "Bu fiyatın altına düşüşler, protokolün otomatik buy back mekanizmasıyla dinamik olarak engellenmektedir.",
+    "militaryPrice": "Askari Fiyat [CANLI]",
+    "targetCapLabel": "Hedef Market Değeri",
+    "remainingSupplyLabel": "Kalan Arz"
   },
   "Muse": {
     "errorTitle": "Hata",

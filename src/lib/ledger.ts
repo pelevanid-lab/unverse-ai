@@ -13,8 +13,35 @@ export async function getSystemConfig(): Promise<SystemConfig> {
     if (!docSnap.exists()) {
         throw new Error("CRITICAL: System config document not found.");
     }
-    systemConfigCache = docSnap.data() as SystemConfig;
+    
+    // Fetch stats for floor price calculation
+    const statsRef = doc(db, 'config', 'stats');
+    const statsSnap = await getDoc(statsRef);
+    const stats = statsSnap.exists() ? statsSnap.data() : { totalBurnedULC: 0 };
+
+    const config = docSnap.data() as SystemConfig;
+    
+    // Calculate Dynamic Floor Price
+    if (config.isSealed) {
+        config.protocolFloorPrice = calculateProtocolFloorPrice(config, stats.totalBurnedULC || 0);
+    } else {
+        config.protocolFloorPrice = config.listingPriceUSDT || 0.015;
+    }
+
+    systemConfigCache = config;
     return systemConfigCache;
+}
+
+/**
+ * Dynamic Pricing Model: Market Cap Persistence
+ * Formula: Price = TargetCap / (InitialSupply - Burned)
+ */
+export function calculateProtocolFloorPrice(config: SystemConfig, burnedAmount: number): number {
+    const initialSupply = config.initialSupplyAtSeal || 1000000000;
+    const targetCap = config.targetCapitalizationUSDT || 15000000;
+    
+    const remainingSupply = Math.max(1, initialSupply - burnedAmount);
+    return Number((targetCap / remainingSupply).toFixed(6));
 }
 
 /**

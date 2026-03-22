@@ -95,18 +95,21 @@ export const optimizeMedia = onObjectFinalized({ timeoutSeconds: 540, memory: "1
     }
 });
 
-// v2 Scheduler Function (Corrected)
-export const publishScheduledPosts = onSchedule("every 1 hours synchronized", async (event) => {
+// v2 Scheduler Function (Enhanced with logging and higher frequency)
+export const publishScheduledPosts = onSchedule("every 15 minutes", async (event) => {
     const now = admin.firestore.Timestamp.now();
+    const nowMs = now.toMillis();
     
+    logger.info(`Starting scheduled publish check at ${now.toDate().toISOString()} (${nowMs})`);
+
     const query = db.collection("creator_media")
       .where("status", "==", "scheduled")
-      .where("scheduledFor", "<=", now.toMillis());
+      .where("scheduledFor", "<=", nowMs);
       
     const snapshot = await query.get();
     
     if (snapshot.empty) {
-        logger.info("No scheduled posts to publish at this hour.");
+        logger.info("No scheduled posts to publish at this time.");
         return;
     }
     
@@ -149,6 +152,7 @@ export const publishScheduledPosts = onSchedule("every 1 hours synchronized", as
         const newPostRef = postsCollection.doc();
         batch.set(newPostRef, newPostData);
         batch.delete(doc.ref);
+        logger.info(`Queued publication for media ID: ${doc.id} (Scheduled for: ${mediaData.scheduledFor})`);
     });
     
     await batch.commit();
@@ -964,6 +968,9 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
             // 3. Finalize
             transaction.update(configRef, {
                 isSealed: true,
+                initialSupplyAtSeal: 1000000000,
+                targetCapitalizationUSDT: 15000000,
+                initialPriceAtSeal: 0.015,
                 "pools.reserve": admin.firestore.FieldValue.increment(-420000000)
             });
 

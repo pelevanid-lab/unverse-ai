@@ -44,6 +44,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
   const [totalSupply, setTotalSupply] = useState(100);
   const [loadingAction, setLoadingAction] = useState<'publish' | 'schedule' | 'delete' | null>(null);
   const [scheduledFor, setScheduledFor] = useState<Date | undefined>(
+    media.scheduledFor ? new Date(media.scheduledFor) : undefined
   );
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);

@@ -77,7 +77,10 @@
     "firstPurchaseBonus": "FIRST PURCHASE BONUS",
     "bonusDescription": "Get 50% extra ULC on your first top-up! (Max 85 ULC)",
     "bonusClaimed": "Bonus Claimed",
-    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)"
+    "totalUlcWithBonus": "{total} ULC ({amount} + {bonus} Bonus)",
+    "dynamicFloorPrice": "Dynamic Protocol Floor Price",
+    "buybackMechanism": "Buyback Protection",
+    "militaryPrice": "M-Floor [LIVE]"
   },
   "Creator": {
     "becomeCreatorTitle": "Become a Creator",
@@ -647,7 +650,13 @@
     "audit": "Audit",
     "verified": "Verified",
     "supply": "Supply",
-    "capped": "Capped"
+    "capped": "Capped",
+    "dynamicFloorPrice": "Dynamic Protocol Floor Price",
+    "buybackMechanism": "Buyback Protection",
+    "buybackNote": "Drops below this price are dynamically prevented via the protocol's automated buyback mechanism.",
+    "militaryPrice": "M-Floor [LIVE]",
+    "targetCapLabel": "Target Market Cap",
+    "remainingSupplyLabel": "Remaining Supply"
   },
   "Muse": {
     "errorTitle": "Error",

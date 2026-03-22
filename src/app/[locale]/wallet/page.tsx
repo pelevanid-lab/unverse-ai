@@ -8,19 +8,19 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { UserProfile, Creator, SystemConfig, VestingSchedule } from '@/lib/types';
-import { confirmUlcPurchase, createClaimRequest, getSystemConfig, calculateCreatorUsdtEarnings, getVestingSchedules, claimVestedULCAction } from '@/lib/ledger';
+import { confirmUlcPurchase, createClaimRequest, getSystemConfig, calculateCreatorUsdtEarnings, getVestingSchedules, claimVestedULCAction, calculateProtocolFloorPrice } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles } from 'lucide-react';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useTranslations } from 'next-intl';
 
 // --- CONSTANTS ---
-const ULC_PRICE_USDT = 0.015; // 1 ULC = 0.015 USDT
+// ULC_PRICE_USDT is now dynamic
 
 // --- SUB-COMPONENTS ---
 
@@ -166,23 +166,36 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     const [usdtAmount, setUsdtAmount] = useState<number>(15);
     const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [stats, setStats] = useState<any>(null);
+
+    // Live Stats for for for floor price
+    useEffect(() => {
+        const unsub = onSnapshot(doc(db, 'config', 'stats'), (snap) => {
+            if (snap.exists()) setStats(snap.data());
+        });
+        return () => unsub();
+    }, []);
+
+    const currentPrice = systemConfig?.isSealed 
+        ? calculateProtocolFloorPrice(systemConfig, stats?.totalBurnedULC || 0)
+        : (systemConfig?.listingPriceUSDT || 0.015);
 
     // First Purchase Bonus Logic
     const isFirstPurchase = !user?.firstPurchaseBonusClaimed;
     const bonusAmount = isFirstPurchase ? Math.floor(Math.min(ulcAmount * 0.5, 85)) : 0;
     const totalWithBonus = ulcAmount + bonusAmount;
 
-    // Sync amounts (1 ULC = 0.015 USDT)
+    // Sync amounts
     const handleUlcChange = (val: string) => {
         const num = Math.max(0, Number(val));
         setUlcAmount(num);
-        setUsdtAmount(Number((num * ULC_PRICE_USDT).toFixed(4)));
+        setUsdtAmount(Number((num * currentPrice).toFixed(4)));
     };
 
     const handleUsdtChange = (val: string) => {
         const num = Math.max(0, Number(val));
         setUsdtAmount(num);
-        setUlcAmount(Number((num / ULC_PRICE_USDT).toFixed(0)));
+        setUlcAmount(Number((num / currentPrice).toFixed(0)));
     };
 
     const handlePurchase = async () => {
@@ -224,6 +237,18 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
                         </span>
                     )}
                 </CardDescription>
+
+                {/* Price Feed Indicator */}
+                <div className="mt-4 p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between group/price">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-blue-400" />
+                        <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t('militaryPrice')}</span>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-lg font-bold font-headline text-blue-400">${currentPrice.toFixed(6)}</p>
+                        <p className="text-[9px] opacity-50 uppercase font-bold">{t('dynamicFloorPrice')}</p>
+                    </div>
+                </div>
             </CardHeader>
 
             <CardContent className="space-y-8">

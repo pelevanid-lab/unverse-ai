@@ -3,7 +3,7 @@
 
 import { useWallet } from '@/hooks/use-wallet';
 import { useEffect, useState } from 'react';
-import { getSystemConfig, syncSystemConfigAction, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction, sealEconomyAction } from '@/lib/ledger';
+import { getSystemConfig, syncSystemConfigAction, toggleUserFreeze, triggerGenesisAllocation, getAllVestingSchedules, createVestingScheduleAction, sealEconomyAction, calculateProtocolFloorPrice } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShieldCheck, Database, Coins, Users, Settings, PlusCircle, UserCheck, UserX, Loader2, Wallet, Check, X as CloseIcon, Upload, Sparkles, Lock as LockIcon, Shield, RefreshCw } from 'lucide-react';
@@ -14,6 +14,7 @@ import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc } from 'f
 import { db } from '@/lib/firebase';
 import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest, VestingSchedule } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const { user, isConnected, walletAddress } = useWallet();
@@ -229,7 +230,7 @@ export default function AdminDashboard() {
 
         <TabsContent value="vesting" className="space-y-6">
             <UsdtDashboard config={config} users={allUsers} />
-            <UlcDashboard stats={stats} />
+            <UlcDashboard stats={stats} config={config} />
             <PoolBalances config={config} />
             <VestingManager 
                 users={allUsers} 
@@ -493,10 +494,14 @@ function UsdtDashboard({ config, users }: { config: SystemConfig | null, users: 
         </div>
     );
 }
+function UlcDashboard({ stats, config }: { stats: any, config: SystemConfig | null }) {
+    const isSealed = config?.isSealed;
+    const floorPrice = isSealed 
+        ? calculateProtocolFloorPrice(config, stats?.totalBurnedULC || 0)
+        : (config?.listingPriceUSDT || 0.015);
 
-function UlcDashboard({ stats }: { stats: any }) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="glass-card p-4 border-yellow-500/20 bg-yellow-500/5">
                 <p className="text-xs font-bold opacity-70 uppercase">Treasury ULC</p>
                 <h3 className="text-2xl font-headline font-bold text-yellow-500">{(stats?.totalTreasuryULC || 0).toLocaleString()} ULC</h3>
@@ -504,6 +509,19 @@ function UlcDashboard({ stats }: { stats: any }) {
             <Card className="glass-card p-4 border-red-500/20 bg-red-500/5">
                 <p className="text-xs font-bold opacity-70 uppercase text-red-400">Total Burned ULC</p>
                 <h3 className="text-2xl font-headline font-bold text-red-500">{(stats?.totalBurnedULC || 0).toLocaleString()} ULC</h3>
+            </Card>
+            <Card className={cn(
+                "glass-card p-4 border-blue-500/20",
+                isSealed ? "bg-blue-500/10 border-blue-500/40" : "bg-white/5"
+            )}>
+                <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold opacity-70 uppercase text-blue-400">Military Floor Price</p>
+                    {isSealed && <Shield className="w-4 h-4 text-blue-400 animate-pulse" />}
+                </div>
+                <h3 className="text-2xl font-headline font-bold text-blue-400">${floorPrice.toFixed(6)}</h3>
+                <p className="text-[9px] opacity-60 mt-1">
+                    {isSealed ? "Target Market Cap: $15,000,000" : "Sealing required for dynamic pricing"}
+                </p>
             </Card>
         </div>
     );

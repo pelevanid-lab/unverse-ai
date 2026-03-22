@@ -148,6 +148,11 @@ export interface SystemConfig {
         TRON: string;
         TON: string;
     };
+    // Economic Persistence (The Seal)
+    initialSupplyAtSeal?: number;      // Fixed at 1B
+    targetCapitalizationUSDT?: number; // Fixed at 15M
+    initialPriceAtSeal?: number;       // Fixed at 0.015
+    protocolFloorPrice?: number;       // Dynamically calculated
     // Pre-Sale Tier Upgrade
     presaleAllocationULC?: number;
     currentPresaleStage?: number;
