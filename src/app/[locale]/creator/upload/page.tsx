@@ -4,7 +4,24 @@ import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Image as ImageIcon, Video, Upload, ChevronLeft, RefreshCcw, Save, Scissors, Wand2, Sparkles, Loader2 } from "lucide-react"
+import { 
+    ChevronLeft, 
+    Upload, 
+    Image as ImageIcon, 
+    Video,
+    Film, 
+    RotateCcw, 
+    Monitor,
+    RefreshCcw, 
+    Scissors, 
+    Wand2, 
+    Save, 
+    Loader2, 
+    Check,
+    X,
+    Filter,
+    Sparkles
+} from 'lucide-react'
 import { useRouter } from "next/navigation"
 import { Link } from "@/i18n/routing"
 import { useToast } from "@/hooks/use-toast"
@@ -19,7 +36,7 @@ export default function ContentUploadPage() {
     const router = useRouter()
     const { toast } = useToast()
     const { user } = useWallet()
-    const [fileType, setFileType] = useState<'photo' | 'video' | null>(null)
+    const [fileType, setFileType] = useState<'image' | 'video' | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const [editMode, setEditMode] = useState<'manual' | 'ai'>('manual')
     const [rotation, setRotation] = useState(0)
@@ -44,7 +61,7 @@ export default function ContentUploadPage() {
         if (!file) return
 
         if (file.type.startsWith('image/')) {
-            setFileType('photo')
+            setFileType('image')
         } else if (file.type.startsWith('video/')) {
             setFileType('video')
         } else {
@@ -134,7 +151,7 @@ export default function ContentUploadPage() {
                 })
             }
 
-            if (fileType === 'photo') {
+            if (fileType === 'image') {
                 const img = new Image()
                 img.crossOrigin = "anonymous"
                 img.src = previewUrl
@@ -181,7 +198,7 @@ export default function ContentUploadPage() {
             }
 
             // 2. Upload to Storage
-            const extension = fileType === 'photo' ? 'jpg' : 'mp4'
+            const extension = fileType === 'image' ? 'jpg' : 'mp4'
             const fileName = `manual_${Date.now()}.${extension}`
             const storageRef = ref(storage, `creator-media/${user.uid}/${fileName}`)
             
@@ -267,14 +284,17 @@ export default function ContentUploadPage() {
     return (
         <div className="max-w-5xl mx-auto space-y-6 pb-12 px-4 mt-6 animate-in slide-in-from-bottom-4">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={reset} className="rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
+                    <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                        <Monitor size={20} className="text-primary" />
+                    </div>
                     <div>
-                        <h1 className="text-2xl font-headline font-bold">Düzenleme Merkezi</h1>
-                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">
-                            {fileType === 'photo' ? 'Fotoğraf' : 'Video'}: Yüklenen İçerik
+                        <h1 className="text-xl font-black tracking-tight uppercase">Düzenleme Merkezi</h1>
+                        <p className="text-[10px] font-bold text-muted-foreground tracking-widest uppercase">
+                            {fileType === 'image' ? 'Fotoğraf' : 'Video'}: Yüklenen İçerik
                         </p>
                     </div>
                 </div>
@@ -307,7 +327,7 @@ export default function ContentUploadPage() {
                                     justifyContent: 'center'
                                 }}
                             >
-                                {fileType === 'photo' ? (
+                                {fileType === 'image' ? (
                                     <img 
                                         src={previewUrl!} 
                                         alt="Preview" 
