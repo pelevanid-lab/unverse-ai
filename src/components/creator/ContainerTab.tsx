@@ -6,11 +6,9 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, doc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { CreatorMedia, UserProfile } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Loader2, Video, Calendar } from 'lucide-react';
+import { Loader2, Video, Calendar } from 'lucide-react';
 import { EditMediaModal } from './EditMediaModal';
 import { useTranslations } from 'next-intl';
 
@@ -21,9 +19,7 @@ export function ContainerTab() {
   const [mediaItems, setMediaItems] = useState<CreatorMedia[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -61,71 +57,14 @@ export function ContainerTab() {
     return () => unsubscribe();
   }, [user?.uid]);
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user?.uid) return;
-
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-    const mediaType = allowedImageTypes.includes(file.type) ? 'image' : allowedVideoTypes.includes(file.type) ? 'video' : null;
-
-    if (!mediaType) {
-      toast({ variant: 'destructive', title: t('unsupportedFileType'), description: t('unsupportedFileTypeDesc') });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const storageRef = ref(storage, `creator_media/${user.uid}/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => {},
-        (error) => {
-          console.error("Upload failed:", error);
-          toast({ variant: 'destructive', title: t('uploadFailed') });
-          setUploading(false);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-            await addDoc(collection(db, 'creator_media'), {
-              creatorId: user.uid,
-              mediaUrl: downloadURL,
-              mediaType,
-              caption: '',
-              isPremium: false,
-              priceULC: 0,
-              status: 'draft',
-              createdAt: serverTimestamp(),
-            });
-            toast({ title: t('uploadComplete'), description: t('uploadCompleteDesc') });
-            setUploading(false);
-          });
-        }
-      );
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({ variant: 'destructive', title: t('uploadError') });
-      setUploading(false);
-    }
-  };
 
   return (
     <Card className="glass-card border-white/10">
-      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <CardHeader>
         <div>
           <CardTitle>{t('title')}</CardTitle>
           <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
-        <Button onClick={handleUploadClick} disabled={uploading || !userProfile?.isCreator}>
-          {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-          {t('uploadMedia')}
-        </Button>
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" />
       </CardHeader>
       <CardContent>
         {loading ? (

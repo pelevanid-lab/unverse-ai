@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Clock, Lock, CheckCircle2, AlertCircle, ChevronLeft, Brain, Zap, Target } from 'lucide-react';
+import { Sparkles, Clock, Lock, CheckCircle2, AlertCircle, ChevronLeft, Brain, Zap, Target, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -85,14 +85,25 @@ export default function CopilotPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6">
             <header className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.push('/creator')} className="rounded-full">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/creator/studio')} className="rounded-full">
                     <ChevronLeft className="w-6 h-6" />
                 </Button>
-                <div>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        AI Copilot Workspace <Badge className="bg-primary">thev 2.0</Badge>
-                    </h1>
-                    <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Autonomous Content & Strategy</p>
+                <div className="flex items-center gap-4">
+                    {user?.savedCharacter?.referenceImageUrl ? (
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-primary/20 bg-primary/5">
+                            <img src={user.savedCharacter.referenceImageUrl} className="w-full h-full object-cover" alt="AI Avatar" />
+                        </div>
+                    ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+                            <User className="text-muted-foreground" />
+                        </div>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                            {user?.savedCharacter?.name || "Copilot"} Workspace <Badge className="bg-primary">thev 2.0</Badge>
+                        </h1>
+                        <p className="text-muted-foreground text-sm uppercase font-bold tracking-widest">Autonomous Content & Strategy</p>
+                    </div>
                 </div>
             </header>
 

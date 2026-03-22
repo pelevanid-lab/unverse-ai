@@ -135,6 +135,7 @@ export default function CreatorPanel() {
       </header>
 
         <div className="flex flex-col gap-4 max-w-2xl mx-auto pt-8">
+            {/* 1. Havuz (Container) - Moved to top as requested */}
             <Link href="/creator/container" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
@@ -150,14 +151,15 @@ export default function CreatorPanel() {
                 </Card>
             </Link>
 
-            <Link href="/creator/ai-studio" className="group">
+            {/* 2. Copilot Studio (Renamed from AI Studio) */}
+            <Link href="/creator/studio" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-fuchsia-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
                             <div className="p-3 bg-fuchsia-500/10 rounded-xl group-hover:bg-fuchsia-500/20 transition-colors"><Wand2 className="w-6 h-6 text-fuchsia-400" /></div>
                             <div>
-                                <p className="font-bold">{t('aiStudioTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('aiStudioDesc')}</p>
+                                <p className="font-bold">Copilot Stüdyo</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">İçerik Üretme ve Yönetim Merkezi</p>
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-fuchsia-400 transition-colors" />
@@ -165,14 +167,15 @@ export default function CreatorPanel() {
                 </Card>
             </Link>
 
+            {/* 3. AI Copilot (Assistant) */}
             <Link href="/creator/copilot" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-primary/5">
                     <CardContent className="p-6 flex items-center justify-between">
                         <div className='flex items-center gap-4'>
                             <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"><Sparkles className="w-6 h-6 text-primary" /></div>
                             <div>
-                                <p className="font-bold">AI Copilot</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Auto-pilot for your AI persona & monetization</p>
+                                <p className="font-bold">Copilot Asistan</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">Strateji ve Otomasyon Paneli</p>
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
