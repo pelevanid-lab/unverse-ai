@@ -724,5 +724,20 @@
     "actionPromptPlaceholder": "e.g., Walking in the woods at sunset, wearing athletic gear...",
     "descriptionPlaceholder": "Hair color, eye color, general style...",
     "fixedBadge": "FIXED"
+  },
+  "Community": {
+    "hero": "Connect. Grow. Govern.",
+    "heroDesc": "Welcome to the heartbeat of Unverse AI. Join our global networks, explore our strategic vision, and shape the future of creator economy.",
+    "investorDeck": "Investor Deck",
+    "investorDesc": "Deep dive into the 1B fixed supply, M-Floor protocol, and AI-driven deflationary engine.",
+    "creatorDeck": "Creator Guide",
+    "creatorDesc": "Learn how the first 100 creators earn dynamic bonuses and unlock high-yield monetization.",
+    "exploreInvestor": "EXPLORE INVESTOR PRESENTATION",
+    "viewCreator": "VIEW CREATOR PRESENTATION",
+    "forum": "Community Forum",
+    "forumDesc": "Join the discussion. Wallet connection required for posting.",
+    "connectToPost": "Connect Wallet to Post",
+    "topics": "Topics",
+    "replies": "Replies"
   }
 }

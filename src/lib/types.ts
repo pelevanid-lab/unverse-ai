@@ -35,6 +35,8 @@ export interface UserProfile {
     updatedAt?: number;
     bio?: string;
     avatar?: string;
+    featured?: boolean;
+    boostScore?: number;
     twitter?: string;
     telegram?: string;
     discord?: string;
@@ -141,6 +143,15 @@ export interface SystemConfig {
     isSealed?: boolean;
     last_manual_fix_v3_at?: number;
     platform_subscription_fee_split?: number;
+    // Community & Social
+    community?: {
+        telegramUrl: string;
+        twitterUrl: string;
+        instagramUrl: string;
+        investorPresentationUrl: string;
+        creatorPresentationUrl: string;
+        forumCategories: string[];
+    };
     pools?: {
         [key: string]: number; // e.g. "reserve": 420000000
     };

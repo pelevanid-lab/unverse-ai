@@ -731,5 +731,20 @@
     "actionPromptPlaceholder": "Örn: Ormanda gün batımında yürüyüş yaparken, üzerinde spor kıyafetleri var...",
     "descriptionPlaceholder": "Saç rengi, göz rengi, genel tarz...",
     "fixedBadge": "SABİT"
+  },
+  "Community": {
+    "hero": "Bağlan. Büyü. Yönet.",
+    "heroDesc": "Unverse AI topluluğunun kalbine hoş geldiniz. Küresel ağlarımıza katılın, stratejik vizyonumuzu keşfedin ve yaratıcı ekonomisinin geleceğini şekillendirin.",
+    "investorDeck": "Yatırımcı Sunumu",
+    "investorDesc": "1B sabit arz, M-Floor protokolü ve AI tabanlı deflasyonist motoru derinlemesine inceleyin.",
+    "creatorDeck": "Yaratıcı Rehberi",
+    "creatorDesc": "İlk 100 yaratıcının nasıl dinamik bonuslar kazandığını ve yüksek getirili gelir modellerini öğrenin.",
+    "exploreInvestor": "YATIRIMCI SUNUMUNU KEŞFET",
+    "viewCreator": "YARATICI SUNUMUNU GÖRÜNTÜLE",
+    "forum": "Topluluk Forumu",
+    "forumDesc": "Tartışmaya katılın. Yazmak için cüzdan bağlantısı gereklidir.",
+    "connectToPost": "Yazmak için Cüzdan Bağla",
+    "topics": "Konular",
+    "replies": "Yanıtlar"
   }
 }

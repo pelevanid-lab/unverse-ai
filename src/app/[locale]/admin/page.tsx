@@ -16,6 +16,7 @@ import { LedgerEntry, UserProfile, SystemConfig, ClaimRequest, VestingSchedule }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { AdminMilestones } from '@/components/admin/AdminMilestones';
+import AdminCommunity from '@/components/admin/AdminCommunity';
 
 export default function AdminDashboard() {
   const { user, isConnected, walletAddress } = useWallet();
@@ -175,6 +176,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="vesting">Vesting</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
+          <TabsTrigger value="community">Community</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
@@ -346,6 +348,10 @@ export default function AdminDashboard() {
 
         <TabsContent value="milestones">
           <AdminMilestones />
+        </TabsContent>
+
+        <TabsContent value="community">
+          <AdminCommunity />
         </TabsContent>
 
         <TabsContent value="setup" className="space-y-6">
