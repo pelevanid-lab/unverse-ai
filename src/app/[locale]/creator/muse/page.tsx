@@ -32,6 +32,8 @@ export default function AIMusePage() {
     const [charName, setCharName] = useState('')
     const [refImage, setRefImage] = useState<string | null>(null)
     const [promptDraft, setPromptDraft] = useState('')
+    const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
+    const [extractedAttributes, setExtractedAttributes] = useState<any>(null)
     
     // Steady State (Generation)
     const [genPrompt, setGenPrompt] = useState('')
@@ -57,41 +59,89 @@ export default function AIMusePage() {
         if (!user?.uid) return
         setLoading(true)
         try {
-            const cost = method === 'photo' ? 20 : 10
+            const isRegen = !!previewAvatar
+            const cost = method === 'photo' ? 20 : (isRegen ? 7 : 10)
+            
             if ((user.ulcBalance?.available || 0) < cost) {
                 throw new Error("Yetersiz ULC bakiyesi.")
             }
 
-            // In a a a real app, we'd call the and generation API here to get the "Master Avatar"
-            // For now, let's simulate saving the profile.
+            // 1. Get English Prompt & Attributes (if prompt method)
+            let englishPrompt = promptDraft
+            let attributes = null
+
+            if (method === 'prompt') {
+                // Translation & Attribute extraction in in in parallel
+                const [transRes, parseRes] = await Promise.all([
+                    fetch('/api/ai/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: promptDraft })
+                    }),
+                    fetch('/api/ai/parse-character', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: promptDraft })
+                    })
+                ])
+                
+                const transData = await transRes.json()
+                englishPrompt = transData.translation || promptDraft
+                attributes = await parseRes.json()
+            }
+
+            // 2. Generate Initial Master Avatar
+            const genResponse = await fetch('/api/ai/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: englishPrompt,
+                    userId: user.uid,
+                    cost: cost,
+                    isMasterPreview: true // Flag for for for internal logic if if if if if needed
+                })
+            })
+
+            if (!genResponse.ok) throw new Error("Görsel üretimi başarısız.")
+            
+            const genData = await genResponse.json()
+            setPreviewAvatar(genData.mediaUrl)
+            if (attributes) setExtractedAttributes(attributes)
+            
+            toast({ title: "Karakter Hazır!", description: "Görüşünüzü inceleyip sabitleyebilirsiniz." })
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Hata", description: err.message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleCommitCharacter = async () => {
+        if (!user?.uid || !previewAvatar) return
+        setLoading(true)
+        try {
             const character: CharacterProfile = {
                 id: 'main',
                 name: charName || "AI Muse",
-                gender: 'female',
-                ageRange: '20-25',
-                hairColor: 'blonde',
-                eyeColor: 'blue',
-                faceStyle: 'casual',
-                bodyStyle: 'slim',
-                vibe: 'friendly',
+                gender: extractedAttributes?.gender || 'female',
+                ageRange: extractedAttributes?.ageRange || '20-25',
+                hairColor: extractedAttributes?.hairColor || 'blonde',
+                eyeColor: extractedAttributes?.eyeColor || 'blue',
+                faceStyle: extractedAttributes?.faceStyle || 'casual',
+                bodyStyle: extractedAttributes?.bodyStyle || 'slim',
+                vibe: extractedAttributes?.vibe || 'friendly',
                 characterPromptBase: promptDraft,
+                referenceImageUrl: previewAvatar,
                 createdAt: Date.now()
             }
 
-            if (refImage) {
-                character.referenceImageUrl = refImage
-            }
-
-            await processAiGenerationPayment(user.uid, cost)
             const userRef = doc(db, 'users', user.uid)
-            await updateDoc(userRef, {
-                savedCharacter: character
-            })
+            await updateDoc(userRef, { savedCharacter: character })
 
-            toast({ title: "Karakter Sabitlendi!", description: "Artık tüm üretimleriniz bu avatar üzerinden yapılacak." })
+            toast({ title: "Karakter Sabitlendi!", description: "Tebrikler! Artık bu avatar üzerinden üretim yapacaksınız." })
             setStep('steady')
         } catch (err: any) {
-            toast({ variant: 'destructive', title: "Hata", description: err.message })
+            toast({ variant: 'destructive', title: "Hata", description: "Kayıt başarısız." })
         } finally {
             setLoading(false)
         }
@@ -249,45 +299,77 @@ export default function AIMusePage() {
                             <Input placeholder="Örn: Milla AI" value={charName} onChange={e => setCharName(e.target.value)} className="bg-black/20 border-white/10 h-12 rounded-xl" />
                         </div>
 
-                        {step === 'photo' ? (
-                            <div className="space-y-4">
-                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Referans Fotoğraf</Label>
-                                <div 
-                                    className="aspect-square rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
-                                    onClick={() => document.getElementById('char-upload')?.click()}
-                                >
-                                    {refImage ? (
-                                        <img src={refImage} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <>
-                                            <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-                                            <p className="text-xs text-muted-foreground">Net bir yüz fotoğrafı yükleyin</p>
-                                        </>
-                                    )}
+                        {previewAvatar ? (
+                             <div className="space-y-4 animate-in zoom-in-95 duration-500">
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Önizleme</Label>
+                                <div className="aspect-square rounded-3xl overflow-hidden glass-card border-primary/20 relative group">
+                                    <img src={previewAvatar} className="w-full h-full object-cover" alt="Preview" />
+                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <p className="text-[10px] font-bold text-primary mb-1">{extractedAttributes?.hairColor?.toUpperCase()} SAÇ • {extractedAttributes?.eyeColor?.toUpperCase()} GÖZ</p>
+                                         <p className="text-[8px] text-white/60">AI TARAFINDAN ÖZELLİKLER ÇIKARILDI</p>
+                                    </div>
                                 </div>
-                                <input id="char-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
-                            </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button 
+                                        variant="outline" 
+                                        className="h-12 rounded-2xl font-bold gap-2 border-primary/20 hover:bg-primary/5" 
+                                        onClick={() => handleCreateCharacter(step)}
+                                        disabled={loading}
+                                    >
+                                        <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} /> Yeniden ({step === 'photo' ? '20' : '7'} ULC)
+                                    </Button>
+                                    <Button 
+                                        className="h-12 rounded-2xl font-bold gap-2 bg-primary text-white" 
+                                        onClick={handleCommitCharacter}
+                                        disabled={loading}
+                                    >
+                                        <Check className="w-4 h-4" /> Karakteri Sabitle
+                                    </Button>
+                                </div>
+                             </div>
                         ) : (
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Karakter Tarifi</Label>
-                                <Textarea 
-                                    placeholder="Saç rengi, göz rengi, genel tarz..." 
-                                    className="bg-black/20 border-white/10 min-h-[120px] rounded-2xl resize-none"
-                                    value={promptDraft}
-                                    onChange={e => setPromptDraft(e.target.value)}
-                                />
-                            </div>
+                            <>
+                                {step === 'photo' ? (
+                                    <div className="space-y-4">
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Referans Fotoğraf</Label>
+                                        <div 
+                                            className="aspect-square rounded-3xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
+                                            onClick={() => document.getElementById('char-upload')?.click()}
+                                        >
+                                            {refImage ? (
+                                                <img src={refImage} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <Upload className="w-10 h-10 text-muted-foreground mb-2" />
+                                                    <p className="text-xs text-muted-foreground">Net bir yüz fotoğrafı yükleyin</p>
+                                                </>
+                                            )}
+                                        </div>
+                                        <input id="char-upload" type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Karakter Tarifi</Label>
+                                        <Textarea 
+                                            placeholder="Saç rengi, göz rengi, genel tarz..." 
+                                            className="bg-black/20 border-white/10 min-h-[120px] rounded-2xl resize-none"
+                                            value={promptDraft}
+                                            onChange={e => setPromptDraft(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                                
+                                <Button 
+                                    className="w-full h-14 rounded-2xl font-bold text-lg gap-2 mt-4" 
+                                    disabled={loading || (step === 'photo' && !refImage) || (step === 'prompt' && !promptDraft) || !charName}
+                                    onClick={() => handleCreateCharacter(step)}
+                                >
+                                    {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                    {step === 'photo' ? 'Karakteri Oluştur (20 ULC)' : 'Karakteri Oluştur (10 ULC)'}
+                                </Button>
+                            </>
                         )}
                     </div>
-
-                    <Button 
-                        className="w-full h-14 rounded-2xl font-bold text-lg gap-2" 
-                        disabled={loading || (step === 'photo' && !refImage) || (step === 'prompt' && !promptDraft)}
-                        onClick={() => handleCreateCharacter(step)}
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                        Karakteri Sabitle ({step === 'photo' ? '20' : '10'} ULC)
-                    </Button>
                 </Card>
             </div>
         )
