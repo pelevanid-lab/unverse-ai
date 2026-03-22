@@ -1011,9 +1011,13 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
                 throw new HttpsError("already-exists", "Economy is already sealed.");
             }
 
-            // Admin Authorization
-            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
-            if (adminId !== VERIFIED_ADMIN_UID) {
+            // Admin Authorization Check
+            const authorizedAdmin = configData?.admin_wallet_address;
+            const VERIFIED_MASTER_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
+            
+            // Allow if either UID matches master OR UID is the configured admin wallet
+            if (adminId !== VERIFIED_MASTER_UID && adminId.toLowerCase() !== authorizedAdmin?.toLowerCase()) {
+                logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, Authorized: ${authorizedAdmin}`);
                 throw new HttpsError("permission-denied", "Unauthorized admin.");
             }
 
@@ -1071,6 +1075,7 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
         });
     } catch (error: any) {
         logger.error("Seal Economy Error:", error);
+        if (error instanceof HttpsError) throw error;
         throw new HttpsError("internal", error.message);
     }
 });
