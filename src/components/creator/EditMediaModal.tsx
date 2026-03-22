@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles } from 'lucide-react';
+import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles, Video } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -335,6 +335,27 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                       <p className='text-[10px] text-muted-foreground'>{t('supplyDesc')}</p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* 🎬 Animate Section - Relocated from thumbnails */}
+              {media.mediaType === 'image' && (
+                <div className="space-y-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="flex items-center gap-2">
+                    <Video className="w-4 h-4 text-primary" />
+                    <span className="text-xs font-bold uppercase text-primary tracking-widest">Görseli Hareketlendir</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">Bu görseli Kling AI ile profesyonel bir videoya dönüştürün.</p>
+                  <Button 
+                    variant="secondary" 
+                    className="w-full h-11 rounded-xl font-bold gap-2 shadow-lg hover:bg-primary hover:text-white transition-all"
+                    onClick={() => {
+                      window.location.href = `/creator/animate?imageId=${media.id}`;
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Hareketlendir (60 ULC)
+                  </Button>
                 </div>
               )}
 

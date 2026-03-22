@@ -1,15 +1,14 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
-import { db, storage } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, orderBy, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { CreatorMedia, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Video, Calendar, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2, Video, Calendar } from 'lucide-react';
 import { EditMediaModal } from './EditMediaModal';
 import { useTranslations } from 'next-intl';
 
@@ -20,7 +19,7 @@ export function ContainerTab() {
   const [mediaItems, setMediaItems] = useState<CreatorMedia[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-    const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<CreatorMedia | null>(null);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -36,7 +35,7 @@ export function ContainerTab() {
     });
 
     return () => unsubscribe();
-  }, [user?.uid, toast]);
+  }, [user?.uid, toast, t]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -103,25 +102,7 @@ export function ContainerTab() {
                       <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />
                       <div className="absolute top-2 left-2 px-2 py-0.5 bg-primary text-white text-[8px] font-bold rounded-full">AI DRAFT</div>
                       
-                      {/* Animate Action for for for Images */}
-                      {item.mediaType !== 'video' && (
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            className="h-7 px-2 text-[10px] gap-1 rounded-full shadow-lg"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.href = `/creator/animate?imageId=${item.id}`;
-                            }}
-                          >
-                            <Video className="w-3 h-3" />
-                            {t('animateBtn') || "Hareketlendir"}
-                          </Button>
-                        </div>
-                      )}
-
-                       <div className="absolute bottom-0 left-0 right-0 p-2 text-white pointer-events-none">
+                      <div className="absolute bottom-0 left-0 right-0 p-2 text-white pointer-events-none">
                           <p className='text-xs font-bold truncate'>{item.caption || 'Yeni Taslak'}</p>
                       </div>
                     </div>
@@ -139,59 +120,27 @@ export function ContainerTab() {
                 {mediaItems.filter(i => i.source !== 'ai_auto').map(item => (
                   <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group bg-black/50">
                     {item.mediaType === 'image' ? (
-                      <>
-                        <img 
-                          src={item.mediaUrl} 
-                          alt={item.caption || 'media'} 
-                          className="w-full h-full object-cover" 
-                          onClick={() => setSelectedMedia(item)}
-                        />
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            className="h-7 px-2 text-[10px] gap-1 rounded-full shadow-lg hover:bg-white hover:text-black transition-all"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.href = `/creator/animate?imageId=${item.id}`;
-                            }}
-                          >
-                            <Video className="w-3 h-3" />
-                            {t('animateBtn') || "Hareketlendir"}
-                          </Button>
-                        </div>
-                      </>
+                      <img 
+                        src={item.mediaUrl} 
+                        alt={item.caption || 'media'} 
+                        className="w-full h-full object-cover" 
+                        onClick={() => setSelectedMedia(item)}
+                      />
                     ) : (
-                        <video 
-                          src={item.mediaUrl} 
-                          muted 
-                          loop 
-                          playsInline 
-                          className="w-full h-full object-cover" 
-                          onClick={() => setSelectedMedia(item)}
-                          onMouseOver={(e) => e.currentTarget.play()}
-                          onMouseOut={(e) => {
-                            e.currentTarget.pause();
-                            e.currentTarget.currentTime = 0;
-                          }}
-                        />
-                    )}
-                    {/* Animate Action for Images */}
-                    {item.mediaType === 'image' && (
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          className="h-7 px-2 text-[10px] gap-1 rounded-full shadow-lg hover:bg-white hover:text-black transition-all"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.location.href = `/creator/animate?imageId=${item.id}`;
-                          }}
-                        >
-                          <Video className="w-3 h-3" />
-                          {t('animateBtn') || "Hareketlendir"}
-                        </Button>
-                      </div>
+                      <video 
+                        src={item.mediaUrl} 
+                        autoPlay 
+                        muted 
+                        loop 
+                        playsInline 
+                        className="w-full h-full object-cover" 
+                        onClick={() => setSelectedMedia(item)}
+                        onMouseOver={(e) => e.currentTarget.play()}
+                        onMouseOut={(e) => {
+                          e.currentTarget.pause();
+                          e.currentTarget.currentTime = 0;
+                        }}
+                      />
                     )}
 
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />
