@@ -24,6 +24,7 @@ export default function ContentUploadPage() {
     const [editMode, setEditMode] = useState<'manual' | 'ai'>('manual')
     const [rotation, setRotation] = useState(0)
     const [activeFilter, setActiveFilter] = useState('none')
+    const [cropAspect, setCropAspect] = useState<number | null>(null) // null = original, 1 = square, 0.8 = portrait, 1.77 = wide
     const [aiPrompt, setAiPrompt] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [isAILoading, setIsAILoading] = useState(false)
@@ -63,6 +64,7 @@ export default function ContentUploadPage() {
         setEditMode('manual')
         setRotation(0)
         setActiveFilter('none')
+        setCropAspect(null)
         setAiPrompt('')
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -72,25 +74,41 @@ export default function ContentUploadPage() {
         setIsAILoading(true)
 
         try {
-            // In a real app, we'd upload the current image to a temp storage and pass the URL to the AI
-            // For now, let's assume the regenerate/edit API takes the current image
+            let imageToSend = previewUrl
+            
+            // If it's a local blob, convert to base64
+            if (previewUrl.startsWith('blob:')) {
+                const response = await fetch(previewUrl)
+                const blob = await response.blob()
+                imageToSend = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onloadend = () => resolve(reader.result as string)
+                    reader.onerror = reject
+                    reader.readAsDataURL(blob)
+                })
+            }
+
             const res = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: aiPrompt,
                     userId: user.uid,
-                    image: previewUrl, // This should be a direct URL or base64
+                    image: imageToSend,
                     cost: 8
                 })
             })
 
-            if (!res.ok) throw new Error("AI Edit failed")
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || "AI Edit failed")
+            }
             const data = await res.json()
             setPreviewUrl(data.mediaUrl)
-            setEditMode('manual') // Back to manual to allow further tweaks or saving
+            setEditMode('manual') 
             toast({ title: "Mükemmel!", description: "AI fotoğrafınızı yeniden yorumladı." })
         } catch (e: any) {
+            console.error("AI Edit failed:", e)
             toast({ variant: 'destructive', title: "Hata", description: e.message })
         } finally {
             setIsAILoading(false)
@@ -125,21 +143,35 @@ export default function ContentUploadPage() {
                     img.onerror = reject
                 })
 
-                const canvas = document.createElement('canvas')
-                const ctx = canvas.getContext('2d')!
+                // Calculate dimensions based on cropAspect
+                let targetWidth = img.width
+                let targetHeight = img.height
                 
-                // Adjust for rotation
-                if (rotation % 180 === 90) {
-                    canvas.width = img.height
-                    canvas.height = img.width
-                } else {
-                    canvas.width = img.width
-                    canvas.height = img.height
+                if (cropAspect) {
+                    if (img.width / img.height > cropAspect) {
+                        // Image is wider than crop
+                        targetWidth = img.height * cropAspect
+                    } else {
+                        // Image is taller than crop
+                        targetHeight = img.width / cropAspect
+                    }
                 }
 
+                // Adjust for rotation (90/270 swap dimensions)
+                const isRotated90 = rotation % 180 === 90
+                const canvasWidth = isRotated90 ? targetHeight : targetWidth
+                const canvasHeight = isRotated90 ? targetWidth : targetHeight
+
+                const canvas = document.createElement('canvas')
+                canvas.width = canvasWidth
+                canvas.height = canvasHeight
+                const ctx = canvas.getContext('2d')!
+                
                 ctx.filter = activeFilter
                 ctx.translate(canvas.width / 2, canvas.height / 2)
                 ctx.rotate((rotation * Math.PI) / 180)
+                
+                // Draw centered
                 ctx.drawImage(img, -img.width / 2, -img.height / 2)
                 
                 finalImageUrl = canvas.toDataURL('image/jpeg', 0.9)
@@ -264,19 +296,34 @@ export default function ContentUploadPage() {
                 <div className="lg:col-span-2 space-y-4">
                     <Card className="glass-card border-white/10 bg-black/40 overflow-hidden relative group">
                         <div className="aspect-[4/5] md:aspect-video w-full flex items-center justify-center overflow-hidden">
-                            {fileType === 'photo' ? (
-                                <img 
-                                    src={previewUrl!} 
-                                    alt="Preview" 
-                                    className="w-full h-full object-contain transition-all duration-300" 
-                                    style={{ 
-                                        transform: `rotate(${rotation}deg)`,
-                                        filter: activeFilter
-                                    }}
-                                />
-                            ) : (
-                                <video src={previewUrl!} controls className="w-full h-full object-contain" />
-                            )}
+                            <div 
+                                className="relative transition-all duration-500 ease-in-out"
+                                style={{ 
+                                    aspectRatio: cropAspect || 'auto',
+                                    height: '100%',
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                {fileType === 'photo' ? (
+                                    <img 
+                                        src={previewUrl!} 
+                                        alt="Preview" 
+                                        className={cn(
+                                            "transition-all duration-300",
+                                            cropAspect ? "w-full h-full object-cover" : "max-w-full max-h-full object-contain"
+                                        )}
+                                        style={{ 
+                                            transform: `rotate(${rotation}deg)`,
+                                            filter: activeFilter
+                                        }}
+                                    />
+                                ) : (
+                                    <video src={previewUrl!} controls className="w-full h-full object-contain" />
+                                )}
+                            </div>
 
                             {isAILoading && (
                                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 text-center z-50">
@@ -320,10 +367,23 @@ export default function ContentUploadPage() {
                                             <RefreshCcw size={20} className={cn(rotation !== 0 ? "text-white" : "text-muted-foreground")} />
                                             <span className="text-[10px] font-bold uppercase">DÖNDÜR</span>
                                         </Button>
-                                        <Button variant="secondary" className="h-14 rounded-2xl flex-col gap-1 opacity-50 cursor-not-allowed border-white/5">
-                                            <Scissors size={20} className="text-muted-foreground" />
-                                            <span className="text-[10px] font-bold uppercase">KIRP</span>
-                                        </Button>
+                                        <div className="relative group">
+                                            <Button 
+                                                variant={cropAspect !== null ? 'default' : 'secondary'} 
+                                                className="h-14 w-full rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
+                                            >
+                                                <Scissors size={20} className={cn(cropAspect !== null ? "text-white" : "text-muted-foreground")} />
+                                                <span className="text-[10px] font-bold uppercase">KIRP</span>
+                                            </Button>
+                                            
+                                            {/* Simple Hover Menu for Crop */}
+                                            <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-10 grid grid-cols-2 gap-1 text-[10px] font-bold">
+                                                <button onClick={() => setCropAspect(null)} className={cn("p-1 rounded hover:bg-white/10", !cropAspect && "text-primary")}>YOK</button>
+                                                <button onClick={() => setCropAspect(1)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1 && "text-primary")}>1:1</button>
+                                                <button onClick={() => setCropAspect(0.8)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 0.8 && "text-primary")}>4:5</button>
+                                                <button onClick={() => setCropAspect(1.777)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1.777 && "text-primary")}>16:9</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
