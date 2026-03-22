@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { db, storage } from '@/lib/firebase';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { UserProfile, PromoCard } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,16 @@ export function PromoCardTab() {
 
     setLoading(true);
     try {
+        // 🗑️ Cleanup previous promo image if it exists
+        if (promo.imageUrl && promo.imageUrl.includes('firebasestorage.googleapis.com')) {
+            try {
+                const oldRef = ref(storage, promo.imageUrl);
+                await deleteObject(oldRef);
+            } catch (e) {
+                console.warn("Failed to delete previous promo image:", e);
+            }
+        }
+
         const sRef = ref(storage, `promo_cards/${user.uid}/${Date.now()}_${file.name}`);
         const task = uploadBytesResumable(sRef, file);
         
@@ -106,7 +116,12 @@ export function PromoCardTab() {
                             <>
                                 <img src={promo.imageUrl} className="w-full h-full object-cover" alt="Promo" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Button variant="secondary" size="sm" onClick={() => setPromo(p => ({ ...p, imageUrl: '' }))}><Trash2 className="w-4 h-4 mr-2"/> {t('replace')}</Button>
+                                    <Button variant="secondary" size="sm" onClick={async () => {
+                                        if (promo.imageUrl && promo.imageUrl.includes('firebasestorage.googleapis.com')) {
+                                            await deleteObject(ref(storage, promo.imageUrl)).catch(() => {});
+                                        }
+                                        setPromo(p => ({ ...p, imageUrl: '' }));
+                                    }}><Trash2 className="w-4 h-4 mr-2"/> {t('replace')}</Button>
                                 </div>
                             </>
                         ) : (

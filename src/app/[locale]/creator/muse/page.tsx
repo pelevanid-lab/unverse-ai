@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useWallet } from '@/hooks/use-wallet'
 import { db, storage } from '@/lib/firebase'
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore'
-import { ref, uploadString, getDownloadURL } from 'firebase/storage'
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -151,7 +151,12 @@ export default function AIMusePage() {
                 setUploadedRefUrls(uploadedUrls)
                 attributes = await parseRes.json()
 
-                // 2. Generate the "Master AI Portrait" (This is is is is the and and and user's AI Twin)
+                // 🗑️ Cleanup previous master avatar preview if exists
+                if (previewAvatar && previewAvatar !== user?.savedCharacter?.referenceImageUrl) {
+                    await deleteObject(ref(storage, previewAvatar)).catch(() => {});
+                }
+
+                // 2. Generate the "Master AI Portrait"
                 const genPrompt = `PROFESSIONAL PORTRAIT, high-quality, high detail, masterpiece. Subject: 1 adult person, identical face to reference. Identity traits: ${attributes.hairColor} hair, ${attributes.eyeColor} eyes, ${attributes.faceStyle} face shape, ${attributes.bodyStyle} body.`
                 
                 const genResponse = await fetch('/api/ai/generate-image', {
@@ -197,13 +202,26 @@ export default function AIMusePage() {
                 vibe: extractedAttributes?.vibe || 'natural',
                 characterPromptBase: promptDraft,
                 referenceImageUrl: previewAvatar,
-                referenceImageUrls: uploadedRefUrls, // DIGITAL TWIN 3.0: FULL IDENTITY SET
+                referenceImageUrls: [], // Purged from Storage - No longer needed in DB
                 identitySeed: Math.floor(Math.random() * 1000000000), // DIGITAL TWIN 3.0: SEED LOCK
                 createdAt: Date.now()
             }
 
             const userRef = doc(db, 'users', user.uid)
             await updateDoc(userRef, { savedCharacter: character })
+
+            // STORAGE CLEANUP: Delete raw reference photos from Storage once locked
+            if (uploadedRefUrls.length > 0) {
+                console.log("Purging reference photos from Storage...");
+                const deletePromises = uploadedRefUrls.map(url => {
+                    const fileRef = ref(storage, url);
+                    return deleteObject(fileRef).catch(err => {
+                        console.warn("Storage deletion failed for URL:", url, err);
+                    });
+                });
+                await Promise.all(deletePromises);
+                setUploadedRefUrls([]); // Clear local state
+            }
 
             toast({ title: t("fixSuccess"), description: t("fixSuccessDesc") })
             setStep('steady')
@@ -218,6 +236,16 @@ export default function AIMusePage() {
         if (!user?.uid || !genPrompt.trim()) return
         setGenerating(true)
         try {
+            // 🗑️ Cleanup previous unsaved result before generating new one
+            if (lastResult) {
+                try {
+                    const oldRef = ref(storage, lastResult);
+                    await deleteObject(oldRef);
+                } catch (e) {
+                    console.warn("Failed to delete previous AI preview:", e);
+                }
+            }
+
             const transResponse = await fetch('/api/ai/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -290,6 +318,19 @@ export default function AIMusePage() {
             setPromptDraft('')
             setPreviewAvatar(null)
             setExtractedAttributes(null)
+
+            // Cleanup any pending storage refs
+            if (previewAvatar && previewAvatar !== user?.savedCharacter?.referenceImageUrl) {
+                await deleteObject(ref(storage, previewAvatar)).catch(() => {});
+            }
+            if (lastResult) {
+                await deleteObject(ref(storage, lastResult)).catch(() => {});
+            }
+            if (uploadedRefUrls.length > 0) {
+                const deletePromises = uploadedRefUrls.map(url => deleteObject(ref(storage, url)).catch(() => {}));
+                await Promise.all(deletePromises);
+                setUploadedRefUrls([]);
+            }
         } catch (e) {
             toast({ variant: 'destructive', title: tCommon("errorTitle"), description: tCommon("updateFailed") })
         }

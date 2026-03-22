@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Clock, Lock, CheckCircle2, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor, Calendar } from 'lucide-react';
+import { Sparkles, Clock, Lock, CheckCircle2, Check, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, updateDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -545,10 +545,13 @@ export default function CopilotPage() {
                          <div className="p-8 border-t border-white/5 bg-black/20">
                             <Button 
                                 onClick={handleSaveConfig} 
-                                disabled={loading} 
-                                className="w-full h-14 rounded-2xl font-black uppercase tracking-widest bg-white text-black hover:bg-white/90 active:scale-95 transition-all shadow-xl shadow-white/5"
+                                disabled={loading || isSaved} 
+                                className={cn(
+                                    "w-full h-14 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl",
+                                    isSaved ? "bg-green-500 text-white shadow-green-500/20" : "bg-white text-black hover:bg-white/90 active:scale-95 shadow-white/5"
+                                )}
                             >
-                                {loading ? <Loader2 className="animate-spin" /> : t('writeToMemory')}
+                                {loading ? <Loader2 className="animate-spin" /> : (isSaved ? <span className="flex items-center gap-2"><Check size={20} /> SAVED</span> : t('writeToMemory'))}
                             </Button>
                          </div>
                     </Card>

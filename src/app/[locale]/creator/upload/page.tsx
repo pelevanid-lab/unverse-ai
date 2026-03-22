@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils"
 import { useWallet } from "@/hooks/use-wallet"
 import { db, storage } from "@/lib/firebase"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
-import { ref, uploadString, getDownloadURL } from "firebase/storage"
+import { ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage"
 
 export default function ContentUploadPage() {
     const t = useTranslations('Upload')
@@ -111,13 +111,18 @@ export default function ContentUploadPage() {
     }
 
     const reset = () => {
-        setFileType(null)
         setPreviewUrl(null)
         setEditMode('manual')
         setRotation(0)
         setActiveFilter('none')
         setCropAspect(null)
         setAiPrompt('')
+        
+        // 🗑️ Cleanup AI preview if resetting
+        if (previewUrl && previewUrl.includes('firebasestorage.googleapis.com')) {
+            deleteObject(ref(storage, previewUrl)).catch(() => {});
+        }
+
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
 
@@ -138,6 +143,16 @@ export default function ContentUploadPage() {
                     reader.onerror = reject
                     reader.readAsDataURL(blob)
                 })
+            }
+
+            // 🗑️ Cleanup previous AI-edited preview if we are doing a new one
+            if (previewUrl && previewUrl.includes('firebasestorage.googleapis.com')) {
+                try {
+                    const oldRef = ref(storage, previewUrl);
+                    await deleteObject(oldRef);
+                } catch (e) {
+                    console.warn("Failed to delete previous AI edit preview:", e);
+                }
             }
 
             const res = await fetch('/api/ai/generate-image', {

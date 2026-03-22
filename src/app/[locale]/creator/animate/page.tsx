@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useWallet } from "@/hooks/use-wallet"
 import { useToast } from "@/hooks/use-toast"
-import { db } from "@/lib/firebase"
+import { db, storage } from "@/lib/firebase"
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { ref, deleteObject } from "firebase/storage"
 import { Loader2, Video, ChevronLeft, Sparkles, Film, Clock, Play, Image as ImageIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { CreatorMedia } from "@/lib/types"
@@ -85,6 +86,16 @@ export default function AnimatePage() {
 
     const handleGenerate = async (isRegeneration = false) => {
         if (!selectedImage || !user?.uid || generating) return
+
+        // 🗑️ Cleanup previous unsaved video before generating new one
+        if (resultVideoUrl) {
+            try {
+                const oldRef = ref(storage, resultVideoUrl);
+                await deleteObject(oldRef);
+            } catch (e) {
+                console.warn("Failed to delete previous AI animation preview:", e);
+            }
+        }
 
         setGenerating(true)
         setResultVideoUrl(null)
@@ -200,7 +211,14 @@ export default function AnimatePage() {
                                     <Film className="w-5 h-5 text-primary" />
                                     {tStudio('regenerateDiscount')}
                                 </Button>
-                                <Button variant="ghost" onClick={() => { setResultVideoUrl(null); setSelectedImage(null); setMotionPrompt(''); }} className="text-muted-foreground hover:text-white">
+                                <Button variant="ghost" onClick={async () => { 
+                                    if (resultVideoUrl) {
+                                        await deleteObject(ref(storage, resultVideoUrl)).catch(() => {});
+                                    }
+                                    setResultVideoUrl(null); 
+                                    setSelectedImage(null); 
+                                    setMotionPrompt(''); 
+                                }} className="text-muted-foreground hover:text-white">
                                     Baştan Başla
                                 </Button>
                             </div>
