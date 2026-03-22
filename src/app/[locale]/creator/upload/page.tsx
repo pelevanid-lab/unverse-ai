@@ -364,110 +364,110 @@ export default function ContentUploadPage() {
 
                 {/* Controls Column */}
                 <div className="space-y-6">
-                    <Tabs defaultValue="manual" value={editMode} onValueChange={(v: any) => setEditMode(v)} className="w-full">
-                        <TabsList className="grid grid-cols-2 bg-white/5 border border-white/5 p-1 rounded-2xl h-12">
-                            <TabsTrigger value="manual" className="rounded-xl text-xs font-bold data-[state=active]:bg-white data-[state=active]:text-black">
-                                Manuel Edit
-                            </TabsTrigger>
-                            <TabsTrigger value="ai" className="rounded-xl text-xs font-bold data-[state=active]:bg-primary data-[state=active]:text-white gap-2">
-                                AI Edit <Badge className="bg-amber-500 text-white text-[8px] h-3.5 px-1 uppercase">Beta</Badge>
-                            </TabsTrigger>
-                        </TabsList>
+                    {fileType === 'image' ? (
+                        <>
+                            <Tabs value={editMode} onValueChange={(v) => setEditMode(v as any)} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 p-1 bg-white/5 border border-white/10 rounded-2xl h-12">
+                                    <TabsTrigger value="manual" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Manuel Edit</TabsTrigger>
+                                    <TabsTrigger value="ai" className="rounded-xl font-bold data-[state=active]:bg-primary data-[state=active]:text-white gap-2">AI Edit <Badge className="ml-1 text-[8px] px-1 bg-amber-500 border-none">BETA</Badge></TabsTrigger>
+                                </TabsList>
 
-                        <div className="mt-6 space-y-6">
-                            <TabsContent value="manual" className="space-y-6 animate-in fade-in">
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Temel Araçlar</h4>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <Button 
-                                            variant={rotation !== 0 ? 'default' : 'secondary'} 
-                                            onClick={() => setRotation(r => (r + 90) % 360)} 
-                                            className="h-14 rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
-                                        >
-                                            <RefreshCcw size={20} className={cn(rotation !== 0 ? "text-white" : "text-muted-foreground")} />
-                                            <span className="text-[10px] font-bold uppercase">DÖNDÜR</span>
-                                        </Button>
-                                        <div className="relative group">
+                                <TabsContent value="manual" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    {/* Manual controls (rotation, crop, filters) */}
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Temel Araçlar</h4>
+                                        <div className="grid grid-cols-2 gap-3">
                                             <Button 
-                                                variant={cropAspect !== null ? 'default' : 'secondary'} 
-                                                className="h-14 w-full rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
+                                                variant={rotation !== 0 ? 'default' : 'secondary'} 
+                                                onClick={() => setRotation(r => (r + 90) % 360)} 
+                                                className="h-14 rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
                                             >
-                                                <Scissors size={20} className={cn(cropAspect !== null ? "text-white" : "text-muted-foreground")} />
-                                                <span className="text-[10px] font-bold uppercase">KIRP</span>
+                                                <RefreshCcw size={20} className={cn(rotation !== 0 ? "text-white" : "text-muted-foreground")} />
+                                                <span className="text-[10px] font-bold uppercase">DÖNDÜR</span>
                                             </Button>
-                                            
-                                            {/* Simple Hover Menu for Crop */}
-                                            <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-10 grid grid-cols-2 gap-1 text-[10px] font-bold">
-                                                <button onClick={() => setCropAspect(null)} className={cn("p-1 rounded hover:bg-white/10", !cropAspect && "text-primary")}>YOK</button>
-                                                <button onClick={() => setCropAspect(1)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1 && "text-primary")}>1:1</button>
-                                                <button onClick={() => setCropAspect(0.8)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 0.8 && "text-primary")}>4:5</button>
-                                                <button onClick={() => setCropAspect(1.777)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1.777 && "text-primary")}>16:9</button>
+                                            <div className="relative group">
+                                                <Button 
+                                                    variant={cropAspect !== null ? 'default' : 'secondary'} 
+                                                    className="h-14 w-full rounded-2xl flex-col gap-1 hover:bg-white/10 border-white/5"
+                                                >
+                                                    <Scissors size={20} className={cn(cropAspect !== null ? "text-white" : "text-muted-foreground")} />
+                                                    <span className="text-[10px] font-bold uppercase">KIRP</span>
+                                                </Button>
+                                                
+                                                {/* Simple Hover Menu for Crop */}
+                                                <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-black/90 backdrop-blur-md rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-10 grid grid-cols-2 gap-1 text-[10px] font-bold">
+                                                    <button onClick={() => setCropAspect(null)} className={cn("p-1 rounded hover:bg-white/10", !cropAspect && "text-primary")}>YOK</button>
+                                                    <button onClick={() => setCropAspect(1)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1 && "text-primary")}>1:1</button>
+                                                    <button onClick={() => setCropAspect(0.8)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 0.8 && "text-primary")}>4:5</button>
+                                                    <button onClick={() => setCropAspect(1.777)} className={cn("p-1 rounded hover:bg-white/10", cropAspect === 1.777 && "text-primary")}>16:9</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Filtreler</h4>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {filters.map(f => (
-                                            <Button 
-                                                key={f.name} 
-                                                variant={activeFilter === f.value ? 'default' : 'outline'} 
-                                                onClick={() => setActiveFilter(f.value)}
-                                                className={cn(
-                                                    "h-10 text-[9px] font-bold rounded-xl border-white/5 transition-all",
-                                                    activeFilter === f.value ? "bg-primary text-white" : "bg-white/5 text-muted-foreground"
-                                                )}
-                                            >
-                                                {f.name}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <Card className="bg-primary/5 border-primary/20 rounded-2xl">
-                                    <CardContent className="p-4 flex items-center gap-3">
-                                        <Wand2 className="text-primary w-5 h-5 shrink-0" />
-                                        <div className="space-y-0.5">
-                                            <p className="text-[10px] font-bold uppercase text-primary">Profesyonel misin?</p>
-                                            <p className="text-[9px] text-muted-foreground">Arka planı silmek veya objeleri değiştirmek için AI Edit moduna geç.</p>
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Filtreler</h4>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {filters.map((f) => (
+                                                <button
+                                                    key={f.name}
+                                                    onClick={() => setActiveFilter(f.value)}
+                                                    className={cn(
+                                                        "p-3 rounded-xl border text-[10px] font-bold uppercase transition-all",
+                                                        activeFilter === f.value 
+                                                            ? "bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-105" 
+                                                            : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10 hover:border-white/20"
+                                                    )}
+                                                >
+                                                    {f.name}
+                                                </button>
+                                            ))}
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
+                                    </div>
+                                </TabsContent>
 
-                            <TabsContent value="ai" className="space-y-6 animate-in fade-in">
-                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-3">
-                                    <RefreshCcw className="text-amber-500 w-5 h-5 shrink-0 mt-0.5" />
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                        AI Edit modunda fotoğrafın üzerinde değişiklik yapmak için profesyonel komutlar kullanabilirsin. 
-                                        Bu işlem **8 ULC** (Regen: 4 ULC) ile ücretlendirilir.
-                                    </p>
-                                </div>
+                                <TabsContent value="ai" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                                        <div className="flex gap-3 text-amber-500">
+                                            <RotateCcw size={18} className="shrink-0 mt-0.5" />
+                                            <p className="text-[11px] leading-relaxed">
+                                                AI Edit modunda fotoğrafın üzerinde değişiklik yapmak için profesyonel komutlar kullanabilirsin. Bu işlem **8 ULC** (Regen: 4 ULC) ile ücretlendirilir.
+                                            </p>
+                                        </div>
+                                    </div>
 
-                                <div className="space-y-3">
-                                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Değişim Komutu (Prompt)</label>
-                                    <textarea 
-                                        placeholder="Örn: Arka planı tropikal bir plaj yap, kıyafetini kırmızı bir elbise ile değiştir..."
-                                        className="w-full min-h-[100px] bg-black/40 border-white/10 rounded-2xl resize-none p-4 text-sm focus:ring-1 focus:ring-primary outline-none"
-                                        value={aiPrompt}
-                                        onChange={(e) => setAiPrompt(e.target.value)}
-                                        disabled={isAILoading}
-                                    />
-                                </div>
-
-                                <Button 
-                                    className="w-full h-12 rounded-2xl font-bold gap-2 bg-primary text-white"
-                                    onClick={handleAIEdit}
-                                    disabled={!aiPrompt || isAILoading}
-                                >
-                                    {isAILoading ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                                    AI İle Yeniden Düzenle (8 ULC)
-                                </Button>
-                            </TabsContent>
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">DEĞİŞİM KOMUTU (PROMPT)</h4>
+                                        <textarea 
+                                            value={aiPrompt}
+                                            onChange={(e) => setAiPrompt(e.target.value)}
+                                            placeholder="Arka planı değiştir, saçı kızıl yap..."
+                                            className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+                                        />
+                                        
+                                        <Button 
+                                            className="w-full h-12 rounded-xl bg-primary hover:opacity-90 font-bold gap-2 text-sm shadow-lg shadow-primary/20"
+                                            onClick={handleAIEdit}
+                                            disabled={!aiPrompt || isAILoading}
+                                        >
+                                            {isAILoading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+                                            AI İle Yeniden Düzenle (8 ULC)
+                                        </Button>
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </>
+                    ) : (
+                        <div className="p-8 rounded-3xl bg-white/5 border border-white/10 text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto">
+                                <Film size={32} className="text-muted-foreground" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold">Video Modu</h3>
+                                <p className="text-sm text-muted-foreground">Videolar için düzenleme şu an desteklenmemektedir. İçeriği doğrudan havuza kaydedebilirsiniz.</p>
+                            </div>
                         </div>
-                    </Tabs>
+                    )}
                 </div>
             </div>
         </div>
