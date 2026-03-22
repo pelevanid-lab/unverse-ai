@@ -230,8 +230,15 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
     async generateContainerCopy(params: {
         imageUrl: string,
         contentType: 'public' | 'premium' | 'limited',
-        originalPrompt?: string
+        originalPrompt?: string,
+        locale?: string
     }) {
+        // Guard: Do not generate captions for videos
+        const isVideo = params.imageUrl?.toLowerCase().includes('.mp4') || params.imageUrl?.toLowerCase().includes('video');
+        if (isVideo) {
+            return params.originalPrompt || "Check out this video!";
+        }
+
         const memoryContext = await this.getMemoryContext();
         const systemInstructions = `Generate a catchy, professional social media caption for this AI-generated image.
 Original Idea: "${params.originalPrompt || 'Beautiful scene'}"

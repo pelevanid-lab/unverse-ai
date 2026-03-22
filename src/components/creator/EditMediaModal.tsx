@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Copilot } from '@/lib/copilot';
 import { useEffect } from 'react';
 
@@ -35,6 +35,7 @@ interface EditMediaModalProps {
 
 export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: EditMediaModalProps) {
   const t = useTranslations('EditMedia');
+  const locale = useLocale();
   const { user } = useWallet();
   const { toast } = useToast();
   const [caption, setCaption] = useState(media.caption || '');
@@ -49,11 +50,11 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
   const copilot = new Copilot(user?.uid || '');
 
-  // 🚀 Smart Flow: Auto-generate caption if empty when modal opens
+  // 🚀 Smart Flow: Auto-generate caption if empty when modal opens (Images only)
   useEffect(() => {
     if (user?.uid) {
       copilot.init().then(() => {
-        if (!caption && media.mediaUrl) {
+        if (!caption && media.mediaUrl && media.mediaType === 'image') {
           handleGenerateCaption();
         }
         // Get suggestion for this media (V2)
@@ -64,7 +65,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
   }, [user?.uid, media.id]);
 
   const handleGenerateCaption = async () => {
-    if (!media.mediaUrl) return;
+    if (!media.mediaUrl || media.mediaType !== 'image') return;
     setIsGeneratingCaption(true);
     try {
       await copilot.init();
@@ -72,7 +73,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
       const generatedCaption = await copilot.generateContainerCopy({
         imageUrl: media.mediaUrl,
         contentType,
-        originalPrompt: promptToUse
+        originalPrompt: promptToUse,
+        locale: locale
       });
 
       if (generatedCaption) {
@@ -225,8 +227,8 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                     variant="ghost"
                     size="sm"
                     onClick={handleGenerateCaption}
-                    disabled={isGeneratingCaption}
-                    className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full"
+                    disabled={isGeneratingCaption || media.mediaType !== 'image'}
+                    className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full disabled:opacity-30"
                   >
                     {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
                     {isGeneratingCaption ? t('generating') || 'Generating...' : t('generateCaption')}

@@ -9,6 +9,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { PromoCarousel } from '@/components/discover/PromoCarousel';
+import { VideoPreview } from '@/components/ui/VideoPreview';
 
 interface PostGridProps {
   postsToShow: ContentPost[];
@@ -87,14 +88,10 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
                   post.mediaType === 'image' || !post.mediaType ? (
                       <img src={post.mediaUrl} alt="post" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" />
                   ) : (
-                      <video 
-                          src={post.mediaUrl} 
-                          autoPlay 
-                          muted 
-                          loop 
-                          playsInline 
-                          className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" 
-                      />
+                    <VideoPreview 
+                        src={post.mediaUrl} 
+                        className="transition-all duration-700 group-hover:scale-110" 
+                    />
                   )
               ) : (
                   // Placeholder for locked content - No mediaUrl in src for security

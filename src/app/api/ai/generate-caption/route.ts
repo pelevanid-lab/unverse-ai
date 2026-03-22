@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, prompt, contentType, systemInstructions } = await req.json();
+    const { imageUrl, prompt, contentType, systemInstructions, locale } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: 'imageUrl is required' }, { status: 400 });
@@ -36,7 +36,12 @@ export async function POST(req: Request) {
     if (contentType === 'premium') toneInstruction = "Make it sound exclusive, premium, and VIP. Encourage followers to unlock this content. Use emojis like 🔒 or 💎. Keep it short.";
     if (contentType === 'limited') toneInstruction = "Create a sense of urgency (FOMO). Mention it's a limited edition drop. Use emojis like 🔥 or ⏳. Keep it short.";
 
-    let defaultSystemPrompt = `You are a social media manager for a creator. Look at the image and write a caption for it. ${toneInstruction}`;
+    // Language instruction
+    let langInstruction = "Write the caption in English.";
+    if (locale === 'tr' || locale === 'tr-TR') langInstruction = "Yazıyı tamamen TÜRKÇE (Turkish) dilinde yaz. Kesinlikle İngilizce kelime kullanma (hashtagler hariç). Doğal ve içten bir dil kullan.";
+    if (locale === 'ru' || locale === 'ru-RU') langInstruction = "Пишите подпись полностью на РУССКОМ (Russian) языке. Не используйте английский язык (кроме хэштегов). Используйте естественный и искренний тон.";
+
+    let defaultSystemPrompt = `You are a social media manager for a creator. Look at the image and write a caption for it. ${toneInstruction} ${langInstruction}`;
     if (prompt) {
       defaultSystemPrompt += ` The user originally used this prompt to generate the image: "${prompt}".`;
     }

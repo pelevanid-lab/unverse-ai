@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Video, Calendar } from 'lucide-react';
 import { EditMediaModal } from './EditMediaModal';
 import { useTranslations } from 'next-intl';
+import { VideoPreview } from '../ui/VideoPreview';
 
 export function ContainerTab() {
   const t = useTranslations('Container');
@@ -127,20 +128,11 @@ export function ContainerTab() {
                         onClick={() => setSelectedMedia(item)}
                       />
                     ) : (
-                      <video 
-                        src={item.mediaUrl} 
-                        autoPlay 
-                        muted 
-                        loop 
-                        playsInline 
-                        className="w-full h-full object-cover" 
-                        onClick={() => setSelectedMedia(item)}
-                        onMouseOver={(e) => e.currentTarget.play()}
-                        onMouseOut={(e) => {
-                          e.currentTarget.pause();
-                          e.currentTarget.currentTime = 0;
-                        }}
-                      />
+                        <div onClick={() => setSelectedMedia(item)}>
+                          <VideoPreview 
+                            src={item.mediaUrl} 
+                          />
+                        </div>
                     )}
 
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/60 transition-colors pointer-events-none" />

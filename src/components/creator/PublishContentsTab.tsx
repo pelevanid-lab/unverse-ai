@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Lock, Clock } from 'lucide-react';
 import { ViewPostModal } from './ViewPostModal';
 import { useTranslations } from 'next-intl';
+import { VideoPreview } from '../ui/VideoPreview';
 
 export function PublishContentsTab() {
   const t = useTranslations('Published');
@@ -102,7 +103,9 @@ export function PublishContentsTab() {
                       isImage ? (
                         <img src={mediaUrl} alt={post.content || 'post'} className="w-full h-full object-cover" />
                       ) : (
-                        <video src={mediaUrl} muted loop playsInline className="w-full h-full object-cover" />
+                        <VideoPreview 
+                          src={mediaUrl} 
+                        />
                       )
                     )}
                  
