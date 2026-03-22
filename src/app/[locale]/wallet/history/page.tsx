@@ -4,7 +4,7 @@
 import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { History, ChevronLeft } from 'lucide-react';
+import { History, ChevronLeft, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { collection, query, where, onSnapshot, or, QuerySnapshot } from 'firebase/firestore';
@@ -21,9 +21,14 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
     entries.forEach(entry => {
         let key: string;
         // Group by txHash for purchases, or referenceId for everything else
+        // EXCEPTION: AI Generations/Refunds should be viewed as separate actions if desired,
+        // but often we want them together. Let's keep them together but ensure the main entry
+        // is the primary action, or just keep them separate if the user is confused.
+        // User said: "5 ULC going out is not visible". 
+        // Logic: If it's a refund, don't use referenceId as grouping key to force separate rows.
         if (entry.txHash) {
             key = entry.txHash;
-        } else if (entry.referenceId) {
+        } else if (entry.referenceId && entry.type !== 'ai_generation_refund') {
             key = entry.referenceId;
         } else {
             key = entry.id;

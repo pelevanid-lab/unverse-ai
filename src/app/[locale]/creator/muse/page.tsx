@@ -26,6 +26,7 @@ export default function AIMusePage() {
     const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady'>('selection')
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
+    const [saving, setSaving] = useState(false)
     
     // Character Creation State
     const [charName, setCharName] = useState('')
@@ -92,12 +93,11 @@ export default function AIMusePage() {
             setLoading(false)
         }
     }
-
-    const handleGenerateConsistent = async () => {
+    const handleGenerateConsistent = async (isRegen: boolean = false) => {
         if (!user?.uid || !genPrompt.trim()) return
         setGenerating(true)
         try {
-            // 1. Translation for for for Firewall Bypass
+            // 1. Translation for Firewall Bypass
             const transResponse = await fetch('/api/ai/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,7 +106,7 @@ export default function AIMusePage() {
             const transData = await transResponse.json()
             const englishPrompt = transData.translation || genPrompt
 
-            // 2. Generation with with with English Translation
+            // 2. Generation with English Translation
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -115,7 +115,7 @@ export default function AIMusePage() {
                     translation: englishPrompt,
                     userId: user.uid,
                     character: user.savedCharacter,
-                    cost: 5
+                    cost: isRegen ? 3 : 5
                 })
             })
 
@@ -132,6 +132,32 @@ export default function AIMusePage() {
         } finally {
             setGenerating(false)
         }
+    }
+
+    const handleSaveToContainer = async () => {
+        if (!user?.uid || !lastResult) return
+        setSaving(true)
+        try {
+            await addDoc(collection(db, 'creator_media'), {
+                userId: user.uid,
+                url: lastResult,
+                type: 'image',
+                category: 'ai_muse',
+                createdAt: Date.now(),
+                status: 'draft'
+            })
+            toast({ title: "Havuza Kaydedildi!", description: "İçeriğiniz artık yönetilmeye hazır." })
+            router.push('/creator/container')
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Kaydetme Hatası", description: err.message })
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleRegenerate = () => {
+        // Just trigger the same flow, will cost 3 ULC if we pass the right flag
+        handleGenerateConsistent(true)
     }
 
     const handleResetCharacter = async () => {
@@ -360,7 +386,7 @@ export default function AIMusePage() {
                             <Button 
                                 className="w-full h-16 rounded-3xl font-bold text-xl gap-3 shadow-xl shadow-primary/20" 
                                 disabled={generating || !genPrompt.trim()}
-                                onClick={handleGenerateConsistent}
+                                onClick={() => handleGenerateConsistent()}
                             >
                                 {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
                                 Görseli Üret (5 ULC)
@@ -376,11 +402,12 @@ export default function AIMusePage() {
                                     <img src={lastResult} className="w-full h-full object-contain" alt="Generated" />
                                 </div>
                                 <div className="p-6 flex gap-4 bg-black/60 backdrop-blur-md">
-                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={() => router.push('/creator/container')}>
-                                        <Save size={18} /> Havuza Git
+                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
+                                        {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
+                                        Havuza Kaydet
                                     </Button>
-                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={() => setLastResult(null)}>
-                                        <RefreshCcw size={18} /> Yeni Üretim
+                                    <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
+                                        <RefreshCcw size={18} /> Üretimi Yinele (3 ULC)
                                     </Button>
                                 </div>
                             </Card>

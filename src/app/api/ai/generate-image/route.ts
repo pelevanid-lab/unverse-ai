@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     // Construct the "Security Anchor" (Strict English ONLY)
     const securityAnchor = `1 adult person, FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. ${subjectAnchor} SCENE: ${userSceneEnglish}.`;
     
-    let basePrompt = enhancedPrompt || prompt;
+    let basePrompt = enhancedPrompt || translation || prompt;
     
     // If Gemini returned a uselessly short prompt, discard it and use a high-quality fallback
     if (enhancedPrompt && enhancedPrompt.length < 25) {
