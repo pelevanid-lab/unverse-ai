@@ -14,15 +14,23 @@ export async function POST(req: Request) {
     }
 
     const systemPrompt = `You are a character attribute extractor. 
-    Analyze the following character description (could be Turkish or English) and extract physical traits.
+    Analyze the following character description and and and extract detailed physical traits.
+    The description might be in in Turkish or or English.
+    
+    RULES:
+    - If the and and description is in in in Turkish, translate the and and concept to to English for for for the and and JSON values.
+    - Example: "Kızıl saçlı" -> hairColor: "red". "Mavi gözlü" -> eyeColor: "blue".
+    - "Dolgun hatlı" -> bodyStyle: "curvy/voluptuous".
+    - "Uzun boylu" -> height: "tall".
     
     Response MUST be a raw JSON object with these fields:
     - gender: "female" | "male" | "other"
-    - hairColor: string (e.g. "red", "blonde", "black")
-    - eyeColor: string (e.g. "blue", "green", "brown")
-    - faceStyle: string (e.g. "cute", "sharp", "oval")
-    - bodyStyle: string (e.g. "slim", "athletic", "curvy")
-    - vibe: string (e.g. "friendly", "mysterious", "happy")
+    - hairColor: string
+    - eyeColor: string
+    - faceStyle: string
+    - bodyStyle: string
+    - height: string
+    - vibe: string
     
     Description: "${prompt}"
     
@@ -66,11 +74,12 @@ export async function POST(req: Request) {
     console.error('PARSE CHARACTER ERROR:', error);
     return NextResponse.json({ 
         gender: "female",
-        hairColor: "blonde",
-        eyeColor: "blue",
-        faceStyle: "default",
-        bodyStyle: "slim",
+        hairColor: "unknown",
+        eyeColor: "unknown",
+        faceStyle: "natural",
+        bodyStyle: "natural",
+        height: "average",
         vibe: "casual"
-    }); // Fallback to safe defaults
+    }); 
   }
 }

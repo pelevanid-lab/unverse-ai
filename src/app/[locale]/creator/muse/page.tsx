@@ -129,6 +129,7 @@ export default function AIMusePage() {
                 eyeColor: extractedAttributes?.eyeColor || 'blue',
                 faceStyle: extractedAttributes?.faceStyle || 'casual',
                 bodyStyle: extractedAttributes?.bodyStyle || 'slim',
+                height: extractedAttributes?.height || 'average',
                 vibe: extractedAttributes?.vibe || 'friendly',
                 characterPromptBase: promptDraft,
                 referenceImageUrl: previewAvatar,
@@ -304,8 +305,13 @@ export default function AIMusePage() {
                                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Önizleme</Label>
                                 <div className="aspect-square rounded-3xl overflow-hidden glass-card border-primary/20 relative group">
                                     <img src={previewAvatar} className="w-full h-full object-cover" alt="Preview" />
-                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                         <p className="text-[10px] font-bold text-primary mb-1">{extractedAttributes?.hairColor?.toUpperCase()} SAÇ • {extractedAttributes?.eyeColor?.toUpperCase()} GÖZ</p>
+                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-4 text-center">
+                                         <p className="text-[10px] font-bold text-primary mb-1 uppercase">
+                                            {extractedAttributes?.hairColor} SAÇ • {extractedAttributes?.eyeColor} GÖZ
+                                         </p>
+                                         <p className="text-[9px] text-white font-medium mb-1">
+                                            {extractedAttributes?.bodyStyle} • {extractedAttributes?.height}
+                                         </p>
                                          <p className="text-[8px] text-white/60">AI TARAFINDAN ÖZELLİKLER ÇIKARILDI</p>
                                     </div>
                                 </div>
@@ -427,6 +433,14 @@ export default function AIMusePage() {
                                 <div className="bg-black/20 p-2 rounded-lg border border-white/5">
                                     <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Saç Rengi</p>
                                     <p className="text-xs font-bold">{user?.savedCharacter?.hairColor || "Sarışın"}</p>
+                                </div>
+                                <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Vücut</p>
+                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.bodyStyle || "Doğal"}</p>
+                                </div>
+                                <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                    <p className="text-[8px] uppercase font-bold text-muted-foreground italic tracking-widest">Boy</p>
+                                    <p className="text-xs font-bold capitalize">{user?.savedCharacter?.height || "Orta"}</p>
                                 </div>
                             </div>
                         </CardContent>
