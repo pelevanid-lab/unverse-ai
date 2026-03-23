@@ -20,12 +20,13 @@ import { AlertCircle, Trash2, ChevronLeft, Loader2 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/routing';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export default function UserProfileManagement() {
   const t = useTranslations('UserProfileManagement');
   const { isConnected, user, disconnectWallet } = useWallet();
   const router = useRouter();
+  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isConnected || !user) {
