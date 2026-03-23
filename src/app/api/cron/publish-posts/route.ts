@@ -7,23 +7,29 @@ export async function GET() {
   try {
     const now = Date.now();
 
-    // 1. Query for scheduled media in the container
+    // 1. Query for all scheduled media in the container
     const q = query(
       collection(db, 'creator_media'), 
-      where('status', '==', 'scheduled'), 
-      where('scheduledFor', '<=', now)
+      where('status', '==', 'scheduled')
+      // Removed scheduledFor filter here to avoid composite index requirement
     );
     
-    const scheduledSnap = await getDocs(q);
+    const allScheduledSnap = await getDocs(q);
 
-    if (scheduledSnap.empty) {
-      return NextResponse.json({ message: 'No scheduled media pending.' });
+    // Filter by time in memory
+    const scheduledDocs = allScheduledSnap.docs.filter(doc => {
+        const data = doc.data();
+        return data.scheduledFor && data.scheduledFor <= now;
+    });
+
+    if (scheduledDocs.length === 0) {
+      return NextResponse.json({ message: 'No scheduled media ready for publishing.' });
     }
 
     let publishedCount = 0;
 
-    // 2. Process each scheduled item
-    for (const mediaDoc of scheduledSnap.docs) {
+    // 2. Process each filtered item
+    for (const mediaDoc of scheduledDocs) {
         const mediaData = mediaDoc.data();
         
         // Fetch creator profile for post metadata
@@ -72,6 +78,6 @@ export async function GET() {
 
   } catch (error: any) {
     console.error('Cron job failed:', error.message);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
