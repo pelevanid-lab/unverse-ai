@@ -63,6 +63,13 @@ export function useWallet() {
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data() as UserProfile;
+        
+        // === AUTH SYNC FIX ===
+        // Link the current Firebase Auth session to the wallet-based profile
+        if (userData.authUid !== firebaseUser.uid) {
+            await updateDoc(userDocRef, { authUid: firebaseUser.uid });
+        }
+
         if (!userData.welcomeBonusClaimed) {
           const ledgerQuery = query(collection(db, 'ledger'), where('toWallet', '==', address), where('type', '==', 'welcome_bonus'), limit(1));
           const ledgerSnap = await getDocs(ledgerQuery);
@@ -98,7 +105,7 @@ export function useWallet() {
             username: `Explorer_${address.slice(2, 8)}`,
             bio: "New citizen of the Unverse.",
             avatar: `https://i.pravatar.cc/150?u=${address}`,
-            ulcBalance: { available: 0, locked: 0, claimable: 0 },
+            ulcBalance: { available: 0, locked: 0, staked: 0, claimable: 0 },
             totalEarnings: 0,
             totalSpent: 0,
             isCreator: false,

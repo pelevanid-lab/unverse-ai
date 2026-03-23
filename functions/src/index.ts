@@ -189,14 +189,18 @@ export const unlockContent = onCall({ memory: "256MiB" }, async (request: Callab
     const { postId } = request.data;
     if (!postId) throw new HttpsError("invalid-argument", "postId is required.");
 
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; // Corrected ID
+
         return await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const userSnap = await transaction.get(userRef);
-            if (!userSnap.exists) throw new HttpsError("not-found", "User profile not found.");
+            if (!userSnap.exists) throw new HttpsError("not-found", "User profile missing.");
             
             const userData = userSnap.data();
             const unlockedPostIds = userData?.unlockedPostIds || [];
@@ -428,13 +432,17 @@ export const confirmPurchase = onCall({ memory: "256MiB" }, async (request: Call
     const { amount, network, txHash } = request.data;
     if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing params.");
 
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; // Corrected ID
+
         await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.data();
             
@@ -1141,25 +1149,45 @@ export const executeBuyback = onCall({ memory: "256MiB" }, async (request: Calla
 });
 
 /**
+ * Helper to resolve a Firestore User Reference from a Firebase Auth UID.
+ * Supports both Document ID (Wallet) and authUid field (Linked Anonymous sessions).
+ */
+async function getUserDoc(db: admin.firestore.Firestore, authUid: string) {
+    const directRef = db.collection("users").doc(authUid);
+    const directSnap = await directRef.get();
+    if (directSnap.exists) return { ref: directRef, data: directSnap.data() };
+
+    // Fallback: Lookup by the linked authUid field
+    const querySnap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
+    if (!querySnap.empty) {
+        return { ref: querySnap.docs[0].ref, data: querySnap.docs[0].data() };
+    }
+    return null;
+}
+
+/**
  * JOIN CREATOR PROGRAM (First 100)
  * Grants Welcome Reward & Sets eligibility for milestones.
  */
 export const joinCreatorProgram = onCall({ memory: "256MiB" }, async (request: CallableRequest) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
     
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "Profile not found.");
+        const userId = userDoc.ref.id; // The wallet-based ID
+
         return await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
-            const userSnap = await transaction.get(userRef);
-            if (!userSnap.exists) throw new HttpsError("not-found", "Profile not found.");
+            const userRef = userDoc.ref;
+            const userData = (await transaction.get(userRef)).data();
             
-            const userData = userSnap.data();
-            if (!userData?.isCreator) throw new HttpsError("failed-precondition", "Must be a creator.");
-            if (userData?.creatorInFirst100Program) throw new HttpsError("already-exists", "Already joined.");
+            if (!userData) throw new HttpsError("not-found", "Profile missing during transaction.");
+            if (!userData.isCreator) throw new HttpsError("failed-precondition", "Must be a creator.");
+            if (userData.creatorInFirst100Program) throw new HttpsError("already-exists", "Already joined.");
 
             const configRef = db.collection("config").doc("system");
             const configSnap = await transaction.get(configRef);

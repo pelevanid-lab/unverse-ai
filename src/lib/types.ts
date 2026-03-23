@@ -28,6 +28,7 @@ export interface CharacterProfile {
 
 export interface UserProfile {
     uid: string;
+    authUid?: string; // Links Firebase Auth Session
     email?: string;
     username: string;
     walletAddress: string;
