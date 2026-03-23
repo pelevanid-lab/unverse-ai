@@ -831,17 +831,16 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
             const configData = configSnap.data();
             
             // 1. Admin Check (Using pre-resolved adminData and ref.id)
-            const adminWallet = configData?.admin_wallet_address;
             const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2"; 
 
             const tokenWallet = (request.auth?.token as any)?.walletAddress;
             const userWalletId = adminUserDoc.ref.id;
 
-            const isAdmin = adminId === VERIFIED_ADMIN_UID || 
-                            adminData?.isAdmin === true || 
-                            userWalletId.toLowerCase() === adminWallet?.toLowerCase() ||
-                            adminData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
-                            tokenWallet?.toLowerCase() === adminWallet?.toLowerCase();
+            const isAdmin = adminId === VERIFIED_ADMIN_UID ||
+                adminData?.isAdmin === true ||
+                userWalletId.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
+                adminData?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
+                tokenWallet?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
 
             if (!isAdmin) {
                 logger.error("ACCESS_DENIED", { uid: adminId, resolvedWallet: userWalletId });
@@ -1162,14 +1161,13 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
             }
 
             // Admin Authorization Check
-            const authorizedAdmin = configData?.admin_wallet_address;
             const VERIFIED_MASTER_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
             const userWalletId = adminUserDoc?.ref?.id;
             
             const isAdmin = adminId === VERIFIED_MASTER_UID || 
                             adminData?.isAdmin === true ||
-                            userWalletId?.toLowerCase() === authorizedAdmin?.toLowerCase() ||
-                            adminData?.walletAddress?.toLowerCase() === authorizedAdmin?.toLowerCase();
+                            userWalletId?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
+                            adminData?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
 
             if (!isAdmin) {
                 logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, ResolvedWallet: ${userWalletId}`);
@@ -1304,7 +1302,6 @@ async function getUserDoc(db: admin.firestore.Firestore, authUid: string) {
     const directSnap = await directRef.get();
     if (directSnap.exists) return { ref: directRef, data: directSnap.data() };
 
-    // Try lowercase if it's a wallet address
     const lowerAuthUid = authUid.toLowerCase();
     if (authUid !== lowerAuthUid) {
         const lowerRef = db.collection("users").doc(lowerAuthUid);
@@ -1312,13 +1309,11 @@ async function getUserDoc(db: admin.firestore.Firestore, authUid: string) {
         if (lowerSnap.exists) return { ref: lowerRef, data: lowerSnap.data() };
     }
 
-    // Fallback: Lookup by the linked authUid field
     const querySnap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
     if (!querySnap.empty) {
         return { ref: querySnap.docs[0].ref, data: querySnap.docs[0].data() };
     }
     
-    // Fallback: Lookup by lowercase authUid field
     if (authUid !== lowerAuthUid) {
         const lowerQuerySnap = await db.collection("users").where("authUid", "==", lowerAuthUid).limit(1).get();
         if (!lowerQuerySnap.empty) {
