@@ -173,7 +173,13 @@ export class Copilot {
         const char = params.character || this.user?.savedCharacter;
         let charInfo = "A person";
         if (char) {
-            charInfo = `Identity: ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}. Always maintain this EXACT identity.`;
+            const traits = [];
+            if (char.gender) traits.push(`Identity: ${char.gender}`);
+            if (char.hairColor && char.hairColor.toLowerCase() !== 'unknown') traits.push(`Hair: ${char.hairColor}`);
+            if (char.eyeColor && char.eyeColor.toLowerCase() !== 'unknown') traits.push(`Eyes: ${char.eyeColor}`);
+            if (char.faceStyle && char.faceStyle.toLowerCase() !== 'unknown') traits.push(`Face: ${char.faceStyle}`);
+            
+            charInfo = traits.join(", ") + ". Always maintain this EXACT identity.";
             if (char.persona_prompt) charInfo += ` Persona Context: ${char.persona_prompt}`;
         }
 
@@ -183,8 +189,8 @@ STRICT CONSTRAINTS:
 - DO NOT introduce new subjects, characters, or objects not mentioned by the user.
 - DO NOT alter the meaning of the request.
 - ONLY improve clarity, detail, composition, and visual quality.
-- CHARACTER CONSISTENCY: Enforce a single subject ONLY. Same identity as defined below. No multiple people in output.
-- IDENTITY LOCK (MANDATORY): Use the same face as reference image, preserve identity, identical facial structure, same eyes, same nose, same lips, no facial drift.
+- CHARACTER CONSISTENCY: Enforce a single subject ONLY. Same identity as defined below. No multiple subjects.
+- IDENTITY LOCK (MANDATORY): Maintain absolute 100% core identity consistency. Do not change the person's unique features.
 
 User Input: "${params.userInput}"
 Character: ${charInfo}

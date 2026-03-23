@@ -220,12 +220,7 @@ export const triggerScheduledPostsManual = onCall({ memory: "512MiB" }, async (r
  * Autonomous AI Copilot Premium Brain (V2 Scheduler)
  * Runs every day at 08:00 AM (Europe/Istanbul).
  */
-export const autonomousCopilotCron = onSchedule({
-    schedule: "every day 08:00",
-    timeZone: "Europe/Istanbul",
-    timeoutSeconds: 540,
-    memory: "1GiB"
-}, async (event) => {
+export const autonomousCopilotCron = onSchedule("0 8 * * *", async (event) => {
     const now = new Date();
     
     logger.info(`Starting Autonomous AI Copilot Premium Cron at ${now.toISOString()}`);
@@ -806,6 +801,14 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
     const db = admin.firestore();
     const now = Date.now();
 
+    // Correctly resolve admin user document (handle wallet-as-id mapping)
+    const adminUserDoc = await getUserDoc(db, adminId);
+    if (!adminUserDoc) {
+        logger.error("ADMIN_PROFILE_NOT_FOUND", { uid: adminId });
+        throw new HttpsError("permission-denied", "Admin profile not found.");
+    }
+    const adminData = adminUserDoc.data;
+
     // --- ENFORCEMENT ---
     let finalCliff = cliffMonths || 0;
     let finalDuration = durationMonths;
@@ -827,22 +830,19 @@ export const createVestingSchedule = onCall({ memory: "256MiB" }, async (request
             const configSnap = await transaction.get(configRef);
             const configData = configSnap.data();
             
-            // 1. Admin Check (Enhanced for Wallet-to-UID mapping)
+            // 1. Admin Check (Using pre-resolved adminData)
             const adminWallet = configData?.admin_wallet_address;
-            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2"; // User's confirmed Auth UID
+            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2"; 
 
-            // Check multiple sources for admin status
-            const userSnap = await transaction.get(db.collection("users").doc(adminId));
-            const userData = userSnap.data();
             const tokenWallet = (request.auth?.token as any)?.walletAddress;
 
             const isAdmin = adminId === VERIFIED_ADMIN_UID || 
-                            userData?.isAdmin === true || 
-                            userData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
+                            adminData?.isAdmin === true || 
+                            adminData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
                             tokenWallet?.toLowerCase() === adminWallet?.toLowerCase();
 
             if (!isAdmin) {
-                logger.error("ACCESS_DENIED", { uid: adminId, wallet: tokenWallet });
+                logger.error("ACCESS_DENIED", { uid: adminId, wallet: adminData?.walletAddress });
                 throw new HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
             }
 
@@ -1146,6 +1146,10 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
 
     const configRef = db.collection("config").doc("system");
     
+    // Correctly resolve admin user document 
+    const adminUserDoc = await getUserDoc(db, adminId);
+    const adminData = adminUserDoc?.data;
+
     try {
         return await db.runTransaction(async (transaction) => {
             const configSnap = await transaction.get(configRef);
@@ -1159,9 +1163,12 @@ export const sealEconomy = onCall({ memory: "256MiB" }, async (request: Callable
             const authorizedAdmin = configData?.admin_wallet_address;
             const VERIFIED_MASTER_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
             
-            // Allow if either UID matches master OR UID is the configured admin wallet
-            if (adminId !== VERIFIED_MASTER_UID && adminId.toLowerCase() !== authorizedAdmin?.toLowerCase()) {
-                logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, Authorized: ${authorizedAdmin}`);
+            const isAdmin = adminId === VERIFIED_MASTER_UID || 
+                            adminData?.isAdmin === true ||
+                            adminData?.walletAddress?.toLowerCase() === authorizedAdmin?.toLowerCase();
+
+            if (!isAdmin) {
+                logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, Wallet: ${adminData?.walletAddress}`);
                 throw new HttpsError("permission-denied", "Unauthorized admin.");
             }
 

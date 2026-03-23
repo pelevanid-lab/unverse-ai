@@ -17,8 +17,8 @@ export async function POST(req: Request) {
     cost = json.cost || 5; 
 
     // 1. IDENTITY ANCHORS (Digital Twin 3.0)
-    const STRONG_IDENTITY_POSITIVE = "same exact person from reference images, identical facial structure, same bone structure, same proportions, highly consistent identity, no facial deviation, preserve identity, realistic human face, no distortion, natural skin texture";
-    const STRONG_IDENTITY_NEGATIVE = "different person, different face, altered facial structure, distorted face, inconsistent identity, face morphing, low similarity, plastic skin, cartoonish, blurry face";
+    const STRONG_IDENTITY_POSITIVE = "maintain 100% face and identity consistency, same person as reference image, realistic human face, sharp features";
+    const STRONG_IDENTITY_NEGATIVE = "different person, altered facial structure, blurry face, distorted features";
 
     if (!prompt || !userId) {
       return NextResponse.json({ error: 'Prompt and userId are required' }, { status: 400 });
@@ -72,7 +72,8 @@ export async function POST(req: Request) {
         basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
     }
 
-    const identityPrefix = (cost === 3 || cost === 20 || (cost === 5 && character)) ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
+    const isIdentityLocked = (cost === 3 || cost === 20 || cost === 10 || (cost === 5 && character));
+    const identityPrefix = isIdentityLocked ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
     let finalPromptForAI = `${identityPrefix}${securityAnchor} ${basePrompt}`;
     
     // Dynamic Negative Prompt based on requested profile & scene
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
         negativeFils += ", woman, female";
     }
 
-    const identityNegativeAnchor = (cost === 3 || cost === 20 || (cost === 5 && character)) ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
+    const identityNegativeAnchor = isIdentityLocked ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
     const userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
     
     // Solo Subject Enforcement
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
     const imageToUseForTwin = image || character?.referenceImageUrl;
-    if ((cost === 3 || cost === 20 || (cost === 5 && character)) && imageToUseForTwin) {
+    if (isIdentityLocked && imageToUseForTwin) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");

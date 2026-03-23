@@ -305,7 +305,7 @@ export default function AIMusePage() {
             const { enhancedPrompt } = await copilot.generateVariationPrompt({
                 originalPrompt: genPrompt,
                 presets: selectedPresets,
-                character: user.savedCharacter
+                character: user.savedCharacter || undefined
             })
 
             // 2. Generate new image with 5 ULC cost
@@ -336,7 +336,7 @@ export default function AIMusePage() {
         }
     }
 
-    const handleSaveToContainer = async () => {
+    const handleSaveToContainer = async (skipRedirect: boolean = false) => {
         if (!user?.uid || !lastResult) return
         setSaving(true)
         try {
@@ -349,7 +349,7 @@ export default function AIMusePage() {
                 status: 'draft'
             })
             toast({ title: tCommon("savedToContainer"), description: tCommon("savedToContainerDesc") })
-            if (!showVariationPresets) {
+            if (!skipRedirect) {
                 router.push('/creator/container')
             }
             return true
@@ -362,7 +362,7 @@ export default function AIMusePage() {
     }
 
     const handleSaveAndVariations = async () => {
-        const success = await handleSaveToContainer()
+        const success = await handleSaveToContainer(true)
         if (success) {
             setShowVariationPresets(true)
         }
@@ -696,7 +696,7 @@ export default function AIMusePage() {
 
                                         <div className="flex flex-col gap-3">
                                             <div className="flex gap-4">
-                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
+                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={() => handleSaveToContainer()} disabled={saving}>
                                                     {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
                                                     {t("saveToPool")}
                                                 </Button>
