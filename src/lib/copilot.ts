@@ -490,7 +490,7 @@ Output ONLY the caption text.`;
      * Automation: Generates a daily AI draft for Profile Mode.
      * Cost: 2 ULC.
      */
-    async generateDailyDraft(): Promise<string> {
+    async generateDailyDraft(options?: { baseUrl?: string }): Promise<string> {
         const now = Date.now();
         if (!this.user?.aiCreatorModeExpiresAt || this.user.aiCreatorModeExpiresAt < now) {
             throw new Error("AI Copilot subscription is inactive or expired.");
@@ -525,7 +525,8 @@ Output ONLY the caption text.`;
         });
 
         // 4. API Call to Replicate (Simulated here, should be called via internal API fetch)
-        const response = await fetch('/api/ai/generate-image', {
+        const imageApiUrl = options?.baseUrl ? `${options.baseUrl}/api/ai/generate-image` : '/api/ai/generate-image';
+        const response = await fetch(imageApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -540,12 +541,13 @@ Output ONLY the caption text.`;
         if (!response.ok) throw new Error("Daily generation failed at API level.");
         const data = await response.json();
 
-        // 5. Save to Creator Media as DRAFT
+        // 5. Save to Creator Media as SCHEDULED (for autonomous publishing)
         const mediaDoc = await addDoc(collection(db, 'creator_media'), {
             creatorId: this.userId,
             mediaUrl: data.mediaUrl,
             mediaType: 'image',
-            status: 'draft',
+            status: 'scheduled', // Auto-schedule for immediate publishing
+            scheduledFor: Date.now(),
             source: 'ai_auto',
             createdAt: serverTimestamp(),
             priceULC: 10, // Default price

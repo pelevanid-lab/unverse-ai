@@ -96,7 +96,11 @@ export const optimizeMedia = onObjectFinalized({ timeoutSeconds: 540, memory: "1
 });
 
 // v2 Scheduler Function (Enhanced with logging and higher frequency)
-export const publishScheduledPosts = onSchedule("every 15 minutes", async (event) => {
+export const publishScheduledPosts = onSchedule({ 
+    schedule: "every 15 minutes",
+    timeoutSeconds: 360,
+    memory: "1GiB"
+}, async (event) => {
     const now = admin.firestore.Timestamp.now();
     const nowMs = now.toMillis();
     
@@ -163,6 +167,136 @@ export const publishScheduledPosts = onSchedule("every 15 minutes", async (event
     await batch.commit();
     
     logger.info("Successfully published all scheduled posts for this hour.");
+});
+
+/**
+ * Manually triggers the scheduled posts publication.
+ */
+export const triggerScheduledPostsManual = onCall({ memory: "512MiB" }, async (request: CallableRequest) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+    
+    // Admin Check
+    const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
+    if (request.auth.uid !== VERIFIED_ADMIN_UID) {
+        throw new HttpsError("permission-denied", "Only administrators can trigger manual publication.");
+    }
+
+    try {
+        // We reuse the same logic
+        const now = admin.firestore.Timestamp.now();
+        const nowMs = now.toMillis();
+        const snapshot = await db.collection("creator_media")
+          .where("status", "==", "scheduled")
+          .get();
+          
+        const postsToPublish = snapshot.docs.filter(doc => {
+            const data = doc.data();
+            return data.scheduledFor && data.scheduledFor <= nowMs;
+        });
+
+        if (postsToPublish.length === 0) return { success: true, count: 0 };
+        
+        const batch = db.batch();
+        postsToPublish.forEach(doc => {
+            const mediaData = doc.data();
+            const newPostRef = db.collection("posts").doc();
+            batch.set(newPostRef, {
+                ...mediaData,
+                status: undefined, // Don't copy internal status
+                createdAt: mediaData.scheduledFor || Date.now(),
+            });
+            batch.delete(doc.ref);
+        });
+        
+        await batch.commit();
+        return { success: true, count: postsToPublish.length };
+    } catch (error: any) {
+        logger.error("Manual trigger failed:", error);
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+/**
+ * Autonomous AI Copilot Brain (V2 Scheduler)
+ * Runs every hour to check for active subscribers needing an AI generation.
+ * Target: 8:00 AM daily for each user (based on their output settings).
+ */
+export const autonomousCopilotCron = onSchedule({
+    schedule: "every 1 hour",
+    timeoutSeconds: 540,
+    memory: "1GiB"
+}, async (event) => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    logger.info(`Starting Autonomous AI Copilot Cron at ${now.toISOString()} (Hour: ${currentHour})`);
+
+    // Only run heavily between 7 AM and 10 AM (Target window) 
+    // to save resources, but check hourly for late blooms.
+    
+    try {
+        const activeSubscribersSnap = await db.collection("users")
+            .where("aiCreatorModeExpiresAt", ">", Date.now())
+            .get();
+
+        if (activeSubscribersSnap.empty) {
+            logger.info("No active AI Copilot subscribers found.");
+            return;
+        }
+
+        logger.info(`Found ${activeSubscribersSnap.size} active subscribers. Checking eligibility...`);
+
+        const configSnap = await db.collection("config").doc("system").get();
+        const systemConfig = configSnap.data();
+        const cronSecret = systemConfig?.cron_secret || "AUTONOMOUS_KEY_PROTECTED";
+
+        // Filter eligible users (Haven't run today, and current time >= 8 AM)
+        for (const userDoc of activeSubscribersSnap.docs) {
+            const userData = userDoc.data();
+            const lastRunAt = userData.aiCreatorModeLastRunAt || 0;
+            const lastRunDate = new Date(lastRunAt).toDateString();
+            const todayDate = now.toDateString();
+
+            if (lastRunDate === todayDate) {
+                // Already ran today
+                continue;
+            }
+
+            // check if it's past 8 AM
+            if (currentHour < 8) {
+                continue;
+            }
+
+            logger.info(`Triggering AI generation for user: ${userDoc.id}`);
+            
+            try {
+                // Call the internal Next.js API route securely
+                // Use the configured domain or default to localhost for internal calls (though won't work in prod)
+                // Use the base URL from config
+                const baseUrl = systemConfig?.baseUrl || "https://unverse.ai";
+                const response = await fetch(`${baseUrl}/api/cron/auto-copilot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userDoc.id,
+                        secret: cronSecret
+                    })
+                });
+
+                if (response.ok) {
+                    logger.info(`Successfully triggered AI generation for ${userDoc.id}`);
+                } else {
+                    const errText = await response.text();
+                    logger.error(`Failed to trigger AI generation for ${userDoc.id}:`, errText);
+                }
+            } catch (triggerError) {
+                logger.error(`Error triggering AI for ${userDoc.id}:`, triggerError);
+            }
+        }
+
+    } catch (error) {
+        logger.error("Autonomous AI Cron failed:", error);
+    }
 });
 
 /**
@@ -1263,6 +1397,106 @@ export const joinCreatorProgram = onCall({ memory: "256MiB" }, async (request: C
     } catch (error: any) {
         logger.error("joinCreatorProgram error:", error);
         throw new HttpsError("internal", error.message);
+    }
+});
+
+/**
+ * PERMANENTLY DELETES A USER ACCOUNT AND ALL ASSOCIATED DATA.
+ * 1. Deletes all media from Storage (creator_media/{uid}, avatars/{uid}).
+ * 2. Deletes all documents from Firestore (User, Creator, Media, Posts, Subs, Ledger, Messages, Chats).
+ * 3. Deletes the Firebase Auth account.
+ */
+export const deleteUserAccount = onCall({ memory: "512MiB", timeoutSeconds: 300 }, async (request: CallableRequest) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "User must be logged in to delete their account.");
+    }
+
+    const authUid = request.auth.uid;
+    const db = admin.firestore();
+    const storage = admin.storage();
+    const auth = admin.auth();
+
+    try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) {
+            // If Firestore profile doesn't exist, we still want to try deleting Auth user if possible, 
+            // but usually this is a sign of an inconsistent state.
+            logger.warn(`deleteUserAccount: Profile not found for authUid ${authUid}. Proceeding with Auth deletion only.`);
+            await auth.deleteUser(authUid);
+            return { success: true, message: "Auth account deleted, but no Firestore profile found." };
+        }
+
+        const userId = userDoc.ref.id; // Wallet-based ID or Auth ID
+        logger.info(`Starting permanent deletion for user: ${userId} (Auth UID: ${authUid})`);
+
+        // 1. Storage Deletion
+        const bucket = storage.bucket();
+        try {
+            await bucket.deleteFiles({ prefix: `creator_media/${userId}/` });
+            await bucket.deleteFiles({ prefix: `avatars/${userId}/` });
+            logger.info(`Storage cleanup completed for ${userId}`);
+        } catch (storageError) {
+            logger.error(`Storage cleanup failed for ${userId}:`, storageError);
+            // Continue anyway, we want to delete as much as possible
+        }
+
+        // 2. Firestore Deletion (Batching)
+        const collectionsToCleanup = [
+            { col: "creator_media", field: "creatorId" },
+            { col: "posts", field: "creatorId" },
+            { col: "subscriptions", field: "userId" },
+            { col: "subscriptions", field: "creatorId" },
+            { col: "ledger", field: "userId" },
+            { col: "ledger", field: "fromUserId" },
+            { col: "ledger", field: "toUserId" },
+            { col: "ledger", field: "creatorId" },
+            { col: "messages", field: "senderId" },
+            { col: "vesting_schedules", field: "userId" },
+            { col: "ai_generation_logs", field: "userId" }
+        ];
+
+        for (const config of collectionsToCleanup) {
+            const snapshot = await db.collection(config.col).where(config.field, "==", userId).get();
+            if (!snapshot.empty) {
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                logger.info(`Deleted ${snapshot.size} documents from ${config.col}`);
+            }
+        }
+
+        // 2b. Chats and Special sub-collections
+        const chatsSnapshot = await db.collection("chats").where("participants", "array-contains", userId).get();
+        if (!chatsSnapshot.empty) {
+            const batch = db.batch();
+            chatsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            logger.info(`Deleted ${chatsSnapshot.size} documents from chats`);
+        }
+
+        // 2c. Sub-collections under User profile (e.g., unlocked_media)
+        const unlockedMediaSnap = await userDoc.ref.collection("unlocked_media").get();
+        if (!unlockedMediaSnap.empty) {
+            const batch = db.batch();
+            unlockedMediaSnap.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            logger.info(`Deleted ${unlockedMediaSnap.size} unlocked_media sub-docs`);
+        }
+
+        // 2d. Main User and Creator documents
+        await db.collection("creators").doc(userId).delete();
+        await userDoc.ref.delete();
+        logger.info(`Deleted main user and creator records for ${userId}`);
+
+        // 3. Auth Deletion
+        await auth.deleteUser(authUid);
+        logger.info(`Auth account deleted for authUid ${authUid}`);
+
+        return { success: true };
+
+    } catch (error: any) {
+        logger.error(`deleteUserAccount FATAL ERROR for ${authUid}:`, error);
+        throw new HttpsError("internal", error.message || "An error occurred during account deletion.");
     }
 });
 
