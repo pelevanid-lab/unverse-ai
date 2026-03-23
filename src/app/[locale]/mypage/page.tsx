@@ -203,6 +203,21 @@ export default function MyPage() {
                     </CardContent>
                 </Card>
             </Link>
+
+            <Link href="/userprofilemanagement" className="group">
+                <Card className="glass-card border-white/10 group-hover:border-destructive/40 transition-all h-full bg-white/[0.02]">
+                    <CardContent className="p-6 flex items-center justify-between">
+                        <div className='flex items-center gap-4'>
+                            <div className="p-3 bg-destructive/10 rounded-xl group-hover:bg-destructive/20 transition-colors"><Settings className="w-6 h-6 text-destructive" /></div>
+                            <div>
+                                <p className="font-bold">{t('accountManagement')}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('manageAccount')}</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-destructive transition-colors" />
+                    </CardContent>
+                </Card>
+            </Link>
         </div>
       </div>
     </div>

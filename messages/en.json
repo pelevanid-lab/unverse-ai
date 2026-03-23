@@ -42,7 +42,23 @@
     "activeAccess": "Active Access",
     "paymentWallets": "Payment Wallets",
     "connection": "Connection",
-    "messages": "Messages"
+    "messages": "Messages",
+    "accountManagement": "Account Management",
+    "manageAccount": "Profile & Security"
+  },
+  "UserProfileManagement": {
+    "title": "Account Management",
+    "subtitle": "Manage your profile and account settings.",
+    "dangerZone": "Danger Zone",
+    "deleteAccount": "Permanently Delete My Account",
+    "deleteDesc": "This action will permanently delete your account, all media, posts, and data.",
+    "deleteConfirmTitle": "Are You Sure You Want to Delete Your Account?",
+    "deleteConfirmDesc": "This action cannot be undone. All your data and media will be permanently deleted.",
+    "confirmButton": "Yes, Delete My Account",
+    "cancelButton": "Cancel",
+    "deleting": "Deleting Account...",
+    "deleteSuccess": "Your account has been successfully deleted.",
+    "deleteError": "An error occurred while deleting your account."
   },
   "Wallet": {
     "yourBalance": "Your Balance",

@@ -42,7 +42,23 @@
     "activeAccess": "Aktif Erişim",
     "paymentWallets": "Ödeme Cüzdanları",
     "connection": "Bağlantı",
-    "messages": "Mesajlar"
+    "messages": "Mesajlar",
+    "accountManagement": "Hesap Yönetimi",
+    "manageAccount": "Profil ve Güvenlik"
+  },
+  "UserProfileManagement": {
+    "title": "Hesap Yönetimi",
+    "subtitle": "Profilinizi ve hesap ayarlarınızı yönetin.",
+    "dangerZone": "Tehlikeli Bölge",
+    "deleteAccount": "Hesabımı Kalıcı Olarak Sil",
+    "deleteDesc": "Bu işlem hesabınızı, tüm medyalarınızı, gönderilerinizi ve verilerinizi kalıcı olarak silecektir.",
+    "deleteConfirmTitle": "Hesabı Silmek İstediğinizden Emin Misiniz?",
+    "deleteConfirmDesc": "Bu işlem geri alınamaz. Tüm verileriniz ve medyalarınız kalıcı olarak silinecektir.",
+    "confirmButton": "Evet, Hesabımı Sil",
+    "cancelButton": "Vazgeç",
+    "deleting": "Hesap Siliniyor...",
+    "deleteSuccess": "Hesabınız başarıyla silindi.",
+    "deleteError": "Hesap silinirken bir hata oluştu."
   },
   "Wallet": {
     "yourBalance": "Bakiyeniz",
