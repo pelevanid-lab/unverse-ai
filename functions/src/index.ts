@@ -220,7 +220,7 @@ export const triggerScheduledPostsManual = onCall({ memory: "512MiB" }, async (r
  * Autonomous AI Copilot Premium Brain (V2 Scheduler)
  * Runs every day at 08:00 AM (Europe/Istanbul).
  */
-export const autonomousCopilotCron = onSchedule("0 8 * * *", async (event) => {
+export const autonomousCopilotDailyWorker = onSchedule("0 8 * * *", async (event) => {
     const now = new Date();
     
     logger.info(`Starting Autonomous AI Copilot Premium Cron at ${now.toISOString()}`);
@@ -1304,11 +1304,40 @@ async function getUserDoc(db: admin.firestore.Firestore, authUid: string) {
     const directSnap = await directRef.get();
     if (directSnap.exists) return { ref: directRef, data: directSnap.data() };
 
+    // Try lowercase if it's a wallet address
+    const lowerAuthUid = authUid.toLowerCase();
+    if (authUid !== lowerAuthUid) {
+        const lowerRef = db.collection("users").doc(lowerAuthUid);
+        const lowerSnap = await lowerRef.get();
+        if (lowerSnap.exists) return { ref: lowerRef, data: lowerSnap.data() };
+    }
+
     // Fallback: Lookup by the linked authUid field
     const querySnap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
     if (!querySnap.empty) {
         return { ref: querySnap.docs[0].ref, data: querySnap.docs[0].data() };
     }
+    
+    // Fallback: Lookup by lowercase authUid field
+    if (authUid !== lowerAuthUid) {
+        const lowerQuerySnap = await db.collection("users").where("authUid", "==", lowerAuthUid).limit(1).get();
+        if (!lowerQuerySnap.empty) {
+            return { ref: lowerQuerySnap.docs[0].ref, data: lowerQuerySnap.docs[0].data() };
+        }
+    }
+    
+    // Ultimate Fallback: lookup by walletAddress field
+    const walletSnap = await db.collection("users").where("walletAddress", "==", lowerAuthUid).limit(1).get();
+    if (!walletSnap.empty) {
+        return { ref: walletSnap.docs[0].ref, data: walletSnap.docs[0].data() };
+    }
+    
+    // Final desperate check with exact original case just in case
+    const exactWalletSnap = await db.collection("users").where("walletAddress", "==", authUid).limit(1).get();
+    if (!exactWalletSnap.empty) {
+        return { ref: exactWalletSnap.docs[0].ref, data: exactWalletSnap.docs[0].data() };
+    }
+
     return null;
 }
 

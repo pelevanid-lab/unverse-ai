@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUserAccount = exports.joinCreatorProgram = exports.executeBuyback = exports.sealEconomy = exports.getPostMedia = exports.distributeStakingRewards = exports.claimVestedULC = exports.createVestingSchedule = exports.confirmPresalePurchase = exports.confirmPurchase = exports.unlockContent = exports.autonomousCopilotCron = exports.triggerScheduledPostsManual = exports.publishScheduledPosts = exports.optimizeMedia = void 0;
+exports.deleteUserAccount = exports.joinCreatorProgram = exports.executeBuyback = exports.sealEconomy = exports.getPostMedia = exports.distributeStakingRewards = exports.claimVestedULC = exports.createVestingSchedule = exports.confirmPresalePurchase = exports.confirmPurchase = exports.unlockContent = exports.autonomousCopilotDailyWorker = exports.triggerScheduledPostsManual = exports.publishScheduledPosts = exports.optimizeMedia = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const storage_1 = require("firebase-functions/v2/storage");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -229,33 +229,25 @@ exports.triggerScheduledPostsManual = (0, https_1.onCall)({ memory: "512MiB" }, 
     }
 });
 /**
- * Autonomous AI Copilot Brain (V2 Scheduler)
- * Runs every hour to check for active subscribers needing an AI generation.
- * Target: 8:00 AM daily for each user (based on their output settings).
+ * Autonomous AI Copilot Premium Brain (V2 Scheduler)
+ * Runs every day at 08:00 AM (Europe/Istanbul).
  */
-exports.autonomousCopilotCron = (0, scheduler_1.onSchedule)({
-    schedule: "every 1 hour",
-    timeoutSeconds: 540,
-    memory: "1GiB"
-}, async (event) => {
+exports.autonomousCopilotDailyWorker = (0, scheduler_1.onSchedule)("0 8 * * *", async (event) => {
     const now = new Date();
-    const currentHour = now.getHours();
-    firebase_functions_1.logger.info(`Starting Autonomous AI Copilot Cron at ${now.toISOString()} (Hour: ${currentHour})`);
-    // Only run heavily between 7 AM and 10 AM (Target window) 
-    // to save resources, but check hourly for late blooms.
+    firebase_functions_1.logger.info(`Starting Autonomous AI Copilot Premium Cron at ${now.toISOString()}`);
     try {
         const activeSubscribersSnap = await db.collection("users")
             .where("aiCreatorModeExpiresAt", ">", Date.now())
             .get();
         if (activeSubscribersSnap.empty) {
-            firebase_functions_1.logger.info("No active AI Copilot subscribers found.");
+            firebase_functions_1.logger.info("No active AI Copilot Premium subscribers found.");
             return;
         }
         firebase_functions_1.logger.info(`Found ${activeSubscribersSnap.size} active subscribers. Checking eligibility...`);
         const configSnap = await db.collection("config").doc("system").get();
         const systemConfig = configSnap.data();
         const cronSecret = systemConfig?.cron_secret || "AUTONOMOUS_KEY_PROTECTED";
-        // Filter eligible users (Haven't run today, and current time >= 8 AM)
+        // Filter eligible users (Haven't run today)
         for (const userDoc of activeSubscribersSnap.docs) {
             const userData = userDoc.data();
             const lastRunAt = userData.aiCreatorModeLastRunAt || 0;
@@ -263,10 +255,6 @@ exports.autonomousCopilotCron = (0, scheduler_1.onSchedule)({
             const todayDate = now.toDateString();
             if (lastRunDate === todayDate) {
                 // Already ran today
-                continue;
-            }
-            // check if it's past 8 AM
-            if (currentHour < 8) {
                 continue;
             }
             firebase_functions_1.logger.info(`Triggering AI generation for user: ${userDoc.id}`);
@@ -760,6 +748,13 @@ exports.createVestingSchedule = (0, https_1.onCall)({ memory: "256MiB" }, async 
     const adminId = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
+    // Correctly resolve admin user document (handle wallet-as-id mapping)
+    const adminUserDoc = await getUserDoc(db, adminId);
+    if (!adminUserDoc) {
+        firebase_functions_1.logger.error("ADMIN_PROFILE_NOT_FOUND", { uid: adminId });
+        throw new https_1.HttpsError("permission-denied", "Admin profile not found.");
+    }
+    const adminData = adminUserDoc.data;
     // --- ENFORCEMENT ---
     let finalCliff = cliffMonths || 0;
     let finalDuration = durationMonths;
@@ -777,19 +772,18 @@ exports.createVestingSchedule = (0, https_1.onCall)({ memory: "256MiB" }, async 
         await db.runTransaction(async (transaction) => {
             const configSnap = await transaction.get(configRef);
             const configData = configSnap.data();
-            // 1. Admin Check (Enhanced for Wallet-to-UID mapping)
+            // 1. Admin Check (Using pre-resolved adminData and ref.id)
             const adminWallet = configData?.admin_wallet_address;
-            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2"; // User's confirmed Auth UID
-            // Check multiple sources for admin status
-            const userSnap = await transaction.get(db.collection("users").doc(adminId));
-            const userData = userSnap.data();
+            const VERIFIED_ADMIN_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
             const tokenWallet = request.auth?.token?.walletAddress;
+            const userWalletId = adminUserDoc.ref.id;
             const isAdmin = adminId === VERIFIED_ADMIN_UID ||
-                userData?.isAdmin === true ||
-                userData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
+                adminData?.isAdmin === true ||
+                userWalletId.toLowerCase() === adminWallet?.toLowerCase() ||
+                adminData?.walletAddress?.toLowerCase() === adminWallet?.toLowerCase() ||
                 tokenWallet?.toLowerCase() === adminWallet?.toLowerCase();
             if (!isAdmin) {
-                firebase_functions_1.logger.error("ACCESS_DENIED", { uid: adminId, wallet: tokenWallet });
+                firebase_functions_1.logger.error("ACCESS_DENIED", { uid: adminId, resolvedWallet: userWalletId });
                 throw new https_1.HttpsError("permission-denied", "Only the system admin can create vesting schedules.");
             }
             // 2. Pool Deduction Logic
@@ -1059,6 +1053,9 @@ exports.sealEconomy = (0, https_1.onCall)({ memory: "256MiB" }, async (request) 
     const now = Date.now();
     const adminId = request.auth.uid;
     const configRef = db.collection("config").doc("system");
+    // Correctly resolve admin user document 
+    const adminUserDoc = await getUserDoc(db, adminId);
+    const adminData = adminUserDoc?.data;
     try {
         return await db.runTransaction(async (transaction) => {
             const configSnap = await transaction.get(configRef);
@@ -1069,9 +1066,13 @@ exports.sealEconomy = (0, https_1.onCall)({ memory: "256MiB" }, async (request) 
             // Admin Authorization Check
             const authorizedAdmin = configData?.admin_wallet_address;
             const VERIFIED_MASTER_UID = "ib2oJUss0NYEJjo7e9CKhod5pvh2";
-            // Allow if either UID matches master OR UID is the configured admin wallet
-            if (adminId !== VERIFIED_MASTER_UID && adminId.toLowerCase() !== authorizedAdmin?.toLowerCase()) {
-                firebase_functions_1.logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, Authorized: ${authorizedAdmin}`);
+            const userWalletId = adminUserDoc?.ref?.id;
+            const isAdmin = adminId === VERIFIED_MASTER_UID ||
+                adminData?.isAdmin === true ||
+                userWalletId?.toLowerCase() === authorizedAdmin?.toLowerCase() ||
+                adminData?.walletAddress?.toLowerCase() === authorizedAdmin?.toLowerCase();
+            if (!isAdmin) {
+                firebase_functions_1.logger.error(`Seal Attempt Unauthorized. AdminId: ${adminId}, ResolvedWallet: ${userWalletId}`);
                 throw new https_1.HttpsError("permission-denied", "Unauthorized admin.");
             }
             const reserveBalance = configData?.pools?.reserve || 0;
@@ -1191,10 +1192,35 @@ async function getUserDoc(db, authUid) {
     const directSnap = await directRef.get();
     if (directSnap.exists)
         return { ref: directRef, data: directSnap.data() };
+    // Try lowercase if it's a wallet address
+    const lowerAuthUid = authUid.toLowerCase();
+    if (authUid !== lowerAuthUid) {
+        const lowerRef = db.collection("users").doc(lowerAuthUid);
+        const lowerSnap = await lowerRef.get();
+        if (lowerSnap.exists)
+            return { ref: lowerRef, data: lowerSnap.data() };
+    }
     // Fallback: Lookup by the linked authUid field
     const querySnap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
     if (!querySnap.empty) {
         return { ref: querySnap.docs[0].ref, data: querySnap.docs[0].data() };
+    }
+    // Fallback: Lookup by lowercase authUid field
+    if (authUid !== lowerAuthUid) {
+        const lowerQuerySnap = await db.collection("users").where("authUid", "==", lowerAuthUid).limit(1).get();
+        if (!lowerQuerySnap.empty) {
+            return { ref: lowerQuerySnap.docs[0].ref, data: lowerQuerySnap.docs[0].data() };
+        }
+    }
+    // Ultimate Fallback: lookup by walletAddress field
+    const walletSnap = await db.collection("users").where("walletAddress", "==", lowerAuthUid).limit(1).get();
+    if (!walletSnap.empty) {
+        return { ref: walletSnap.docs[0].ref, data: walletSnap.docs[0].data() };
+    }
+    // Final desperate check with exact original case just in case
+    const exactWalletSnap = await db.collection("users").where("walletAddress", "==", authUid).limit(1).get();
+    if (!exactWalletSnap.empty) {
+        return { ref: exactWalletSnap.docs[0].ref, data: exactWalletSnap.docs[0].data() };
     }
     return null;
 }
