@@ -321,7 +321,7 @@ export async function createVestingScheduleAction(data: {
     description?: string;
     poolId: string;
 }): Promise<any> {
-    const createFunc = httpsCallable(functions, 'createVestingSchedule');
+    const createFunc = httpsCallable(functions, 'createVestingSchedule_v2');
     const result = await createFunc(data);
     return result.data;
 }
@@ -482,7 +482,7 @@ export async function handleUnstaking(user: UserProfile, amount: number) {
 }
 
 export async function sealEconomyAction() {
-    const sealFn = httpsCallable(functions, "sealEconomy");
+    const sealFn = httpsCallable(functions, "sealEconomy_v2");
     return await sealFn();
 }
 
