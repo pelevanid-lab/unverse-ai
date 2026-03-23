@@ -240,8 +240,12 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
         }
 
         const memoryContext = await this.getMemoryContext();
+        const langInstruction = params.locale === 'tr' 
+            ? "DAİMİ DİLİN TÜRKÇE OLMALI (Your response must always be in Turkish)." 
+            : "YOUR RESPONSE MUST ALWAYS BE IN ENGLISH.";
+
         const systemInstructions = `Generate a catchy, professional social media caption for this AI-generated image.
-DAİMİ DİLİN TÜRKÇE OLMALI (Your response must always be in Turkish).
+${langInstruction}
 Original Idea: "${params.originalPrompt || 'Beautiful scene'}"
 Content Type: ${params.contentType} (Note: Create exclusivity for premium/limited)
 
@@ -392,9 +396,10 @@ Output ONLY the caption text.`;
     /**
      * Generates 5-7 tags based on the prompt, including niche, visual and persona tags.
      */
-    async generateTags(prompt: string, contentType?: string): Promise<string[]> {
+    async generateTags(prompt: string, locale?: string, contentType?: string): Promise<string[]> {
         try {
             const hasPersona = !!this.user?.savedCharacter;
+            const langInstruction = locale === 'tr' ? "Output hashtags in Turkish." : "Output hashtags in English.";
             const response = await fetch('/api/ai/enhance-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -402,6 +407,7 @@ Output ONLY the caption text.`;
                     prompt,
                     systemInstructions: `Generate 7 relevant, one-word hashtags (without #) for this image. 
                     Include tags for: niche, visual style, content type (${contentType || 'public'}), and persona (${hasPersona ? 'consistent' : 'new'}). 
+                    ${langInstruction}
                     Output ONLY the words separated by commas.`
                 })
             });

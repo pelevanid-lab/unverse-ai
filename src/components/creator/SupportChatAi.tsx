@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sparkles, Send, X, Bot, User, Loader2, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useTranslations, useLocale } from "next-intl";
 
 interface Message {
   role: 'user' | 'ai';
@@ -14,12 +15,18 @@ interface Message {
 }
 
 export function SupportChatAi({ onClose }: { onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', content: "Merhaba! Ben Unverse AI Destek Asistanıyım. Platform, abonelikler veya Copilot özellikleri hakkında merak ettiğin her şeyi sorabilirsin." }
-  ]);
+  const t = useTranslations('SupportChat');
+  const locale = useLocale();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messages.length === 0) {
+        setMessages([{ role: 'ai', content: t('initialAiMessage') }]);
+    }
+  }, [t]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -41,16 +48,7 @@ export function SupportChatAi({ onClose }: { onClose: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, { role: 'user', content: userMessage }],
-          systemPrompt: `Sen Unverse AI platformunun resmi destek asistanısın. 
-          Unverse AI; yaratıcıların AI kullanarak içerik ürettiği, paylaştığı ve ULC token ile kazanç sağladığı bir Web3 platformudur.
-          Daimi dilin Türkçe olmalı (ancak kullanıcı başka dilde yazarsa o dilde cevap ver).
-          Kibar, yardımsever ve teknoloji odaklı bir ton kullan.
-          Önemli Bilgiler: 
-          - Copilot Premium: Aylık 10 ULC. Günlük 1 AI draft üretir.
-          - ULC Token: Platformun temel birimidir.
-          - Staking: Kullanıcılar ULC stake ederek pasif gelir elde edebilir.
-          - Pre-sale: Şu an ön satış aşamasındayız.
-          - Container (Konteyner): Max 60 medya sınırı vardır.`
+          systemPrompt: t('systemPrompt', { locale: locale === 'en' ? 'English' : 'Turkish' })
         })
       });
 
@@ -58,7 +56,7 @@ export function SupportChatAi({ onClose }: { onClose: () => void }) {
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'ai', content: data.text }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', content: "Üzgünüm, şu an bağlantı kuramıyorum. Lütfen daha sonra tekrar dene." }]);
+      setMessages(prev => [...prev, { role: 'ai', content: t('errorMsg') }]);
     } finally {
       setIsLoading(false);
     }
@@ -103,14 +101,14 @@ export function SupportChatAi({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex items-center gap-1.5 opacity-30">
                 {m.role === 'ai' ? <Bot size={10} /> : <User size={10} />}
-                <span className="text-[10px] font-black uppercase tracking-tighter">{m.role === 'ai' ? "Unverse Bot" : "Creator"}</span>
+                <span className="text-[10px] font-black uppercase tracking-tighter">{m.role === 'ai' ? t('botName') : t('userName')}</span>
             </div>
           </div>
         ))}
         {isLoading && (
             <div className="flex items-center gap-2 opacity-50 px-2">
                 <Loader2 size={12} className="animate-spin text-primary" />
-                <span className="text-[10px] uppercase font-bold tracking-widest">Assistant Thinking...</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest">{t('thinking')}</span>
             </div>
         )}
       </div>
@@ -121,7 +119,7 @@ export function SupportChatAi({ onClose }: { onClose: () => void }) {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Nasıl yardımcı olabilirim?"
+                placeholder={t('inputPlaceholder')}
                 className="bg-white/5 border-white/10 rounded-xl h-12 focus:border-primary/50 transition-all font-medium"
             />
             <Button onClick={handleSend} disabled={isLoading} className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/80 transition-all shrink-0">

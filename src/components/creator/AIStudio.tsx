@@ -18,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { buildPrompt, PromptStyle, CompositionMode } from '@/lib/CopilotEngine';
 import { CharacterProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ type StudioMode = 'standard' | 'digitalTwin' | 'aiEdit';
 
 export function AIStudio() {
     const t = useTranslations('AIStudio');
+    const locale = useLocale();
     const { user } = useWallet();
     const { toast } = useToast();
 
@@ -365,7 +366,7 @@ export function AIStudio() {
         setPublishing(true);
         try {
             await copilot.init();
-            const tags = await copilot.generateTags(prompt); // 🚀 Auto-tagging
+            const tags = await copilot.generateTags(prompt, locale); // 🚀 Auto-tagging
 
             // "Havuza Kaydet" now creates the draft manually
             const mediaDocRef = await addDoc(collection(db, 'creator_media'), {

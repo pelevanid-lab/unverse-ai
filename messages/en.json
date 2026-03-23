@@ -791,5 +791,14 @@
     "frozenDesc": "This account and its content are currently inaccessible due to a violation of our community guidelines or account suspension.",
     "backToDiscover": "Back to Discover",
     "supportCenter": "Support Center"
+  },
+  "SupportChat": {
+    "initialAiMessage": "Hello! I am the Unverse AI Support Assistant. You can ask me anything about the platform, subscriptions, or Copilot features.",
+    "systemPrompt": "You are the official support assistant for the Unverse AI platform. Unverse AI is a Web3 platform where creators produce content using AI, share it, and earn with ULC tokens. Your primary language must be {locale} (but answer in the user's language if they write in another). Use a polite, helpful, and tech-focused tone. Key Info: Copilot Premium is 10 ULC/month, ULC is the core currency, Staking provides passive income, Pre-sale is ongoing, Container limit is 60 media.",
+    "errorMsg": "Sorry, I cannot connect right now. Please try again later.",
+    "inputPlaceholder": "How can I help you?",
+    "thinking": "Assistant Thinking...",
+    "botName": "Unverse Bot",
+    "userName": "Creator"
   }
 }

@@ -798,5 +798,14 @@
     "frozenDesc": "Bu hesap topluluk kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
     "backToDiscover": "Keşfet'e Dön",
     "supportCenter": "Destek Merkezi"
+  },
+  "SupportChat": {
+    "initialAiMessage": "Merhaba! Ben Unverse AI Destek Asistanıyım. Platform, abonelikler veya Copilot özellikleri hakkında merak ettiğin her şeyi sorabilirsin.",
+    "systemPrompt": "Sen Unverse AI platformunun resmi destek asistanısın. Unverse AI; yaratıcıların AI kullanarak içerik ürettiği, paylaştığı ve ULC token ile kazanç sağladığı bir Web3 platformudur. Daimi dilin {locale} olmalı (ancak kullanıcı başka dilde yazarsa o dilde cevap ver). Kibar, yardımsever ve teknoloji odaklı bir ton kullan. Önemli Bilgiler: Copilot Premium aylık 10 ULC, ULC temel birimdir, Staking pasif gelir sağlar, Ön satış devam ediyor, Konteyner sınırı 60 medyadır.",
+    "errorMsg": "Üzgünüm, şu an bağlantı kuramıyorum. Lütfen daha sonra tekrar dene.",
+    "inputPlaceholder": "Nasıl yardımcı olabilirim?",
+    "thinking": "Asistan Düşünüyor...",
+    "botName": "Unverse Bot",
+    "userName": "Yaratıcı"
   }
 }

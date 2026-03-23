@@ -15,7 +15,7 @@ import { UserProfile, CreatorMedia } from '@/lib/types';
 import { useTranslations, useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { processAiCreatorActivation } from '@/lib/ledger';
+import { processAiCreatorActivation, getSystemConfig } from '@/lib/ledger';
 import { Link } from '@/i18n/routing';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,7 @@ export default function CopilotPage() {
     const [isScheduling, setIsScheduling] = useState(false);
     const [mediaPool, setMediaPool] = useState<CreatorMedia[]>([]);
     const [showSupport, setShowSupport] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         if (user?.aiCreatorModeConfig) {
@@ -92,7 +93,17 @@ export default function CopilotPage() {
             setMediaPool(snap.docs.map(d => ({ id: d.id, ...d.data() } as CreatorMedia)));
         };
         fetchContainer();
-    }, [user?.uid]);
+
+        const checkAdmin = async () => {
+            if (user?.walletAddress) {
+                const sysConfig = await getSystemConfig();
+                if (sysConfig?.admin_wallet_address?.toLowerCase() === user.walletAddress.toLowerCase()) {
+                    setIsAdmin(true);
+                }
+            }
+        };
+        checkAdmin();
+    }, [user?.uid, user?.walletAddress]);
 
     // 🤖 Auto-Pilot Logic: Trigger initial/daily draft if active (Fixed 8 AM Drop)
     useEffect(() => {
@@ -293,9 +304,22 @@ export default function CopilotPage() {
                         <p className="text-xs font-mono font-bold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
                      </div>
                      <div className="h-10 w-px bg-white/10 hidden md:block" />
-                     <Button variant="outline" onClick={() => setShowSupport(true)} className="rounded-full border-white/10 px-6 gap-2 bg-white/5 hover:bg-white/10">
-                        <Sparkles size={14} className="text-primary" />
-                        <span>Support Center</span>
+                     <Button 
+                        variant="outline" 
+                        onClick={() => {
+                            if (isAdmin) {
+                                setShowSupport(true);
+                            } else {
+                                toast({ title: "Coming Soon", description: "Support Center will be available soon for all creators." });
+                            }
+                        }} 
+                        className={cn(
+                            "rounded-full border-white/10 px-6 gap-2 bg-white/5 transition-all",
+                            !isAdmin ? "opacity-50 grayscale cursor-not-allowed" : "hover:bg-white/10"
+                        )}
+                     >
+                        <Sparkles size={14} className={cn("text-primary", !isAdmin && "text-muted-foreground")} />
+                        <span>{isAdmin ? "Support Center" : "Coming Soon"}</span>
                      </Button>
                 </div>
             </header>
