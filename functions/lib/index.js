@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.joinCreatorProgram = exports.executeBuyback = exports.sealEconomy = exports.getPostMedia = exports.distributeStakingRewards = exports.claimVestedULC = exports.createVestingSchedule = exports.confirmPresalePurchase = exports.confirmPurchase = exports.unlockContent = exports.publishScheduledPosts = exports.optimizeMedia = void 0;
+exports.deleteUserAccount = exports.joinCreatorProgram = exports.executeBuyback = exports.sealEconomy = exports.getPostMedia = exports.distributeStakingRewards = exports.claimVestedULC = exports.createVestingSchedule = exports.confirmPresalePurchase = exports.confirmPurchase = exports.unlockContent = exports.publishScheduledPosts = exports.optimizeMedia = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const storage_1 = require("firebase-functions/v2/storage");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -203,14 +203,18 @@ exports.unlockContent = (0, https_1.onCall)({ memory: "256MiB" }, async (request
     const { postId } = request.data;
     if (!postId)
         throw new https_1.HttpsError("invalid-argument", "postId is required.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; // Corrected ID
         return await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const userSnap = await transaction.get(userRef);
             if (!userSnap.exists)
-                throw new https_1.HttpsError("not-found", "User profile not found.");
+                throw new https_1.HttpsError("not-found", "User profile missing.");
             const userData = userSnap.data();
             const unlockedPostIds = userData?.unlockedPostIds || [];
             if (unlockedPostIds.includes(postId)) {
@@ -415,12 +419,16 @@ exports.confirmPurchase = (0, https_1.onCall)({ memory: "256MiB" }, async (reque
     const { amount, network, txHash } = request.data;
     if (!amount || !network || !txHash)
         throw new https_1.HttpsError("invalid-argument", "Missing params.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; // Corrected ID
         await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.data();
             const isFirstPurchase = !userData?.firstPurchaseBonusClaimed;
@@ -487,7 +495,7 @@ exports.confirmPresalePurchase = (0, https_1.onCall)({ memory: "256MiB" }, async
     const { amount, network, txHash } = request.data;
     if (!amount || !network || !txHash)
         throw new https_1.HttpsError("invalid-argument", "Missing purchase parameters.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
     const PRESALE_TIERS = [
@@ -499,8 +507,12 @@ exports.confirmPresalePurchase = (0, https_1.onCall)({ memory: "256MiB" }, async
     ];
     const PRESALE_TOTAL_ALLOCATION = 100000000;
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id;
         const result = await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const configRef = db.collection("config").doc("system");
             const configSnap = await transaction.get(configRef);
             const config = configSnap.data();
@@ -719,10 +731,14 @@ exports.claimVestedULC = (0, https_1.onCall)({ memory: "256MiB" }, async (reques
     const { scheduleId } = request.data;
     if (!scheduleId)
         throw new https_1.HttpsError("invalid-argument", "scheduleId is required.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id;
         return await db.runTransaction(async (transaction) => {
             const scheduleRef = db.collection("vesting_schedules").doc(scheduleId);
             const scheduleSnap = await transaction.get(scheduleRef);
@@ -852,9 +868,13 @@ exports.getPostMedia = (0, https_1.onCall)({ memory: "256MiB" }, async (request)
     const { postId } = request.data;
     if (!postId)
         throw new https_1.HttpsError("invalid-argument", "postId is required.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id;
         const postSnap = await db.collection("posts").doc(postId).get();
         if (!postSnap.exists)
             throw new https_1.HttpsError("not-found", "Post not found.");
@@ -1044,25 +1064,44 @@ exports.executeBuyback = (0, https_1.onCall)({ memory: "256MiB" }, async (reques
     }
 });
 /**
+ * Helper to resolve a Firestore User Reference from a Firebase Auth UID.
+ * Supports both Document ID (Wallet) and authUid field (Linked Anonymous sessions).
+ */
+async function getUserDoc(db, authUid) {
+    const directRef = db.collection("users").doc(authUid);
+    const directSnap = await directRef.get();
+    if (directSnap.exists)
+        return { ref: directRef, data: directSnap.data() };
+    // Fallback: Lookup by the linked authUid field
+    const querySnap = await db.collection("users").where("authUid", "==", authUid).limit(1).get();
+    if (!querySnap.empty) {
+        return { ref: querySnap.docs[0].ref, data: querySnap.docs[0].data() };
+    }
+    return null;
+}
+/**
  * JOIN CREATOR PROGRAM (First 100)
  * Grants Welcome Reward & Sets eligibility for milestones.
  */
 exports.joinCreatorProgram = (0, https_1.onCall)({ memory: "256MiB" }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError("unauthenticated", "Auth required.");
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc)
+            throw new https_1.HttpsError("not-found", "Profile not found.");
+        const userId = userDoc.ref.id; // The wallet-based ID
         return await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
-            const userSnap = await transaction.get(userRef);
-            if (!userSnap.exists)
-                throw new https_1.HttpsError("not-found", "Profile not found.");
-            const userData = userSnap.data();
-            if (!userData?.isCreator)
+            const userRef = userDoc.ref;
+            const userData = (await transaction.get(userRef)).data();
+            if (!userData)
+                throw new https_1.HttpsError("not-found", "Profile missing during transaction.");
+            if (!userData.isCreator)
                 throw new https_1.HttpsError("failed-precondition", "Must be a creator.");
-            if (userData?.creatorInFirst100Program)
+            if (userData.creatorInFirst100Program)
                 throw new https_1.HttpsError("already-exists", "Already joined.");
             const configRef = db.collection("config").doc("system");
             const configSnap = await transaction.get(configRef);
@@ -1122,6 +1161,123 @@ exports.joinCreatorProgram = (0, https_1.onCall)({ memory: "256MiB" }, async (re
     catch (error) {
         firebase_functions_1.logger.error("joinCreatorProgram error:", error);
         throw new https_1.HttpsError("internal", error.message);
+    }
+});
+/**
+ * PERMANENTLY DELETES A USER ACCOUNT AND ALL ASSOCIATED DATA.
+ */
+exports.deleteUserAccount = (0, https_1.onCall)({ memory: "512MiB", timeoutSeconds: 300 }, async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be logged in to delete their account.");
+    }
+    const authUid = request.auth.uid;
+    const db = admin.firestore();
+    const storage = admin.storage();
+    const auth = admin.auth();
+    try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) {
+            firebase_functions_1.logger.warn(`deleteUserAccount: Profile not found for authUid ${authUid}. Proceeding with Auth deletion.`);
+            await auth.deleteUser(authUid);
+            return { success: true, message: "Auth account deleted, but no Firestore profile found." };
+        }
+        const userId = userDoc.ref.id;
+        firebase_functions_1.logger.info(`Starting permanent deletion for user: ${userId} (Auth UID: ${authUid})`);
+        // Helper to delete in batches (max 500)
+        async function deleteInBatches(query) {
+            let totalDeleted = 0;
+            while (true) {
+                const snapshot = await query.limit(500).get();
+                if (snapshot.empty)
+                    break;
+                const batch = db.batch();
+                snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+                await batch.commit();
+                totalDeleted += snapshot.size;
+                // If we got exactly 500, there might be more
+                if (snapshot.size < 500)
+                    break;
+            }
+            return totalDeleted;
+        }
+        // 1. Storage Deletion
+        const bucket = storage.bucket();
+        try {
+            // No leading slash for prefix
+            await bucket.deleteFiles({ prefix: `creator_media/${userId}/` });
+            await bucket.deleteFiles({ prefix: `avatars/${userId}/` });
+            firebase_functions_1.logger.info(`Storage cleanup completed for ${userId}`);
+        }
+        catch (storageError) {
+            firebase_functions_1.logger.error(`Storage cleanup failed for ${userId}:`, storageError);
+        }
+        // 2. Firestore Deletion
+        const collectionsToCleanup = [
+            { col: "creator_media", field: "creatorId" },
+            { col: "posts", field: "creatorId" },
+            { col: "subscriptions", field: "userId" },
+            { col: "subscriptions", field: "creatorId" },
+            { col: "ledger", field: "userId" },
+            { col: "ledger", field: "fromUserId" },
+            { col: "ledger", field: "toUserId" },
+            { col: "ledger", field: "creatorId" },
+            { col: "messages", field: "senderId" },
+            { col: "vesting_schedules", field: "userId" },
+            { col: "ai_generation_logs", field: "userId" }
+        ];
+        for (const config of collectionsToCleanup) {
+            try {
+                const count = await deleteInBatches(db.collection(config.col).where(config.field, "==", userId));
+                if (count > 0)
+                    firebase_functions_1.logger.info(`Deleted ${count} documents from ${config.col}`);
+            }
+            catch (err) {
+                firebase_functions_1.logger.error(`Error cleaning up collection ${config.col}:`, err);
+            }
+        }
+        // 2b. Chats (Array membership)
+        try {
+            const count = await deleteInBatches(db.collection("chats").where("participants", "array-contains", userId));
+            if (count > 0)
+                firebase_functions_1.logger.info(`Deleted ${count} documents from chats`);
+        }
+        catch (err) {
+            firebase_functions_1.logger.error(`Error cleaning up chats:`, err);
+        }
+        // 2c. Sub-collections (unlocked_media)
+        try {
+            const count = await deleteInBatches(userDoc.ref.collection("unlocked_media"));
+            if (count > 0)
+                firebase_functions_1.logger.info(`Deleted ${count} unlocked_media documents`);
+        }
+        catch (err) {
+            firebase_functions_1.logger.error(`Error cleaning up unlocked_media:`, err);
+        }
+        // 2d. Main Documents
+        await db.collection("creators").doc(userId).delete();
+        await userDoc.ref.delete();
+        firebase_functions_1.logger.info(`Deleted main user/creator records for ${userId}`);
+        // 3. Auth Deletion 
+        // This is done LAST to ensure Firestore is cleaned up while we still have the token context if needed, 
+        // and because if this fails (e.g. user already deleted), we still want the return success.
+        try {
+            await auth.deleteUser(authUid);
+            firebase_functions_1.logger.info(`Auth account deleted for authUid ${authUid}`);
+        }
+        catch (authError) {
+            if (authError.code === 'auth/user-not-found') {
+                firebase_functions_1.logger.warn(`Auth user ${authUid} not found during deletion. Continuing.`);
+            }
+            else {
+                throw authError;
+            }
+        }
+        return { success: true };
+    }
+    catch (error) {
+        firebase_functions_1.logger.error(`deleteUserAccount FATAL ERROR for ${authUid}:`, error);
+        // Map common errors or return a generic one
+        throw new https_1.HttpsError("internal", error.message || "Deletion failed");
     }
 });
 //# sourceMappingURL=index.js.map
