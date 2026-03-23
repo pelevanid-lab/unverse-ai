@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star } from "lucide-react"
+import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Copilot } from '@/lib/copilot'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -44,6 +45,11 @@ export default function AIMusePage() {
     const [logId, setLogId] = useState<string | null>(null)
     const [satisfactionScore, setSatisfactionScore] = useState<number | null>(null)
     const [uploadedRefUrls, setUploadedRefUrls] = useState<string[]>([])
+
+    // Scene Variations State
+    const [showVariationPresets, setShowVariationPresets] = useState(false)
+    const [selectedPresets, setSelectedPresets] = useState({ shot: '', view: '', mood: '' })
+    const [isVariationMode, setIsVariationMode] = useState(false)
 
     useEffect(() => {
         if (user?.savedCharacter) {
@@ -280,6 +286,53 @@ export default function AIMusePage() {
             toast({ variant: 'destructive', title: tCommon("generationError"), description: err.message })
         } finally {
             setGenerating(false)
+            setIsVariationMode(false)
+        }
+    }
+
+    const handleGenerateVariation = async () => {
+        if (!user?.uid || !lastResult || !genPrompt) return
+        setGenerating(true)
+        setShowVariationPresets(false)
+        try {
+            const copilot = new Copilot(user.uid)
+            await copilot.init()
+
+            // 🗑️ Cleanup previous unsaved result (the one we just saved to pool, so it's fine to delete the storage preview)
+            // But wait, it's safer to just set lastResult to null later.
+            
+            // 1. Generate transformed prompt
+            const { enhancedPrompt } = await copilot.generateVariationPrompt({
+                originalPrompt: genPrompt,
+                presets: selectedPresets,
+                character: user.savedCharacter
+            })
+
+            // 2. Generate new image with 5 ULC cost
+            const response = await fetch('/api/ai/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: genPrompt,
+                    translation: enhancedPrompt,
+                    userId: user.uid,
+                    character: user.savedCharacter,
+                    cost: 5 // Variations are 5 ULC
+                })
+            })
+
+            if (!response.ok) throw new Error(tCommon("generationError"))
+            const data = await response.json()
+            
+            setLastResult(data.mediaUrl)
+            setLogId(data.logId)
+            setSatisfactionScore(null)
+            setIsVariationMode(true)
+            toast({ title: t("variationOptions"), description: tCommon("publishSuccess") })
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: tCommon("generationError"), description: err.message })
+        } finally {
+            setGenerating(false)
         }
     }
 
@@ -296,11 +349,22 @@ export default function AIMusePage() {
                 status: 'draft'
             })
             toast({ title: tCommon("savedToContainer"), description: tCommon("savedToContainerDesc") })
-            router.push('/creator/container')
+            if (!showVariationPresets) {
+                router.push('/creator/container')
+            }
+            return true
         } catch (err: any) {
             toast({ variant: 'destructive', title: tCommon("saveFailed"), description: err.message })
+            return false
         } finally {
             setSaving(false)
+        }
+    }
+
+    const handleSaveAndVariations = async () => {
+        const success = await handleSaveToContainer()
+        if (success) {
+            setShowVariationPresets(true)
         }
     }
 
@@ -630,12 +694,17 @@ export default function AIMusePage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-4">
-                                            <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
-                                                {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
-                                                {t("saveToPool")}
-                                            </Button>
-                                            <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
+                                        <div className="flex flex-col gap-3">
+                                            <div className="flex gap-4">
+                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2" variant="default" onClick={handleSaveToContainer} disabled={saving}>
+                                                    {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
+                                                    {t("saveToPool")}
+                                                </Button>
+                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white" onClick={handleSaveAndVariations} disabled={saving}>
+                                                    <Layers size={18} /> {t("saveAndVariations")}
+                                                </Button>
+                                            </div>
+                                            <Button className="w-full h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
                                                 <RefreshCcw size={18} /> {t("regenAction")} (5 ULC)
                                             </Button>
                                         </div>
@@ -649,6 +718,84 @@ export default function AIMusePage() {
                     </div>
                 </div>
             </div>
+
+            {/* VARIATION PRESETS DIALOG */}
+            <Dialog open={showVariationPresets} onOpenChange={setShowVariationPresets}>
+                <DialogContent className="glass-card border-white/10 text-white max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <Layers className="text-fuchsia-400" /> {t("variationOptions")}
+                        </DialogTitle>
+                        <DialogDescription className="text-muted-foreground">
+                            {t("variationCost")}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 py-4">
+                        {/* Group 1: Shot Type */}
+                        <div className="space-y-3">
+                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("shotType")}</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {['closerShot', 'closeUp'].map(preset => (
+                                    <Button
+                                        key={preset}
+                                        variant={selectedPresets.shot === t(preset) ? 'default' : 'outline'}
+                                        className={cn("h-10 rounded-xl text-xs", selectedPresets.shot === t(preset) && "bg-fuchsia-600 text-white")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, shot: prev.shot === t(preset) ? '' : t(preset) }))}
+                                    >
+                                        {t(preset)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Group 2: View Angle */}
+                        <div className="space-y-3">
+                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("viewType")}</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {['frontView', 'backView', 'overShoulder', 'wideAngle'].map(preset => (
+                                    <Button
+                                        key={preset}
+                                        variant={selectedPresets.view === t(preset) ? 'default' : 'outline'}
+                                        className={cn("h-10 rounded-xl text-xs", selectedPresets.view === t(preset) && "bg-fuchsia-600 text-white")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, view: prev.view === t(preset) ? '' : t(preset) }))}
+                                    >
+                                        {t(preset)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Group 3: Mood */}
+                        <div className="space-y-3">
+                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("moodType")}</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['moreCinematic', 'moreIntimate', 'moreAttractive'].map(preset => (
+                                    <Button
+                                        key={preset}
+                                        variant={selectedPresets.mood === t(preset) ? 'default' : 'outline'}
+                                        className={cn("h-10 rounded-xl text-[10px]", selectedPresets.mood === t(preset) && "bg-fuchsia-600 text-white")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, mood: prev.mood === t(preset) ? '' : t(preset) }))}
+                                    >
+                                        {t(preset)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            className="w-full h-14 rounded-2xl font-bold bg-primary text-white text-lg gap-2"
+                            onClick={handleGenerateVariation}
+                            disabled={generating || (!selectedPresets.shot && !selectedPresets.view && !selectedPresets.mood)}
+                        >
+                            {generating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                            {t("generateAction")} (5 ULC)
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

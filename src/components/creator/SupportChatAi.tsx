@@ -78,7 +78,7 @@ export function SupportChatAi({ onClose }: { onClose: () => void }) {
                 <CardTitle className="text-lg font-black italic uppercase tracking-tighter">Support <span className="text-primary">Center</span></CardTitle>
                 <div className="flex items-center gap-1 text-[8px] font-black uppercase text-primary/60 tracking-widest">
                     <div className="w-1 h-1 bg-green-500 rounded-full" />
-                    Neural Assistant Online
+                    {t('statusOnline')}
                 </div>
             </div>
         </div>

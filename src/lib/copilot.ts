@@ -184,7 +184,7 @@ STRICT CONSTRAINTS:
 - DO NOT alter the meaning of the request.
 - ONLY improve clarity, detail, composition, and visual quality.
 - CHARACTER CONSISTENCY: Enforce a single subject ONLY. Same identity as defined below. No multiple people in output.
-- IDENTITY DRIFT: Ensure the face and features are identical to previous generations.
+- IDENTITY LOCK (MANDATORY): Use the same face as reference image, preserve identity, identical facial structure, same eyes, same nose, same lips, no facial drift.
 
 User Input: "${params.userInput}"
 Character: ${charInfo}
@@ -558,5 +558,61 @@ Output ONLY the caption text.`;
         });
 
         return mediaDoc.id;
+    }
+
+    /**
+     * Scene Variations: Transforms an existing scene into a new variation.
+     * Preserves: Identity, Outfit, Location, Tone.
+     * Changes: Composition, Camera, Framing, Mood emphasis.
+     */
+    async generateVariationPrompt(params: {
+        originalPrompt: string,
+        presets: {
+            shot?: string,
+            view?: string,
+            mood?: string
+        },
+        character?: CharacterProfile
+    }): Promise<{ enhancedPrompt: string }> {
+        const char = params.character || this.user?.savedCharacter;
+        let charInfo = "A person";
+        if (char) {
+            charInfo = `Identity: ${char.gender}, Hair: ${char.hairColor}, Eyes: ${char.eyeColor}, Face: ${char.faceStyle}. Identical face to reference.`;
+        }
+
+        const variationDirectives = [
+            params.presets.shot,
+            params.presets.view,
+            params.presets.mood
+        ].filter(Boolean).join(", ");
+
+        const systemInstructions = `You are a professional Creative Director. Transform the "Original Scene" into a new cinematic variation.
+STRICT VARIATION RULES:
+- KEEP the same character (Identity Locked).
+- KEEP the same outfit and clothing details.
+- KEEP the same location and environment.
+- KEEP the same emotional tone and vibe.
+- CHANGE ONLY the composition, camera framing, and mood emphasis according to the "Variation Directives".
+- IDENTITY LOCK: Use the same face as reference image, preserve identity, identical facial structure, same eyes, same nose, same lips, no facial drift.
+
+Original Scene: "${params.originalPrompt}"
+Character: ${charInfo}
+Variation Directives: ${variationDirectives}
+
+Output ONLY the expanded, high-quality 50-word AI image prompt (in English) describing this specific variation.`;
+
+        const response = await fetch('/api/ai/enhance-prompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: params.originalPrompt,
+                systemInstructions,
+                character: char
+            })
+        });
+
+        if (!response.ok) throw new Error("Variation enhancement failed.");
+        const data = await response.json();
+        return { enhancedPrompt: data.enhancedPrompt };
     }
 }

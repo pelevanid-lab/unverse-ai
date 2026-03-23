@@ -64,7 +64,7 @@ export function AICreatorCopilot({ contentType, creatorName, onApply }: AICreato
                 )}
                 
                 <p className="text-[9px] text-center text-muted-foreground italic opacity-60">
-                    Rule-based assistant active. No AI tokens used.
+                    Rule-based Premium mode active. No AI tokens used.
                 </p>
             </CardContent>
         </Card>

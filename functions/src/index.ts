@@ -217,22 +217,18 @@ export const triggerScheduledPostsManual = onCall({ memory: "512MiB" }, async (r
 });
 
 /**
- * Autonomous AI Copilot Brain (V2 Scheduler)
- * Runs every hour to check for active subscribers needing an AI generation.
- * Target: 8:00 AM daily for each user (based on their output settings).
+ * Autonomous AI Copilot Premium Brain (V2 Scheduler)
+ * Runs every day at 08:00 AM (Europe/Istanbul).
  */
 export const autonomousCopilotCron = onSchedule({
-    schedule: "every 1 hour",
+    schedule: "every day 08:00",
+    timeZone: "Europe/Istanbul",
     timeoutSeconds: 540,
     memory: "1GiB"
 }, async (event) => {
     const now = new Date();
-    const currentHour = now.getHours();
     
-    logger.info(`Starting Autonomous AI Copilot Cron at ${now.toISOString()} (Hour: ${currentHour})`);
-
-    // Only run heavily between 7 AM and 10 AM (Target window) 
-    // to save resources, but check hourly for late blooms.
+    logger.info(`Starting Autonomous AI Copilot Premium Cron at ${now.toISOString()}`);
     
     try {
         const activeSubscribersSnap = await db.collection("users")
@@ -240,7 +236,7 @@ export const autonomousCopilotCron = onSchedule({
             .get();
 
         if (activeSubscribersSnap.empty) {
-            logger.info("No active AI Copilot subscribers found.");
+            logger.info("No active AI Copilot Premium subscribers found.");
             return;
         }
 
@@ -250,7 +246,7 @@ export const autonomousCopilotCron = onSchedule({
         const systemConfig = configSnap.data();
         const cronSecret = systemConfig?.cron_secret || "AUTONOMOUS_KEY_PROTECTED";
 
-        // Filter eligible users (Haven't run today, and current time >= 8 AM)
+        // Filter eligible users (Haven't run today)
         for (const userDoc of activeSubscribersSnap.docs) {
             const userData = userDoc.data();
             const lastRunAt = userData.aiCreatorModeLastRunAt || 0;
@@ -259,11 +255,6 @@ export const autonomousCopilotCron = onSchedule({
 
             if (lastRunDate === todayDate) {
                 // Already ran today
-                continue;
-            }
-
-            // check if it's past 8 AM
-            if (currentHour < 8) {
                 continue;
             }
 

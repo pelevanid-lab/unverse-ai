@@ -101,6 +101,7 @@ export function useWallet() {
           // === THE FIX ===
           const newUserProfile: UserProfile = {
             uid: address,
+            authUid: firebaseUser.uid,
             walletAddress: address,
             username: `Explorer_${address.slice(2, 8)}`,
             bio: "New citizen of the Unverse.",

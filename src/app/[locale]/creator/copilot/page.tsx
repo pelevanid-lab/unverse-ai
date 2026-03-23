@@ -138,7 +138,7 @@ export default function CopilotPage() {
             await updateDoc(doc(db, 'users', user.uid), {
                 aiCreatorModeLastRunAt: Date.now()
             });
-            toast({ title: "Copilot Mission Executed", description: "A new draft has been prepared for your persona." });
+            toast({ title: "Copilot Premium Mission Executed", description: "A new draft has been prepared for your persona." });
             
             // Re-fetch last drop
             const q = query(
@@ -180,7 +180,7 @@ export default function CopilotPage() {
         setLoading(true);
         try {
             await processAiCreatorActivation(user.uid);
-            toast({ title: "Copilot Online!", description: "Your 30-day autonomous mission has successfully launched." });
+            toast({ title: "Copilot Premium Online!", description: "Your 30-day autonomous mission has successfully launched." });
         } catch (err: any) {
             toast({ variant: "destructive", title: "Launch Aborted", description: err.message });
         } finally {
@@ -287,7 +287,7 @@ export default function CopilotPage() {
                         <div>
                             <div className="flex items-center gap-3 mb-1">
                                 <h1 className="text-4xl font-headline font-black tracking-tighter uppercase italic">
-                                    {user?.savedCharacter?.name || "Copilot"} <span className="text-primary">Command</span>
+                                    {user?.savedCharacter?.name || "Copilot Premium"} <span className="text-primary">Command</span>
                                 </h1>
                                 <Badge className="bg-primary/20 text-primary border-primary/20 font-black text-[10px] px-2">V2.0 ALPHA</Badge>
                             </div>
@@ -586,7 +586,7 @@ export default function CopilotPage() {
             <section className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Mission Calendar</span></h2>
+                        <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Premium Calendar</span></h2>
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Strategic Content Deployment Grid</p>
                     </div>
                     {containerCount >= 7 ? (

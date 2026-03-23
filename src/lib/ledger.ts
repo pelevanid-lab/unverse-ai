@@ -614,7 +614,7 @@ export async function refundAiGenerationPayment(userId: string, ledgerId: string
 }
 
 /**
- * AI Creator Mode Activation (2 ULC)
+ * AI Creator Mode Activation (10 ULC for renewal, First time FREE)
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorActivation(userId: string): Promise<string> {
@@ -674,7 +674,7 @@ export async function processAiCreatorActivation(userId: string): Promise<string
 }
 
 /**
- * AI Creator Mode Daily Generation (1 ULC)
+ * AI Creator Mode Daily Generation (2 ULC)
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorGeneration(userId: string): Promise<string> {

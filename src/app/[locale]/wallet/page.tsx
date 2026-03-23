@@ -18,13 +18,29 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck } from 'lucide-react';
 import { useTonConnectUI } from '@tonconnect/ui-react';
 import { useTranslations } from 'next-intl';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { format } from "date-fns";
 
 // --- CONSTANTS ---
 // ULC_PRICE_USDT is now dynamic
 
 // --- SUB-COMPONENTS ---
 
-function BalanceCard({ user }: { user: UserProfile | null }) {
+function BalanceCard({ user, onShowVesting }: { user: UserProfile | null, onShowVesting?: () => void }) {
     const t = useTranslations('Wallet');
     let numericBalance = 0;
     const ulcBalance = user?.ulcBalance;
@@ -57,9 +73,15 @@ function BalanceCard({ user }: { user: UserProfile | null }) {
                         <p className="text-xs text-primary/60 font-medium">Available to spend</p>
                     </div>
                     {lockedBalance > 0 && (
-                        <div className="flex items-center gap-4 bg-orange-500/5 border border-orange-500/10 p-4 rounded-2xl">
+                        <div 
+                            className="flex items-center gap-4 bg-orange-500/5 border border-orange-500/10 p-4 rounded-2xl cursor-pointer hover:bg-orange-500/10 transition-all active:scale-95 group/locked"
+                            onClick={onShowVesting}
+                        >
                              <div className="space-y-0.5">
-                                <p className="text-[10px] text-orange-400/70 font-bold uppercase tracking-tighter">Locked Assets</p>
+                                <p className="text-[10px] text-orange-400/70 font-bold uppercase tracking-tighter flex items-center gap-1">
+                                    Locked Assets
+                                    <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover/locked:opacity-100 transition-opacity" />
+                                </p>
                                 <div className="text-2xl font-bold text-orange-400">{lockedBalance.toFixed(1)} <span className="text-xs font-normal opacity-70">ULC</span></div>
                              </div>
                         </div>
@@ -382,6 +404,7 @@ export default function WalletPage() {
   const [vestingLoading, setVestingLoading] = useState<string | null>(null);
   const [earnings, setEarnings] = useState<{ available: number, pending: number }>({ available: 0, pending: 0 });
   const [schedules, setSchedules] = useState<VestingSchedule[]>([]);
+  const [showVestingModal, setShowVestingModal] = useState(false);
 
   // Fetch user profile and system config
   useEffect(() => {
@@ -529,7 +552,7 @@ export default function WalletPage() {
         </header>
         
         <div className="flex flex-col gap-6">
-            <BalanceCard user={userProfile} />
+            <BalanceCard user={userProfile} onShowVesting={() => setShowVestingModal(true)} />
 
             <VestingDashboard 
                 schedules={schedules} 
@@ -553,6 +576,78 @@ export default function WalletPage() {
                 <HistoryCardLink />
             </div>
         </div>
+
+        {/* Vesting Timeline Modal */}
+        <Dialog open={showVestingModal} onOpenChange={setShowVestingModal}>
+            <DialogContent className="max-w-2xl bg-[#0a0a0c] border-white/10 text-white p-0 overflow-hidden rounded-3xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+                
+                <DialogHeader className="p-8 pb-4">
+                    <DialogTitle className="flex items-center gap-3 text-2xl font-bold font-headline">
+                        <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400">
+                             <History className="w-5 h-5" />
+                        </div>
+                        {t('vestingTimeline')}
+                    </DialogTitle>
+                    <DialogDescription className="text-white/60 text-base">
+                        {t('vestingTimelineDesc')}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="p-8 pt-2 space-y-6">
+                    <div className="grid grid-cols-2 gap-4 pb-4">
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest leading-none mb-2">{t('totalLocked')}</p>
+                            <p className="text-2xl font-bold font-mono text-orange-400">{userProfile.ulcBalance?.locked?.toFixed(1) || '0.0'} <span className="text-xs font-normal opacity-50 uppercase">ULC</span></p>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest leading-none mb-2">{t('activeSchedules')}</p>
+                            <p className="text-2xl font-bold font-mono text-blue-400">{schedules.length}</p>
+                        </div>
+                    </div>
+
+                    <div className="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                        <Table>
+                            <TableHeader className="bg-white/5 pointer-events-none sticky top-0 z-10">
+                                <TableRow className="border-white/10 hover:bg-transparent">
+                                    <TableHead className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t('schedule')}</TableHead>
+                                    <TableHead className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t('amount')}</TableHead>
+                                    <TableHead className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">{t('startDate')}</TableHead>
+                                    <TableHead className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground text-right">{t('endDate')}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {schedules.map((s) => (
+                                    <TableRow key={s.id} className="border-white/5 hover:bg-white/5 transition-colors group">
+                                        <TableCell className="py-4">
+                                            <div className="font-bold text-sm">{s.description || 'Staking/Reward'}</div>
+                                            <div className="text-[10px] text-muted-foreground opacity-50 font-mono">ID: {s.id.slice(0, 8)}</div>
+                                        </TableCell>
+                                        <TableCell className="py-4">
+                                            <div className="font-bold text-sm font-mono">{s.totalAmount} <span className="text-[10px] opacity-50">ULC</span></div>
+                                            <div className="text-[10px] text-green-500 font-medium">-{s.releasedAmount.toFixed(1)} {t('released')}</div>
+                                        </TableCell>
+                                        <TableCell className="py-4 text-xs opacity-70">
+                                            {format(s.startTime, 'MMM dd, yyyy')}
+                                        </TableCell>
+                                        <TableCell className="py-4 text-xs font-bold text-right text-blue-400">
+                                            {format(s.startTime + s.duration, 'MMM dd, yyyy')}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 p-4 flex items-start gap-3">
+                        <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-xs text-blue-300/80 leading-relaxed italic">
+                            {t('linearVestingNotice')}
+                        </p>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

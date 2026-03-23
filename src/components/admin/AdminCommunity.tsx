@@ -169,7 +169,7 @@ export default function AdminCommunity() {
                     { id: "cre-1", order: 1, title: "Elite Creator Program", slogan: "Join the Elite", description: "Only first 100 creators join the elite club.", bullets: ["milestone rewards", "exclusive benefits", "early advantage"] },
                     { id: "cre-2", order: 2, title: "AI Studio", slogan: "Limitless Creation", description: "No skills required. Just imagine.", bullets: ["instant content generation", "premium-ready visuals"] },
                     { id: "cre-3", order: 3, title: "85/15 Revenue Model", slogan: "Fair Earnings", description: "You earn instantly.", bullets: ["85% creator share", "no delays", "direct earnings"] },
-                    { id: "cre-4", order: 4, title: "Unverse Copilot", slogan: "AI Assistant", description: "Your AI manager.", bullets: ["content optimization", "trend analysis", "smart editing"] },
+                    { id: "cre-4", order: 4, title: "Unverse Copilot", slogan: "AI Premium", description: "Your AI manager.", bullets: ["content optimization", "trend analysis", "smart editing"] },
                     { id: "cre-5", order: 5, title: "Grow With the Platform", slogan: "Shared Success", description: "Your tokens grow as ecosystem grows.", bullets: ["vesting benefits", "long-term value"] }
                 ]
             }
