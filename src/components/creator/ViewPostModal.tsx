@@ -98,7 +98,7 @@ export function ViewPostModal({ post, onClose }: ViewPostModalProps) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] flex flex-col glass-card p-0 overflow-hidden">
+      <DialogContent className="max-w-4xl w-full h-full max-h-[90vh] flex flex-col bg-background border border-white/10 p-0 overflow-hidden">
         <Button onClick={onClose} className="absolute top-2 right-2 z-50 h-8 w-8 p-0 rounded-full bg-black/50 hover:bg-black/80 text-white">
             <X className="h-4 w-4" />
         </Button>

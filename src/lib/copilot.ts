@@ -540,7 +540,8 @@ Output ONLY the caption text.`;
                 enhancedPrompt: enhancement.enhancedPrompt,
                 negativePrompt: enhancement.negativePrompt,
                 userId: this.userId,
-                cost: 0 // Payment already handled above
+                cost: 0, // Payment already handled above
+                character: this.user?.savedCharacter
             })
         });
 

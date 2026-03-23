@@ -136,8 +136,8 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-screen h-screen p-4 flex items-center justify-center bg-black/95 backdrop-blur-md border-0 overflow-hidden">
-        <Button onClick={onClose} className="absolute top-4 right-4 z-50 h-10 w-10 p-0 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-xl border border-white/10">
+      <DialogContent className="max-w-screen h-screen p-4 flex items-center justify-center bg-black border-0 overflow-hidden">
+        <Button onClick={onClose} className="absolute top-4 right-4 z-50 h-10 w-10 p-0 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
             <X className="h-6 w-6" />
         </Button>
         <DialogTitle className="sr-only">Content by {creator.username}</DialogTitle>

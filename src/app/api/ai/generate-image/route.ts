@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     cost = json.cost || 5; 
 
     // 1. IDENTITY ANCHORS (Digital Twin 3.0)
-    const STRONG_IDENTITY_POSITIVE = "maintain 100% face and identity consistency, same person as reference image, realistic human face, sharp features";
+    const STRONG_IDENTITY_POSITIVE = "maintain 100% exact facial copy of the reference image, absolute likeness, identical person, exact same face";
     const STRONG_IDENTITY_NEGATIVE = "different person, altered facial structure, blurry face, distorted features";
 
     if (!prompt || !userId) {
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
         basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
     }
 
-    const isIdentityLocked = (cost === 3 || cost === 20 || cost === 10 || (cost === 5 && character));
+    const isIdentityLocked = (cost === 3 || cost === 20 || cost === 10 || (cost === 5 && character) || (cost === 0 && character));
     const identityPrefix = isIdentityLocked ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
     let finalPromptForAI = `${identityPrefix}${securityAnchor} ${basePrompt}`;
     
