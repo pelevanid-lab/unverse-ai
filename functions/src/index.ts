@@ -516,7 +516,7 @@ export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (reques
     const { amount, network, txHash } = request.data;
     if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing purchase parameters.");
 
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
 
@@ -530,8 +530,12 @@ export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (reques
     const PRESALE_TOTAL_ALLOCATION = 100000000;
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; 
+
         const result = await db.runTransaction(async (transaction) => {
-            const userRef = db.collection("users").doc(userId);
+            const userRef = userDoc.ref;
             const configRef = db.collection("config").doc("system");
             const configSnap = await transaction.get(configRef);
             const config = configSnap.data();
@@ -782,11 +786,15 @@ export const claimVestedULC = onCall({ memory: "256MiB" }, async (request: Calla
     const { scheduleId } = request.data;
     if (!scheduleId) throw new HttpsError("invalid-argument", "scheduleId is required.");
 
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
     const now = Date.now();
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; 
+
         return await db.runTransaction(async (transaction) => {
             const scheduleRef = db.collection("vesting_schedules").doc(scheduleId);
             const scheduleSnap = await transaction.get(scheduleRef);
@@ -936,10 +944,13 @@ export const getPostMedia = onCall({ memory: "256MiB" }, async (request: Callabl
     const { postId } = request.data;
     if (!postId) throw new HttpsError("invalid-argument", "postId is required.");
     
-    const userId = request.auth.uid;
+    const authUid = request.auth.uid;
     const db = admin.firestore();
 
     try {
+        const userDoc = await getUserDoc(db, authUid);
+        if (!userDoc) throw new HttpsError("not-found", "User profile not found.");
+        const userId = userDoc.ref.id; 
         const postSnap = await db.collection("posts").doc(postId).get();
         if (!postSnap.exists) throw new HttpsError("not-found", "Post not found.");
         
