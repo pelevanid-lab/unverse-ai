@@ -159,8 +159,8 @@ export default function AdminDashboard() {
         
         // 1. Clear accumulators
         await updateDoc(sysRef, { 
-            totalTreasuryUSDT: 0, 
-            totalBuybackStakingUSDT: 0,
+            totalTreasuryUSDC: 0, 
+            totalBuybackStakingUSDC: 0,
             v3StatsResetAt: Date.now() 
         });
         await setDoc(statsRef, { 
@@ -224,8 +224,8 @@ export default function AdminDashboard() {
                  </div>
                  <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
                     <p className="text-sm font-bold text-purple-400 uppercase">Reward Pool Conversion</p>
-                    <p className="text-3xl font-headline font-bold">~{((config?.totalBuybackStakingUSDT || 0) * 100).toLocaleString()} ULC</p>
-                    <p className="text-xs opacity-70">Estimated from ${(config?.totalBuybackStakingUSDT || 0).toFixed(2)} USDT</p>
+                    <p className="text-3xl font-headline font-bold">~{((config?.totalBuybackStakingUSDC || 0) * 100).toLocaleString()} ULC</p>
+                    <p className="text-xs opacity-70">Estimated from ${(config?.totalBuybackStakingUSDC || 0).toFixed(2)} USDC</p>
                  </div>
               </div>
 
@@ -263,7 +263,7 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="vesting" className="space-y-6">
-            <UsdtDashboard config={config} users={allUsers} />
+            <UsdcDashboard config={config} users={allUsers} />
             <UlcDashboard stats={stats} config={config} />
             <PoolBalances config={config} />
             <VestingManager 
@@ -536,26 +536,26 @@ function PoolBalances({ config }: { config: SystemConfig | null }) {
     );
 }
 
-function UsdtDashboard({ config, users }: { config: SystemConfig | null, users: UserProfile[] }) {
-    const totalCreatorClaims = users.reduce((sum, u) => sum + (u.usdtBalance?.available || 0), 0);
+function UsdcDashboard({ config, users }: { config: SystemConfig | null, users: UserProfile[] }) {
+    const totalCreatorClaims = users.reduce((sum, u) => sum + (u.usdcBalance?.available || 0), 0);
     
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="glass-card p-4 border-green-500/20 bg-green-500/5">
-                <p className="text-xs font-bold opacity-70 uppercase">Treasury USDT</p>
-                <h3 className="text-2xl font-headline font-bold text-green-400">${(config?.totalTreasuryUSDT || 0).toFixed(2)}</h3>
+                <p className="text-xs font-bold opacity-70 uppercase">Treasury USDC</p>
+                <h3 className="text-2xl font-headline font-bold text-green-400">${(config?.totalTreasuryUSDC || 0).toFixed(2)}</h3>
             </Card>
             <Card className="glass-card">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-xs font-medium text-muted-foreground uppercase text-blue-400">Staking Reward (USDT)</CardTitle>
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase text-blue-400">Staking Reward (USDC)</CardTitle>
                 <Coins className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold font-headline text-blue-500">${(config?.totalBuybackStakingUSDT || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold font-headline text-blue-500">${(config?.totalBuybackStakingUSDC || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
               </CardContent>
             </Card>
             <Card className="glass-card p-4 border-blue-500/20 bg-blue-500/5">
-                <p className="text-xs font-bold opacity-70 uppercase">Creator Claims (USDT)</p>
+                <p className="text-xs font-bold opacity-70 uppercase">Creator Claims (USDC)</p>
                 <h3 className="text-2xl font-headline font-bold text-blue-400">${totalCreatorClaims.toFixed(2)}</h3>
             </Card>
         </div>
@@ -565,7 +565,7 @@ function UlcDashboard({ stats, config }: { stats: any, config: SystemConfig | nu
     const isSealed = config?.isSealed;
     const floorPrice = isSealed 
         ? calculateProtocolFloorPrice(config, stats?.totalBurnedULC || 0)
-        : (config?.listingPriceUSDT || 0.015);
+        : (config?.listingPriceUSDC || 0.015);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

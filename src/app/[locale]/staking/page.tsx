@@ -64,7 +64,7 @@ export default function StakingPage() {
 
   const stakedBalance = user?.ulcBalance?.staked || 0;
   const availableBalance = user?.ulcBalance?.available || 0;
-  const totalPoolULC = (config?.totalBuybackStakingUSDT || 0) * 100;
+  const totalPoolULC = (config?.totalBuybackStakingUSDC || 0) * 100;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">

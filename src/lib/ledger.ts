@@ -167,14 +167,14 @@ export async function recordUsdcSubscription(
         referenceId: paymentRef.id,
     });
 
-    // 3. Update Creator USDT Balance
+    // 3. Update Creator USDC Balance
     const creatorRef = doc(db, 'users', creator.uid);
     batch.update(creatorRef, {
         'usdcBalance.available': increment(creatorEarning),
         totalEarnings: increment(creatorEarning)
     });
 
-    // 4. Update Global USDT Stats
+    // 4. Update Global USDC Stats
     const statsRef = doc(db, 'config', 'system');
     
     // Rule: 10% Treasury, 5% Buyback Staking Reward
@@ -392,7 +392,7 @@ export async function syncSystemConfigAction() {
         listingPriceUSDC: 0.015,
     };
 
-    // We use merge: true to not overwrite currently accumulated values like totalTreasuryUSDT, 
+    // We use merge: true to not overwrite currently accumulated values like totalTreasuryUSDC, 
     // but we ensure all keys are strictly aligned to the codebase structure.
     await setDoc(configRef, syncedConfig, { merge: true });
     
@@ -480,7 +480,7 @@ export async function sealEconomyAction() {
 }
 
 export async function executeBuybackAction(data: {
-    amountUSDT: number;
+    amountUSDC: number;
     description: string;
 }) {
     const buybackFn = httpsCallable(functions, "executeBuyback");

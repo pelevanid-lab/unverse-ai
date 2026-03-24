@@ -72,7 +72,7 @@ export default function AdminCommunity() {
 
             setStats({
                 totalUnlocks: (allCreators.reduce((acc, curr) => acc + (curr.totalUniquePremiumUnlocks || 0), 0)),
-                totalRevenue: sysData?.totalTreasuryUSDT || 0,
+                totalRevenue: sysData?.totalTreasuryUSDC || 0,
                 totalBurned: statsData?.totalBurnedULC || 0,
                 activeCreators: allCreators.length
             });
@@ -155,7 +155,7 @@ export default function AdminCommunity() {
                 subtitle: "The Future of Creator Economy",
                 slides: [
                     { id: "inv-1", order: 1, title: "The Future of Creator Economy", slogan: "We combine creativity with financial freedom.", description: "Traditional platforms exploit creators. Unverse makes creators owners.", bullets: [] },
-                    { id: "inv-2", order: 2, title: "M-Floor Protocol", slogan: "Protocol Security", description: "Dynamic price floor targeting 15M USDT ecosystem value.", bullets: ["Burn reduces supply", "Floor increases automatically", "Treasury-backed stability"] },
+                    { id: "inv-2", order: 2, title: "M-Floor Protocol", slogan: "Protocol Security", description: "Dynamic price floor targeting 15M USDC ecosystem value.", bullets: ["Burn reduces supply", "Floor increases automatically", "Treasury-backed stability"] },
                     { id: "inv-3", order: 3, title: "Deflation Engine", slogan: "Token Scarcity", description: "Every action reduces supply.", bullets: ["AI generation burns tokens", "Unlocks burn tokens", "Perfect edits burn tokens"] },
                     { id: "inv-4", order: 4, title: "Treasury & Buyback", slogan: "Value Growth", description: "33% of platform revenue goes to buyback pool.", bullets: ["Continuous support", "Revenue-backed economy"] },
                     { id: "inv-5", order: 5, title: "Go-To-Market", slogan: "Global Expansion", description: "Strategic listing and launch roadmap.", bullets: ["3-phase presale", "Base network launch", "CEX listing strategy"] },

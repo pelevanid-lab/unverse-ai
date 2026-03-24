@@ -32,7 +32,7 @@ const investor_v3 = {
       id: "inv-2",
       order: 2,
       title: "M-Floor Protocol",
-      description: "Dynamic price floor targeting 15M USDT ecosystem value.",
+      description: "Dynamic price floor targeting 15M USDC ecosystem value.",
       bullets: [
         "Burn reduces supply",
         "Floor increases automatically",

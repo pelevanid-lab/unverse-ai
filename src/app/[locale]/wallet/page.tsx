@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck, ArrowUpRight, Send, Lock } from 'lucide-react';
 import { useAccount, useSwitchChain, useWriteContract, usePublicClient } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { parseUnits } from 'viem';
@@ -38,7 +38,7 @@ import {
 import { format } from "date-fns";
 
 // --- CONSTANTS ---
-// ULC_PRICE_USDT is now dynamic
+// ULC_PRICE_USDC is now dynamic
 
 // --- SUB-COMPONENTS ---
 
@@ -354,23 +354,130 @@ function BuyUlcCard({ user, systemConfig, onPurchase, isSmartWallet }: { user: U
 function UsdcEarningsCard({ creator, onClaim, loading, availableBalance, pendingBalance }: { creator: Creator, onClaim: () => void, loading: boolean, availableBalance: number, pendingBalance: number }) {
     const t = useTranslations('Wallet');
     return (
-        <Card className="glass-card lg:col-span-5 relative border-white/10">
+        <Card className="glass-card lg:col-span-12 relative border-white/10 overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 blur-3xl" />
             <CardHeader>
-                <CardTitle>{t('usdcEarnings')}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-400" />
+                    {t('usdcEarnings')}
+                </CardTitle>
                 <CardDescription>{t('usdcEarningsDesc')}</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                 <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">{t('availableToClaim')}</p>
-                    <p className="text-2xl font-bold font-headline">{availableBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDC</span></p>
+            <CardContent className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                 <div className="md:col-span-4 space-y-1 bg-white/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest leading-none mb-2">{t('availableToClaim')}</p>
+                    <p className="text-2xl font-bold font-headline text-green-400">{availableBalance.toFixed(2)} <span className="text-xs font-normal opacity-50 uppercase">USDC</span></p>
                 </div>
-                <div className="space-y-1">
-                     <p className="text-sm text-muted-foreground">{t('pendingClaim')}</p>
-                    <p className="text-2xl font-bold font-headline">{pendingBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDC</span></p>
+                <div className="md:col-span-4 space-y-1 bg-white/5 p-4 rounded-2xl border border-white/5">
+                     <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest leading-none mb-2">{t('pendingClaim')}</p>
+                    <p className="text-2xl font-bold font-headline text-orange-400/70">{pendingBalance.toFixed(2)} <span className="text-xs font-normal opacity-50 uppercase">USDC</span></p>
                 </div>
-                 <Button onClick={onClaim} disabled={loading || availableBalance <= 0} className="w-full md:w-auto">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                    {t('claimFunds')}
+                <div className="md:col-span-4 mt-2">
+                    <Button 
+                        onClick={onClaim} 
+                        disabled={loading || availableBalance <= 0} 
+                        className="w-full h-14 font-bold bg-green-600 hover:bg-green-700 transition-all active:scale-95 text-white shadow-xl shadow-green-500/10"
+                    >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+                        {t('claimFunds')}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function WithdrawUsdcCard({ onWithdraw, isSmartWallet }: { onWithdraw: (address: string, amount: number) => Promise<void>, isSmartWallet?: boolean }) {
+    const t = useTranslations('Wallet');
+    const [address, setAddress] = useState('');
+    const [amount, setAmount] = useState<number>(0);
+    const [loading, setLoading] = useState(false);
+
+    const handleWithdraw = async () => {
+        setLoading(true);
+        try {
+            await onWithdraw(address, amount);
+            setAddress('');
+            setAmount(0);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Card className="glass-card lg:col-span-6 border-white/10 group overflow-hidden relative">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-2xl opacity-50" />
+            <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                        <Send className="w-4 h-4 text-primary" />
+                    </div>
+                    {t('withdrawUsdc')}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground opacity-70 flex justify-between">
+                        {t('targetAddress')}
+                        {isSmartWallet && <Badge className="bg-green-500/10 text-green-400 text-[8px] border-none font-black h-4 px-1">Gas-less</Badge>}
+                    </Label>
+                    <Input 
+                        placeholder="0x..." 
+                        value={address} 
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="bg-black/20 border-white/5 h-12 focus:border-primary/50 transition-all font-mono text-xs"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground opacity-70">{t('amountToWithdraw')}</Label>
+                    <div className="relative group">
+                        <Input 
+                            type="number" 
+                            placeholder="0.00" 
+                            value={amount || ''} 
+                            onChange={(e) => setAmount(Number(e.target.value))}
+                            className="bg-black/20 border-white/5 h-12 pr-16 focus:border-primary/50 transition-all font-bold"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground group-focus-within:text-primary transition-colors">USDC</span>
+                    </div>
+                </div>
+                <Button 
+                    onClick={handleWithdraw} 
+                    disabled={loading || !address || !amount} 
+                    className="w-full h-12 font-bold group bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/50 transition-all active:scale-95"
+                >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform text-primary" />}
+                    {t('withdrawBtn')}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+function WithdrawUlcCard() {
+    const t = useTranslations('Wallet');
+    return (
+        <Card className="glass-card lg:col-span-6 border-white/5 relative group overflow-hidden">
+             <div className="absolute inset-0 bg-black/60 z-10 flex flex-col items-center justify-center p-6 text-center backdrop-blur-[4px]">
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10 mb-3 shadow-inner">
+                    <Lock className="w-6 h-6 text-white/50 animate-pulse" />
+                </div>
+                <p className="text-xs font-black text-white/90 uppercase tracking-widest">{t('mainnetNotice')}</p>
+                <Badge variant="outline" className="mt-2 border-primary/40 text-primary text-[8px] uppercase font-black">Coming with Mainnet</Badge>
+            </div>
+            <CardHeader className="opacity-10 blur-[1px]">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                    <Send className="w-4 h-4" />
+                    {t('withdrawUlc')}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 opacity-10 blur-[2px] pointer-events-none">
+                <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold">Address</Label>
+                    <Input disabled className="bg-black/20 border-white/5 h-12" />
+                </div>
+                <Button disabled className="w-full h-12 font-bold">
+                    {t('withdrawBtn')}
                 </Button>
             </CardContent>
         </Card>
@@ -530,6 +637,59 @@ export default function WalletPage() {
         setVestingLoading(null);
     }
   };
+
+  const handleWithdrawUsdc = async (recipientAddress: string, amount: number) => {
+    if (!userProfile) return;
+    
+    try {
+        if (chain?.id !== base.id) {
+            try {
+                await switchChainAsync({ chainId: base.id });
+            } catch (switchError) {
+                throw new Error("Please switch to Base network to complete the withdrawal.");
+            }
+        }
+
+        const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+        const amountInUnits = parseUnits(amount.toString(), 6);
+
+        await writeContractAsync({
+            address: usdcAddress as `0x${string}`,
+            abi: [
+                {
+                    constant: false,
+                    inputs: [
+                        { name: "_to", type: "address" },
+                        { name: "_value", type: "uint256" }
+                    ],
+                    name: "transfer",
+                    outputs: [{ name: "", type: "bool" }],
+                    type: "function"
+                }
+            ],
+            functionName: 'transfer',
+            args: [recipientAddress as `0x${string}`, amountInUnits],
+            // @ts-ignore - capabilities is an experimental feature in wagmi
+            capabilities: {
+                paymasterService: {
+                    url: process.env.NEXT_PUBLIC_PAYMASTER_URL
+                }
+            }
+        });
+
+        toast({
+            title: t('withdrawSuccess'),
+            description: t('withdrawSuccessDesc', { amount, address: recipientAddress }),
+        });
+
+    } catch (e: any) {
+        toast({
+            variant: "destructive",
+            title: t('errorTitle'),
+            description: e.message || t('errorOccurred'),
+        });
+    }
+  };
   
   if (!isConnected || !user || !userProfile) {
     return (
@@ -576,7 +736,6 @@ export default function WalletPage() {
                     pendingBalance={earnings.pending}
                 />
             )}
-
             <BuyUlcCard 
                 user={userProfile} 
                 systemConfig={systemConfig} 
@@ -585,6 +744,22 @@ export default function WalletPage() {
                 isProcessing={isPurchaseProcessing}
                 isSmartWallet={isSmartWallet}
             />
+
+            {/* WITHDRAWAL SECTION */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/5" />
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">{t('withdrawTitle')}</h2>
+                    <div className="h-px flex-1 bg-white/5" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <WithdrawUsdcCard 
+                        onWithdraw={handleWithdrawUsdc}
+                        isSmartWallet={isSmartWallet}
+                    />
+                    <WithdrawUlcCard />
+                </div>
+            </div>
 
             <div className="border-t border-white/5 pt-4">
                 <HistoryCardLink />

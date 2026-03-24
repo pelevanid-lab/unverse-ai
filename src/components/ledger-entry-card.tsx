@@ -68,8 +68,8 @@ const LedgerEntryDetails = ({ entry, currentUser, relatedEntries }: { entry: Led
         switch (entry.type) {
             // GROUPED TYPES
             case 'ulc_purchase_grouped':
-                const usdtAmount = entry.metadata?.usdtAmount || 0;
-                return { title: 'ULC Purchase', description: `Bought ULC with ${usdtAmount.toFixed(2)} USDT` };
+                const usdcAmount = entry.metadata?.usdcAmount || 0;
+                return { title: 'ULC Purchase', description: `Bought ULC with ${usdcAmount.toFixed(2)} USDC` };
             case 'premium_unlock':
                  return { title: 'Premium Unlock', description: `Unlocked: ${relatedPost?.title || 'a premium post'}` };
             // REGULAR TYPES
@@ -78,10 +78,10 @@ const LedgerEntryDetails = ({ entry, currentUser, relatedEntries }: { entry: Led
             case 'creator_earning':
                 return { title: 'Creator Earning', description: `From ${relatedUser?.username || 'a user'}'s subscription` };
             case 'creator_claim_executed':
-                return { title: 'Claim Completed', description: 'USDT claim processed by admin' };
+                return { title: 'Claim Completed', description: 'USDC claim processed by admin' };
             case 'internal_ulc_transfer':
-                if (userIsSender) return { title: 'Internal Transfer', description: `Sent ULC to ${relatedUser?.username || formatAddress(entry.toWallet)}` };
-                return { title: 'Internal Transfer', description: `Received ULC from ${relatedUser?.username || formatAddress(entry.fromWallet)}` };
+                if (userIsSender) return { title: 'Internal Transfer', description: `Sent ULC to ${relatedUser?.username || (entry.toWallet ? formatAddress(entry.toWallet) : 'a wallet')}` };
+                return { title: 'Internal Transfer', description: `Received ULC from ${relatedUser?.username || (entry.fromWallet ? formatAddress(entry.fromWallet) : 'a wallet')}` };
             case 'welcome_bonus':
                 return { title: 'Welcome Bonus', description: 'One-time joining bonus' };
             default:

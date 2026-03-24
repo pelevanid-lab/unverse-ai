@@ -103,7 +103,7 @@ export default function DiscoverPage() {
             <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex items-center gap-4">
                 <div className="text-right">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">{t('rate')}</p>
-                    <p className="text-sm font-black text-primary">1 ULC = {floorPrice} USDT</p>
+                    <p className="text-sm font-black text-primary">1 ULC = {floorPrice} USDC</p>
                 </div>
                 <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 overflow-hidden p-0.5">
                     <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-[1.8] rounded-full" style={{ mixBlendMode: 'screen' }} />

@@ -40,7 +40,7 @@ export default function BuybackDashboard() {
 
   // Financial Inputs
   const [opCost, setOpCost] = useState<number>(0);
-  const [manualUSDT, setManualUSDT] = useState<number>(0);
+  const [manualUSDC, setManualUSDC] = useState<number>(0);
   const [buybackRatio, setBuybackRatio] = useState<number>(30); // 30% default
 
   useEffect(() => {
@@ -50,8 +50,8 @@ export default function BuybackDashboard() {
       const conf = snap.exists() ? (snap.data() as SystemConfig) : null;
       if (conf) {
         setConfig(conf);
-        setOpCost(conf.operationCostUSDT || 0);
-        setManualUSDT(conf.treasuryUSDTBalanceManual || 0);
+        setOpCost(conf.operationCostUSDC || 0);
+        setManualUSDC(conf.treasuryUSDCBalanceManual || 0);
         setBuybackRatio((conf.treasury_buyback_ratio || 0.3) * 100);
         
         if (conf.admin_wallet_address?.toLowerCase() === walletAddress?.toLowerCase()) {
@@ -76,7 +76,7 @@ export default function BuybackDashboard() {
   }, [walletAddress]);
 
   // Calculations
-  const grossRevenue = (config?.totalTreasuryUSDT || 0) + manualUSDT;
+  const grossRevenue = (config?.totalTreasuryUSDC || 0) + manualUSDC;
   const netRevenue = Math.max(0, grossRevenue - opCost);
   const buybackBudget = netRevenue * (buybackRatio / 100);
 
@@ -86,8 +86,8 @@ export default function BuybackDashboard() {
     setLoading(true);
     try {
       await updateDoc(doc(db, 'config', 'system'), {
-        operationCostUSDT: opCost,
-        treasuryUSDTBalanceManual: manualUSDT,
+        operationCostUSDC: opCost,
+        treasuryUSDCBalanceManual: manualUSDC,
         treasury_buyback_ratio: buybackRatio / 100
       });
       toast({ title: "Settings Updated" });
@@ -117,12 +117,12 @@ export default function BuybackDashboard() {
       return;
     }
 
-    if (!confirm(`Are you sure you want to execute buyback for $${buybackBudget.toFixed(2)} USDT?`)) return;
+    if (!confirm(`Are you sure you want to execute buyback for $${buybackBudget.toFixed(2)} USDC?`)) return;
 
     setLoading(true);
     try {
       await executeBuybackAction({
-        amountUSDT: buybackBudget,
+        amountUSDC: buybackBudget,
         description: `Strategic Buyback - Net Profit Allocation (${buybackRatio}%)`
       });
       toast({ title: "Buyback Executed", description: "Tokens purchased and burned." });
@@ -189,16 +189,16 @@ export default function BuybackDashboard() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label>Manual Treasury USDT (Off-chain Rev)</Label>
+              <Label>Manual Treasury USDC (Off-chain Rev)</Label>
               <Input 
                 type="number" 
-                value={manualUSDT} 
-                onChange={(e) => setManualUSDT(Number(e.target.value))} 
+                value={manualUSDC} 
+                onChange={(e) => setManualUSDC(Number(e.target.value))} 
                 className="bg-black/40"
               />
             </div>
             <div className="space-y-2">
-              <Label>Operation Costs (Monthly USDT)</Label>
+              <Label>Operation Costs (Monthly USDC)</Label>
               <Input 
                 type="number" 
                 value={opCost} 
@@ -249,7 +249,7 @@ export default function BuybackDashboard() {
                   <Badge variant="outline" className="border-yellow-400/50 text-yellow-400 uppercase text-[10px]">Manual Trigger</Badge>
                </div>
                <p className="text-sm text-muted-foreground">
-                  Executing buyback will convert available Treasury USDT into ULC on the market (simulated) and move it to the Burn Pool permanently.
+                  Executing buyback will convert available Treasury USDC into ULC on the market (simulated) and move it to the Burn Pool permanently.
                </p>
                <Button 
                   size="lg" 
@@ -257,7 +257,7 @@ export default function BuybackDashboard() {
                   disabled={!isReady || loading || buybackBudget <= 0}
                   onClick={handleExecuteBuyback}
                >
-                  {loading ? "Processing..." : isReady ? `EXECUTE $${buybackBudget.toFixed(2)} BUYBACK (~${Math.floor(buybackBudget / (config?.listingPriceUSDT || 0.015)).toLocaleString()} ULC)` : "LAUNCH GATED"}
+                  {loading ? "Processing..." : isReady ? `EXECUTE $${buybackBudget.toFixed(2)} BUYBACK (~${Math.floor(buybackBudget / (config?.listingPriceUSDC || 0.015)).toLocaleString()} ULC)` : "LAUNCH GATED"}
                </Button>
             </div>
           </CardContent>
@@ -279,7 +279,7 @@ export default function BuybackDashboard() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Operation</TableHead>
-                  <TableHead className="text-right">USDT Amount</TableHead>
+                  <TableHead className="text-right">USDC Amount</TableHead>
                   <TableHead className="text-right">Reference</TableHead>
                 </TableRow>
               </TableHeader>

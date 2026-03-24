@@ -50,12 +50,12 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
     // Phase 2: Process each group to create a correct user-facing mainEntry
     for (const [key, group] of grouped.entries()) {
         const hasPremiumUnlock = group.relatedEntries.some(e => e.type === 'premium_unlock');
-        const hasSubscription = group.relatedEntries.some(e => ['subscription_payment', 'subscription_payment_usdt'].includes(e.type));
+        const hasSubscription = group.relatedEntries.some(e => ['subscription_payment', 'subscription_payment_usdc'].includes(e.type));
         const hasUlcPurchase = group.relatedEntries.some(e => ['ulc_purchase', 'ulc_purchase_grouped'].includes(e.type));
         const hasCreatorEarning = group.relatedEntries.some(e => e.type === 'creator_earning');
 
         if (hasPremiumUnlock || hasSubscription) {
-            const transactionType = hasPremiumUnlock ? 'premium_unlock' : 'subscription_payment_usdt';
+            const transactionType = hasPremiumUnlock ? 'premium_unlock' : 'subscription_payment_usdc';
             // Find entries where the current user is the sender
             const userDebits = group.relatedEntries.filter(
                 e => (e.fromUserId === userId || e.fromWallet?.toLowerCase() === normalizedWallet) && e.amount > 0
@@ -70,15 +70,15 @@ const groupAndEnhanceHistory = (entries: LedgerEntry[], userId: string, walletAd
                 group.mainEntry = group.relatedEntries.find(e => e.type === 'creator_earning') || group.relatedEntries[0];
             }
         } else if (hasUlcPurchase) {
-            const usdtEntry = group.relatedEntries.find(e => e.currency === 'USDT');
+            const usdcEntry = group.relatedEntries.find(e => e.currency === 'USDC');
             const ulcEntry = group.relatedEntries.find(e => e.currency === 'ULC');
             
-            if (usdtEntry && ulcEntry) {
+            if (usdcEntry && ulcEntry) {
                 group.mainEntry = {
                     ...ulcEntry,
                     type: 'ulc_purchase',
                     amount: ulcEntry.amount,
-                    metadata: { ...ulcEntry.metadata, usdtAmount: usdtEntry.amount }
+                    metadata: { ...ulcEntry.metadata, usdcAmount: usdcEntry.amount }
                 };
             } else {
                  group.mainEntry = group.relatedEntries[0];

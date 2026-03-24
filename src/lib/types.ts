@@ -188,6 +188,8 @@ export interface SystemConfig {
     totalCreatorRewardsULC?: number;
     totalPromoPoolDistributedULC?: number;
     totalCreatorIncentiveDistributedULC?: number;
+    totalBuybackStakingUSDC?: number;
+    totalStakedULC?: number;
 }
 
 export interface SystemStats {
@@ -198,7 +200,7 @@ export interface SystemStats {
 export type LedgerEntryType = 
     | 'welcome_bonus' 
     | 'subscription_payment' 
-    | 'subscription_payment_usdt' 
+    | 'subscription_payment_usdc' 
     | 'creator_earning' 
     | 'premium_unlock' 
     | 'limited_purchase'
@@ -222,6 +224,9 @@ export type LedgerEntryType =
     | 'premium_unlock_earning'
     | 'creator_welcome_reward'
     | 'creator_milestone_reward'
+    | 'ulc_purchase_grouped'
+    | 'creator_claim_executed'
+    | 'internal_ulc_transfer'
     | 'presale_purchase';
 
 export interface VestingSchedule {
