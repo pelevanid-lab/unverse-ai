@@ -163,7 +163,7 @@ export async function recordUsdcSubscription(
         toUserId: creator.uid,
         userId: subscriber.uid,
         amount: creatorEarning,
-        currency: 'USDT',
+        currency: 'USDC',
         referenceId: paymentRef.id,
     });
 
@@ -198,7 +198,7 @@ export async function recordUsdcSubscription(
         type: 'buyback_staking_fee',
         timestamp: now,
         amount: buybackShare,
-        currency: 'USDT',
+        currency: 'USDC',
         referenceId: paymentRef.id,
     });
     
@@ -216,7 +216,7 @@ export async function calculateCreatorUsdcEarnings(creatorId: string): Promise<{
         collection(db, 'ledger'), 
         where('toUserId', '==', creatorId),
         where('type', 'in', ['creator_earning', 'tip', 'premium_unlock_earning']),
-        where('currency', '==', 'USDT')
+        where('currency', '==', 'USDC')
     );
     
     const earningsSnap = await getDocs(earningsQuery);
