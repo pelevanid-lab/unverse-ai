@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, translation, negativePrompt, userId, image, mask, character, outfit, imageUrls, isMasterPreview, seed } = json;
+    const { prompt, enhancedPrompt, translation, originalEnhancedPrompt, negativePrompt, userId, image, mask, character, outfit, imageUrls, isMasterPreview, seed, isFreeArt, sceneLock, sceneType } = json;
     cost = json.cost || 5; 
 
     // 1. IDENTITY ANCHORS (Digital Twin 3.0)
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     userIdForRefund = userId;
 
-    // 1. Process Payment (Deduct 3 ULC)
+    // 1. Process Payment (Deduct amount)
     try {
         ledgerId = await processAiGenerationPayment(userId, cost);
     } catch (payErr: any) {
@@ -51,54 +51,133 @@ export async function POST(req: Request) {
     const userOutfit = outfit || '';
     const userSceneEnglish = translation || prompt; 
     
-    // IDENTITY LOCK: Ensure character traits are hard-coded in the foundation
-    const gender = character?.gender || 'person';
-    const hair = character?.hairColor || '';
-    const eyes = character?.eyeColor || '';
-    const body = character?.bodyType || character?.bodyStyle || 'natural';
-    const height = character?.height || 'average';
-    const vibe = character?.vibe || 'natural';
-    
-    const subjectAnchor = `SUBJECT: A solo ${gender}${hair ? `, with ${hair} hair` : ''}${eyes ? `, ${eyes} eyes` : ''}, ${body} body type, and ${height} height. Vibe: ${vibe}.`;
+    let finalPromptForAI = "";
+    let userNegativePrompt = "";
+    let isIdentityLocked = false;
+    let id_weight = 1.0;
+    let shotType = "portrait"; // default
 
-    // Construct the "Security Anchor" (Strict English ONLY)
-    const securityAnchor = `1 adult person, FULL BODY SHOT, WIDE ANGLE VIEW. OUTFIT: ${userOutfit || 'as requested'}. ${subjectAnchor} SCENE: ${userSceneEnglish}.`;
-    
-    let basePrompt = enhancedPrompt || translation || prompt;
-    
-    // If Gemini returned a uselessly short prompt, discard it and use a high-quality fallback
-    if (enhancedPrompt && enhancedPrompt.length < 25) {
-        console.warn("Gemini Truncation Detected. Using Fallback.");
-        basePrompt = `a high quality detailed photorealistic image of the subject in this scenario: ${userSceneEnglish}`;
+    // Detect Shot Type for Adaptive Identity Weight
+    const lowerPrompt = (enhancedPrompt || translation || prompt || "").toLowerCase();
+    if (lowerPrompt.includes("wide") || lowerPrompt.includes("full body") || lowerPrompt.includes("environment") || lowerPrompt.includes("landscape") || lowerPrompt.includes("distant") || lowerPrompt.includes("far away")) {
+        shotType = "wide";
+        id_weight = 0.65; // 🚀 Maximum environmental and pose freedom
+    } else if (lowerPrompt.includes("mid shot") || lowerPrompt.includes("medium shot") || lowerPrompt.includes("waist up") || lowerPrompt.includes("knees up")) {
+        shotType = "mid";
+        id_weight = 0.8; // 🎬 More flexible for mid-body poses
+    } else {
+        shotType = "portrait";
+        id_weight = 0.9; // 🧬 High likeness but allows head/hair movement
     }
 
-    const isIdentityLocked = (cost === 3 || cost === 20 || cost === 10 || (cost === 5 && character) || (cost === 0 && character));
-    const identityPrefix = isIdentityLocked ? `${STRONG_IDENTITY_POSITIVE}. ` : '';
-    let finalPromptForAI = `${identityPrefix}${securityAnchor} ${basePrompt}`;
-    
-    // Dynamic Negative Prompt based on requested profile & scene
-    let negativeFils = "child, kid, toddler, teenager, underage, portrait, close-up, cropped, headshot, macro, room, indoors, studio, apartment, office, domestic, ceiling, wall";
-    
-    if (finalPromptForAI.toLowerCase().includes("woman") || finalPromptForAI.toLowerCase().includes("female")) {
-        negativeFils += ", man, male, facial hair, beard";
-    } else if (finalPromptForAI.toLowerCase().includes("man") || finalPromptForAI.toLowerCase().includes("male")) {
-        negativeFils += ", woman, female";
+    if (isFreeArt) {
+        // FREE ART MODE: No identity or subject anchors
+        if (originalEnhancedPrompt && (cost === 5 || cost === 3)) {
+            console.log("FREE ART SCENE LOCK: Applying variation logic.");
+            // translation contains the Gemini-generated adaptation directive + outfit anchor
+            finalPromptForAI = `${translation || 'cinematic masterpiece'}, ${originalEnhancedPrompt}`;
+        } else {
+            finalPromptForAI = enhancedPrompt || translation || prompt;
+        }
+        userNegativePrompt = negativePrompt || "blurry, low quality, distorted, deformed, watermark, low resolution";
+        isIdentityLocked = false;
+    } else {
+        // CHARACTER MODE (Standard/Digital Twin)
+        isIdentityLocked = (cost === 3 || cost === 20 || cost === 10 || (cost === 5 && character) || (cost === 0 && character));
+        
+        const gender = character?.gender || 'person';
+        const hair = character?.hairColor || '';
+        const eyes = character?.eyeColor || '';
+        const body = character?.bodyType || character?.bodyStyle || 'natural';
+        const height = character?.height || 'average';
+        const vibe = character?.vibe || 'natural';
+        
+        // 🧬 TRIPLE-ANCHOR STRATEGY 3.1: LAYERED FACE LOCKING
+        // Anchor 1: USER SCENARIO (The core command)
+        const scenarioAnchor = `CORE SCENARIO: ${userSceneEnglish}.`;
+        
+        // Anchor 2: IDENTITY (Layered: Reference + Physical Anchor + Expression)
+        const physicalAnchor = `${gender}${hair ? `, with ${hair} hair` : ''}${eyes ? `, ${eyes} eyes` : ''}, ${body} body type`;
+        
+        // Expression detection (Did the user or director mode request a smile/mood?)
+        const lowerCasePrompt = (translation || prompt || "").toLowerCase();
+        const hasHighMovementExpression = lowerCasePrompt.includes("smile") || 
+                                          lowerCasePrompt.includes("laugh") || 
+                                          lowerCasePrompt.includes("happy") || 
+                                          lowerCasePrompt.includes("angry") || 
+                                          lowerCasePrompt.includes("seductive") ||
+                                          lowerCasePrompt.includes("cheerful") ||
+                                          lowerCasePrompt.includes("playful");
+
+        // ADAPTIVE ID WEIGHT: Refine the base id_weight (from shot type) if expression is present
+        // 🧬 GOLDILOCKS ZONE: 0.80 allows movement without losing jawline/face-shape
+        if (hasHighMovementExpression) {
+            id_weight = Math.min(id_weight, 0.80);
+        } else {
+            id_weight = Math.max(id_weight, 0.85); 
+        }
+
+        const identityLine = isIdentityLocked && (character?.referenceImageUrl || image)
+            ? `identical person as reference image, 100% facial likeness, same individual, ${physicalAnchor}. EXPRESSION: requested mood/emotion.`
+            : `SUBJECT: A solo ${physicalAnchor}, and ${height} height. Vibe: ${vibe}.`;
+            
+        // Anchor 3: DETAILS (Gemini expanded atmospheric richness)
+        let detailsAnchor = enhancedPrompt || "";
+        if (detailsAnchor.length < 25) {
+            detailsAnchor = `cinematic high-quality photorealistic rendering, highly detailed textures, 8k resolution, professional lighting.`;
+        }
+
+        // Final Assembly for for Standard Generations
+        finalPromptForAI = `${scenarioAnchor} IDENTITY: ${identityLine}. ATMOSPHERE: ${detailsAnchor}`;
+
+        // 🚀 SCENE CONSISTENCY LOCK: If this is a variation, we use the DNA and Original Prompt
+        if (originalEnhancedPrompt && (cost === 5 || cost === 3)) {
+            console.log(`SCENE CONSISTENCY LOCK: Applying variation logic (Same Photoshoot Mode). Scene: ${sceneType || 'generic'}`);
+            
+            // variation directive (shot type, angle, etc.)
+            const framingDirective = translation || 'cinematic framing';
+            
+            // 🧬 DNA REINFORCEMENT: Enforce initial scene elements verbatim
+            const outfitAnchor = sceneLock?.outfitSummary ? `OUTFIT: ${sceneLock.outfitSummary}` : "identical clothing";
+            const envAnchor = sceneLock?.environmentSummary ? `LOCATION: ${sceneLock.environmentSummary}` : "identical surroundings";
+            const lightAnchor = sceneLock?.lightingSummary ? `LIGHTING: ${sceneLock.lightingSummary}` : "same lighting";
+            
+            // 🎬 SAME PHOTOSHOOT REINFORCEMENT: 
+            const persistentContext = `Same photoshoot, ${outfitAnchor}, ${envAnchor}, ${lightAnchor}`;
+            const baseSceneContext = `Original location and setup: ${originalEnhancedPrompt}`;
+            
+            finalPromptForAI = `${framingDirective}. ${persistentContext}. ${baseSceneContext}. IDENTITY: ${identityLine}. STRICT RULE: do not change environment, outfit, lighting setup or character identity.`;
+        }
+        
+        // Dynamic Negative Prompt based on requested profile & scene
+        // 🧬 SKELETAL PROTECTION: Added "altered jawline" and "different face shape" to negative prompt
+        let negativeFils = "child, kid, toddler, teenager, underage, worst quality, low quality, blurry, distorted, deformed, watermark, bad anatomy, bad hands, altered jawline, different face shape, different person";
+        
+        if (finalPromptForAI.toLowerCase().includes("woman") || finalPromptForAI.toLowerCase().includes("female")) {
+            negativeFils += ", man, male, facial hair, beard";
+        } else if (finalPromptForAI.toLowerCase().includes("man") || finalPromptForAI.toLowerCase().includes("male")) {
+            negativeFils += ", woman, female";
+        }
+
+        const identityNegativeAnchor = isIdentityLocked ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
+        userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
+        
+        // Solo Subject Enforcement
+        if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
+            finalPromptForAI = `1 adult person, ${finalPromptForAI}`;
+        }
     }
 
-    const identityNegativeAnchor = isIdentityLocked ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
-    const userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
-    
-    // Solo Subject Enforcement
-    if (!finalPromptForAI.toLowerCase().includes("duo") && !finalPromptForAI.toLowerCase().includes("group")) {
-        finalPromptForAI = `1 adult person, ${finalPromptForAI}`;
-    }
+    // Use character's saved seed if available for consistency, else use passed seed or random
+    const finalSeed = seed || character?.identitySeed || Math.floor(Math.random() * 1000000000);
 
-    let model: any = "black-forest-labs/flux-dev";
+    let model: any = isFreeArt ? "black-forest-labs/flux-schnell" : "black-forest-labs/flux-dev";
     let input: any = {
       prompt: finalPromptForAI,
       aspect_ratio: "1:1",
-      num_inference_steps: 28,
-      guidance_scale: 3.5,
+      num_inference_steps: isFreeArt ? 4 : 28, // Schnell needs fewer steps
+      guidance_scale: isFreeArt ? 2.5 : 7.5,
+      seed: finalSeed,
       negative_prompt: userNegativePrompt,
     };
     
@@ -137,7 +216,13 @@ export async function POST(req: Request) {
           paymentReference: ledgerId,
           timestamp: serverTimestamp(),
           satisfactionScore: null,
-          tags: ["standard", "english-pivot"]
+          tags: ["standard", "english-pivot"],
+          // 🚀 DEBUG FIELDS
+          idMode: isIdentityLocked ? (isFreeArt ? 'free-art-lock' : 'pulid-character') : 'none',
+          idWeight: isIdentityLocked ? id_weight : 0,
+          shotType: shotType,
+          guidanceScale: isIdentityLocked ? 7.0 : (isFreeArt ? 2.5 : 7.5),
+          isReferenceActive: !!imageToUseForTwin
         };
         return await addDoc(collection(db, 'ai_generation_logs'), logData);
     };
@@ -150,8 +235,8 @@ export async function POST(req: Request) {
           throw new Error("FAL_API_KEY is missing on server.");
       }
 
-      // Use character's saved seed if if available for for consistency, else use passed seed or or or random
-      const finalSeed = seed || character?.identitySeed || Math.floor(Math.random() * 1000000000);
+      // 🚀 Use finalSeed defined above
+      console.log(`FAL.AI PULID: Shot=${shotType}, Weight=${id_weight}, Seed=${finalSeed}`);
 
       const response = await fetch("https://fal.run/fal-ai/flux-pulid", {
         method: "POST",
@@ -163,8 +248,8 @@ export async function POST(req: Request) {
             prompt: finalPromptForAI,
             reference_image_url: imageToUseForTwin, // Use primary image as as as main reference
             num_inference_steps: 40,
-            guidance_scale: 8.5,
-            id_weight: 1.0,
+            guidance_scale: 7.0, // Optimized for for cinematic richness with with with pulid
+            id_weight: id_weight, // 🚀 ADAPTIVE STRENGTH
             seed: finalSeed,
             negative_prompt: userNegativePrompt
         })
@@ -281,7 +366,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       mediaUrl: finalUrl, 
       logId: logDocRef.id,
-      finalAuditPrompt: finalPromptForAI 
+      finalAuditPrompt,
+      seed: finalSeed // 🚀 RETURN SEED FOR VARIATION LOCKING
     });
 
   } catch (error: any) {

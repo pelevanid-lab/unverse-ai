@@ -61,13 +61,14 @@ export const optimizeMedia = onObjectFinalized({ timeoutSeconds: 540, memory: "1
         return logger.log("Not a triggerable file:", filePath);
     }
     
-    const originalFileUrl = await storageBucket.file(filePath).getSignedUrl({ action: 'read', expires: '03-09-2491' }).then(urls => urls[0]);
+    // We avoid getSignedUrl here to prevent iam.serviceAccounts.signBlob errors
+    // and because it's an unreliable way to match documents.
     const tempFilePath = path.join(os.tmpdir(), path.basename(filePath));
     await storageBucket.file(filePath).download({ destination: tempFilePath });
 
-    let optimizedTempPath: string | null = null;
-    let newFileName: string;
-    let newContentType: string;
+    let optimizedTempPath = "";
+    let newFileName = "";
+    let newContentType = "";
 
     try {
         if (contentType.startsWith("image/")) {
@@ -84,40 +85,141 @@ export const optimizeMedia = onObjectFinalized({ timeoutSeconds: 540, memory: "1
                     .outputOptions(["-vcodec libx264", "-crf 28", "-preset fast"])
                     .toFormat('mp4')
                     .on("error", reject).on("end", resolve)
-                    .save(optimizedTempPath as string);
+                    .save(optimizedTempPath);
             });
         } else {
-            fs.unlinkSync(tempFilePath);
+            if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
             return logger.log("Unsupported content type:", contentType);
         }
 
         const optimizedFilePath = path.join(path.dirname(filePath), newFileName);
-        const [uploadedFile] = await storageBucket.upload(optimizedTempPath, {
+        await storageBucket.upload(optimizedTempPath, {
             destination: optimizedFilePath,
             metadata: { contentType: newContentType },
         });
 
-        const [optimizedUrl] = await uploadedFile.getSignedUrl({ action: 'read', expires: '03-09-2491' });
-        const snapshot = await db.collection("creator_media").where("mediaUrl", "==", originalFileUrl).get();
+        // Use publicUrl or simple formatting to avoid getSignedUrl crash if possible
+        const optimizedUrl = `https://storage.googleapis.com/${bucket}/${optimizedFilePath}`;
+
+        // Match by SEARCHING for the filePath in the mediaUrl string (robust fallback)
+        const snapshot = await db.collection("creator_media")
+            .where("mediaUrl", ">=", `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath).replace(/%2F/g, '/')}`)
+            .get();
         
-        if (snapshot.empty) {
-          logger.error("No matching document found for original file URL:", originalFileUrl);
-        } else {
+        let matched = false;
+        if (!snapshot.empty) {
           for (const doc of snapshot.docs) {
-            const currentData = doc.data();
-            const updates: any = { mediaUrl: optimizedUrl, isOptimized: true };
-            if (currentData.status !== 'scheduled' && currentData.status !== 'published') {
-                updates.status = 'draft'; 
+            const data = doc.data();
+            // Verify it's the right the right file
+            if (data.mediaUrl.includes(filePath)) {
+                const currentData = doc.data();
+                const updates: any = { mediaUrl: optimizedUrl, isOptimized: true };
+                if (currentData.status !== 'scheduled' && currentData.status !== 'published') {
+                    updates.status = 'draft'; 
+                }
+                await doc.ref.update(updates);
+                matched = true;
             }
-            await doc.ref.update(updates);
           }
         }
+
+        if (!matched) {
+            logger.warn("No matching document found in creator_media for path:", filePath);
+        }
+        
         await storageBucket.file(filePath).delete();
     } catch (error) {
         logger.error("Optimization failed:", error);
     } finally {
         if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
         if (optimizedTempPath && fs.existsSync(optimizedTempPath)) fs.unlinkSync(optimizedTempPath);
+    }
+});
+
+/**
+ * SECURE MEDIA ACCESS: Generates a signed URL for authorized users.
+ */
+export const getPostMedia = onCall({ memory: "256MiB" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+    const { postId } = request.data;
+    if (!postId) throw new HttpsError("invalid-argument", "postId is required.");
+
+    const postRef = db.collection("posts").doc(postId);
+    const postSnap = await postRef.get();
+    if (!postSnap.exists) throw new HttpsError("not-found", "Post not found.");
+
+    const postData = postSnap.data() as any;
+    const userId = request.auth.uid;
+    const creatorId = postData.creatorId;
+
+    // 1. Authorization Logic: Resolve UID/Wallet mapping
+    const userDocResult = await getUserDoc(db, userId);
+    const userRef = userDocResult?.ref;
+    const userWallet = userDocResult?.data?.walletAddress || userRef?.id;
+
+    // Check if the requester is the owner (matching UID or Wallet)
+    let hasAccess = userId === creatorId || userWallet?.toLowerCase() === creatorId?.toLowerCase(); 
+    
+    if (!hasAccess) {
+        // Resolve Creator's identities to be sure
+        const creatorDocResult = await getUserDoc(db, creatorId);
+        const creatorUid = creatorDocResult?.data?.uid || creatorId;
+        const creatorWallet = creatorDocResult?.data?.walletAddress || creatorId;
+
+        // Check Active Subscription (Try both UID and Wallet)
+        const subSnap = await db.collection("subscriptions")
+            .where("userId", "==", userId)
+            .where("creatorId", "in", [creatorUid, creatorWallet])
+            .where("status", "==", "active")
+            .limit(1).get();
+        
+        if (!subSnap.empty) hasAccess = true;
+        
+        // Check Individual Unlock (Ledger)
+        if (!hasAccess) {
+            const unlockSnap = await db.collection("ledger")
+                .where("fromUserId", "==", userId)
+                .where("type", "==", "premium_unlock")
+                .where("referenceId", "==", postId)
+                .limit(1).get();
+            if (!unlockSnap.empty) hasAccess = true;
+        }
+    }
+
+    if (!hasAccess) throw new HttpsError("permission-denied", "You do not have access to this premium content.");
+
+    // 2. Generate Secure URL
+    try {
+        const bucket = admin.storage().bucket();
+        let storagePath = postData.mediaUrl;
+
+        // Robust path extraction from various Firebase/GCP URL formats
+        if (storagePath.startsWith("http")) {
+            const decoded = decodeURIComponent(storagePath);
+            if (decoded.includes("/o/")) {
+                // Firebase Storage format
+                storagePath = decoded.split("/o/")[1].split("?")[0];
+            } else if (decoded.includes(bucket.name)) {
+                // Google Cloud Storage format
+                storagePath = decoded.split(bucket.name + "/")[1]?.split("?")[0] || storagePath;
+            }
+        }
+
+        logger.log(`Generating signed URL for path: [${storagePath}] from mediaUrl: [${postData.mediaUrl}]`);
+
+        const [url] = await bucket.file(storagePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000, 
+        });
+
+        return { url };
+    } catch (err: any) {
+        logger.error("getPostMedia Error details:", {
+            error: err.message,
+            code: err.code,
+            mediaUrl: postData.mediaUrl
+        });
+        throw new HttpsError("internal", `Secure URL generation failed. Role needed: 'Service Account Token Creator' for the current service account. Error: ${err.message}`);
     }
 });
 

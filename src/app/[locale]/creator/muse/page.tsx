@@ -10,14 +10,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers } from "lucide-react"
+import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers, Video, Maximize, Heart, Zap, Sun } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Copilot } from '@/lib/copilot'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { CharacterProfile } from '@/lib/types'
+import { CharacterProfile, SceneLock } from '@/lib/types'
+import { SceneRuleEngine } from '@/lib/scene-engine'
 import { useTranslations } from 'next-intl'
 
 export default function AIMusePage() {
@@ -43,13 +44,24 @@ export default function AIMusePage() {
     const [genPrompt, setGenPrompt] = useState('')
     const [lastResult, setLastResult] = useState<string | null>(null)
     const [logId, setLogId] = useState<string | null>(null)
+    const [lastSeed, setLastSeed] = useState<number | null>(null)
     const [satisfactionScore, setSatisfactionScore] = useState<number | null>(null)
     const [uploadedRefUrls, setUploadedRefUrls] = useState<string[]>([])
+    const [lastEnhancedPrompt, setLastEnhancedPrompt] = useState<string | null>(null)
+    const [masterEnhancedPrompt, setMasterEnhancedPrompt] = useState<string | null>(null)
 
     // Scene Variations State
     const [showVariationPresets, setShowVariationPresets] = useState(false)
-    const [selectedPresets, setSelectedPresets] = useState({ shot: '', view: '', mood: '' })
+    const [selectedPresets, setSelectedPresets] = useState<{
+        composition?: string,
+        angle?: string,
+        mood?: string,
+        action?: string,
+        lighting?: string
+    }>({})
     const [isVariationMode, setIsVariationMode] = useState(false)
+    const [currentSceneLock, setCurrentSceneLock] = useState<SceneLock | null>(null)
+    const [detectedSceneType, setDetectedSceneType] = useState<string | null>(null)
 
     useEffect(() => {
         if (user?.savedCharacter) {
@@ -252,20 +264,23 @@ export default function AIMusePage() {
                 }
             }
 
-            const transResponse = await fetch('/api/ai/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: genPrompt })
+            const copilot = new Copilot(user.uid)
+            await copilot.init()
+
+            const { enhancedPrompt, translation, sceneLock: dna } = await copilot.generateImagePrompt({
+                userInput: genPrompt,
+                style: 'cinematic',
+                character: user.savedCharacter || undefined,
+                outfit: undefined // Can be improved if we add an outfit input to Muse
             })
-            const transData = await transResponse.json()
-            const englishPrompt = transData.translation || genPrompt
 
             const response = await fetch('/api/ai/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: genPrompt,
-                    translation: englishPrompt,
+                    enhancedPrompt: enhancedPrompt,
+                    translation: translation,
                     userId: user.uid,
                     character: user.savedCharacter,
                     cost: isRegen ? 5 : 10
@@ -278,8 +293,18 @@ export default function AIMusePage() {
             }
 
             const data = await response.json()
+            
+            // 🛡️ SCENE CONSISTENCY ENGINE: Detect and Lock Scene
+            const sceneType = SceneRuleEngine.detectSceneType(data.finalAuditPrompt || enhancedPrompt);
+            const lock = SceneRuleEngine.generateSceneLock(data.finalAuditPrompt || enhancedPrompt, sceneType, dna);
+            setCurrentSceneLock(lock);
+            setDetectedSceneType(sceneType);
+
             setLastResult(data.mediaUrl)
             setLogId(data.logId)
+            setLastSeed(data.seed)
+            setLastEnhancedPrompt(data.finalAuditPrompt)
+            setMasterEnhancedPrompt(data.finalAuditPrompt)
             setSatisfactionScore(null)
             toast({ title: tCommon("publishSuccess"), description: tCommon("savedToContainerDesc") })
         } catch (err: any) {
@@ -302,10 +327,12 @@ export default function AIMusePage() {
             // But wait, it's safer to just set lastResult to null later.
             
             // 1. Generate transformed prompt
-            const { enhancedPrompt } = await copilot.generateVariationPrompt({
-                originalPrompt: genPrompt,
+            // 🎬 DIRECTOR MODE: Call the new granular prompt generator
+            const { enhancedPrompt } = await copilot.generateDirectorPrompt({
+                originalPrompt: masterEnhancedPrompt!,
                 presets: selectedPresets,
-                character: user.savedCharacter || undefined
+                character: user.savedCharacter!,
+                sceneLock: currentSceneLock || undefined
             })
 
             // 2. Generate new image with 5 ULC cost
@@ -315,8 +342,13 @@ export default function AIMusePage() {
                 body: JSON.stringify({
                     prompt: genPrompt,
                     translation: enhancedPrompt,
+                    originalEnhancedPrompt: masterEnhancedPrompt,
+                    image: lastResult, // 🚀 CRITICAL FIX: Pass visual reference for consistency
+                    seed: lastSeed, // 🧬 SEED LOCK: Ensure same noise pattern
                     userId: user.uid,
                     character: user.savedCharacter,
+                    sceneLock: currentSceneLock,
+                    sceneType: detectedSceneType,
                     cost: 5 // Variations are 5 ULC
                 })
             })
@@ -326,6 +358,8 @@ export default function AIMusePage() {
             
             setLastResult(data.mediaUrl)
             setLogId(data.logId)
+            setLastSeed(data.seed)
+            setLastEnhancedPrompt(data.finalAuditPrompt)
             setSatisfactionScore(null)
             setIsVariationMode(true)
             toast({ title: t("variationOptions"), description: tCommon("publishSuccess") })
@@ -382,6 +416,7 @@ export default function AIMusePage() {
             setPromptDraft('')
             setPreviewAvatar(null)
             setExtractedAttributes(null)
+            setLastEnhancedPrompt(null)
 
             // Cleanup any pending storage refs
             if (previewAvatar && previewAvatar !== user?.savedCharacter?.referenceImageUrl) {
@@ -719,79 +754,158 @@ export default function AIMusePage() {
                 </div>
             </div>
 
-            {/* VARIATION PRESETS DIALOG */}
+            {/* DIRECTOR MODE DIALOG */}
             <Dialog open={showVariationPresets} onOpenChange={setShowVariationPresets}>
-                <DialogContent className="glass-card border-white/10 text-white max-w-lg">
+                <DialogContent className="glass-card border-white/10 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                            <Layers className="text-fuchsia-400" /> {t("variationOptions")}
+                        <DialogTitle className="text-3xl font-headline font-bold flex items-center gap-3">
+                            <Video className="text-primary w-8 h-8" /> DIRECTOR MODE 🎬
                         </DialogTitle>
-                        <DialogDescription className="text-muted-foreground">
-                            {t("variationCost")}
+                        <DialogDescription className="text-muted-foreground text-sm">
+                            {t("directorModeDesc")}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-6 py-4">
-                        {/* Group 1: Shot Type */}
-                        <div className="space-y-3">
-                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("shotType")}</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {['closerShot', 'closeUp'].map(preset => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
+                        {/* 1. COMPOSITION */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                                    <Maximize className="w-4 h-4 text-primary" />
+                                </div>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("composition")}</Label>
+                                {currentSceneLock?.riskyVariationTypes.includes('composition') && (
+                                    <Badge variant="outline" className="text-[8px] h-4 border-amber-500/50 text-amber-500 bg-amber-500/10 py-0 uppercase">Risky</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['wide', 'medium', 'full_body', 'close_up', 'extreme_close'].map(key => (
                                     <Button
-                                        key={preset}
-                                        variant={selectedPresets.shot === t(preset) ? 'default' : 'outline'}
-                                        className={cn("h-10 rounded-xl text-xs", selectedPresets.shot === t(preset) && "bg-fuchsia-600 text-white")}
-                                        onClick={() => setSelectedPresets(prev => ({ ...prev, shot: prev.shot === t(preset) ? '' : t(preset) }))}
+                                        key={key}
+                                        variant={selectedPresets.composition === key ? 'default' : 'outline'}
+                                        className={cn("h-11 rounded-xl justify-start px-4 font-medium transition-all", selectedPresets.composition === key ? "bg-primary border-primary" : "hover:bg-primary/5")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, composition: prev.composition === key ? undefined : key }))}
                                     >
-                                        {t(preset)}
+                                        <div className={cn("w-2 h-2 rounded-full mr-3", selectedPresets.composition === key ? "bg-white" : "bg-white/20")} />
+                                        {t(`dir_${key}`)}
                                     </Button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Group 2: View Angle */}
-                        <div className="space-y-3">
-                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("viewType")}</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {['frontView', 'backView', 'overShoulder', 'wideAngle'].map(preset => (
+                        {/* 2. VIEW ANGLE */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-fuchsia-500/20 flex items-center justify-center">
+                                    <Camera className="w-4 h-4 text-fuchsia-400" />
+                                </div>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("viewAngle")}</Label>
+                                {currentSceneLock?.riskyVariationTypes.includes('angle') && (
+                                    <Badge variant="outline" className="text-[8px] h-4 border-amber-500/50 text-amber-500 bg-amber-500/10 py-0 uppercase">Risky</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['front', 'profile', 'over_shoulder', 'back', 'low_angle', 'high_angle'].map(key => (
                                     <Button
-                                        key={preset}
-                                        variant={selectedPresets.view === t(preset) ? 'default' : 'outline'}
-                                        className={cn("h-10 rounded-xl text-xs", selectedPresets.view === t(preset) && "bg-fuchsia-600 text-white")}
-                                        onClick={() => setSelectedPresets(prev => ({ ...prev, view: prev.view === t(preset) ? '' : t(preset) }))}
+                                        key={key}
+                                        variant={selectedPresets.angle === key ? 'default' : 'outline'}
+                                        className={cn("h-11 rounded-xl justify-start px-4 font-medium transition-all", selectedPresets.angle === key ? "bg-fuchsia-600 border-fuchsia-600" : "hover:bg-fuchsia-500/5")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, angle: prev.angle === key ? undefined : key }))}
                                     >
-                                        {t(preset)}
+                                        <div className={cn("w-2 h-2 rounded-full mr-3", selectedPresets.angle === key ? "bg-white" : "bg-fuchsia-400/20")} />
+                                        {t(`dir_${key}`)}
                                     </Button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Group 3: Mood */}
-                        <div className="space-y-3">
-                            <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("moodType")}</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {['moreCinematic', 'moreIntimate', 'moreAttractive'].map(preset => (
+                        {/* 3. MOOD / EMOTION */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                    <Heart className="w-4 h-4 text-amber-400" />
+                                </div>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("moodEmotion")}</Label>
+                                {currentSceneLock?.riskyVariationTypes.includes('mood') && (
+                                    <Badge variant="outline" className="text-[8px] h-4 border-amber-500/50 text-amber-500 bg-amber-500/10 py-0 uppercase">Risky</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['confident', 'mysterious', 'seductive', 'relaxed', 'playful', 'cold'].map(key => (
                                     <Button
-                                        key={preset}
-                                        variant={selectedPresets.mood === t(preset) ? 'default' : 'outline'}
-                                        className={cn("h-10 rounded-xl text-[10px]", selectedPresets.mood === t(preset) && "bg-fuchsia-600 text-white")}
-                                        onClick={() => setSelectedPresets(prev => ({ ...prev, mood: prev.mood === t(preset) ? '' : t(preset) }))}
+                                        key={key}
+                                        variant={selectedPresets.mood === key ? 'default' : 'outline'}
+                                        className={cn("h-11 rounded-xl justify-start px-4 font-medium transition-all", selectedPresets.mood === key ? "bg-amber-600 border-amber-600" : "hover:bg-amber-500/5")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, mood: prev.mood === key ? undefined : key }))}
                                     >
-                                        {t(preset)}
+                                        <div className={cn("w-2 h-2 rounded-full mr-3", selectedPresets.mood === key ? "bg-white" : "bg-amber-400/20")} />
+                                        {t(`dir_${key}`)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 4. ACTION / MOMENT */}
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                                    <Zap className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("actionMoment")}</Label>
+                                {currentSceneLock?.riskyVariationTypes.includes('action') && (
+                                    <Badge variant="outline" className="text-[8px] h-4 border-amber-500/50 text-amber-500 bg-amber-500/10 py-0 uppercase">Risky</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['still', 'walking', 'sitting', 'turning', 'looking_away', 'interaction'].map(key => (
+                                    <Button
+                                        key={key}
+                                        variant={selectedPresets.action === key ? 'default' : 'outline'}
+                                        className={cn("h-11 rounded-xl justify-start px-4 font-medium transition-all", selectedPresets.action === key ? "bg-emerald-600 border-emerald-600" : "hover:bg-emerald-500/5")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, action: prev.action === key ? undefined : key }))}
+                                    >
+                                        <div className={cn("w-2 h-2 rounded-full mr-3", selectedPresets.action === key ? "bg-white" : "bg-emerald-400/20")} />
+                                        {t(`dir_${key}`)}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 5. LIGHTING STYLE */}
+                        <div className="md:col-span-2 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                                    <Sun className="w-4 h-4 text-blue-400" />
+                                </div>
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("lightingStyle")}</Label>
+                                {currentSceneLock?.riskyVariationTypes.includes('lighting') && (
+                                    <Badge variant="outline" className="text-[8px] h-4 border-amber-500/50 text-amber-500 bg-amber-500/10 py-0 uppercase">Risky</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                {['golden_hour', 'soft_studio', 'dramatic', 'neon', 'daylight'].map(key => (
+                                    <Button
+                                        key={key}
+                                        variant={selectedPresets.lighting === key ? 'default' : 'outline'}
+                                        className={cn("h-11 rounded-xl flex-col items-center justify-center gap-0 font-medium transition-all text-[10px]", selectedPresets.lighting === key ? "bg-blue-600 border-blue-600" : "hover:bg-blue-500/5")}
+                                        onClick={() => setSelectedPresets(prev => ({ ...prev, lighting: prev.lighting === key ? undefined : key }))}
+                                    >
+                                        {t(`dir_${key}`)}
                                     </Button>
                                 ))}
                             </div>
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="bg-white/5 -mx-6 -mb-6 p-6 mt-4 border-t border-white/10">
                         <Button
-                            className="w-full h-14 rounded-2xl font-bold bg-primary text-white text-lg gap-2"
+                            className="w-full h-16 rounded-3xl font-bold bg-primary text-white text-xl gap-3 shadow-2xl shadow-primary/40 relative overflow-hidden group"
                             onClick={handleGenerateVariation}
-                            disabled={generating || (!selectedPresets.shot && !selectedPresets.view && !selectedPresets.mood)}
+                            disabled={generating || Object.values(selectedPresets).every(v => v === undefined)}
                         >
-                            {generating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                            {t("generateAction")} (5 ULC)
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                            {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
+                            <span className="relative">{t("generateAction")} (5 ULC)</span>
                         </Button>
                     </DialogFooter>
                 </DialogContent>

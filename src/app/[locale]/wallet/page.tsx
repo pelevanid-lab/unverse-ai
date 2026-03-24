@@ -70,7 +70,7 @@ function BalanceCard({ user, onShowVesting }: { user: UserProfile | null, onShow
                             <span className="text-5xl font-bold font-headline gradient-text">{displayBalance}</span>
                             <span className="text-xl font-medium text-muted-foreground">ULC</span>
                         </div>
-                        <p className="text-xs text-primary/60 font-medium">Available to spend</p>
+                        <p className="text-xs text-primary/60 font-medium">{t('availableToSpend')}</p>
                     </div>
                     {lockedBalance > 0 && (
                         <div 
@@ -79,7 +79,7 @@ function BalanceCard({ user, onShowVesting }: { user: UserProfile | null, onShow
                         >
                              <div className="space-y-0.5">
                                 <p className="text-[10px] text-orange-400/70 font-bold uppercase tracking-tighter flex items-center gap-1">
-                                    Locked Assets
+                                    {t('lockedAssets')}
                                     <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover/locked:opacity-100 transition-opacity" />
                                 </p>
                                 <div className="text-2xl font-bold text-orange-400">{lockedBalance.toFixed(1)} <span className="text-xs font-normal opacity-70">ULC</span></div>
@@ -132,7 +132,7 @@ function VestingDashboard({ schedules, onClaim, loading }: { schedules: VestingS
                             
                             <div className="space-y-1.5">
                                 <div className="flex justify-between text-[10px] font-medium text-muted-foreground uppercase opacity-70">
-                                    <span>Progress</span>
+                                    <span>{t('progress')}</span>
                                     <span>{progress.toFixed(1)}%</span>
                                 </div>
                                 <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden border border-white/5 p-0.5">
@@ -142,7 +142,7 @@ function VestingDashboard({ schedules, onClaim, loading }: { schedules: VestingS
 
                             <div className="flex items-center justify-between pt-2">
                                 <div className="space-y-0.5">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-semibold opacity-50">Released</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-semibold opacity-50">{t('released')}</p>
                                     <p className="text-sm font-bold font-mono">{s.releasedAmount.toFixed(1)} / {s.totalAmount}</p>
                                 </div>
                                 <Button 

@@ -389,6 +389,19 @@ export interface AIPreference {
     visualToneSummary: string;
 }
 
+
+export interface SceneLock {
+    sceneType: 'beach' | 'jet' | 'indoor' | 'city_night' | 'bedroom' | 'yacht' | 'studio' | 'nature' | 'other';
+    environmentSummary: string;
+    outfitSummary: string;
+    lightingSummary: string;
+    propSummary: string;
+    baseComposition: string;
+    allowedVariationTypes: string[];
+    riskyVariationTypes: string[];
+    intensity: 'low' | 'medium' | 'high';
+}
+
 export interface AIGenerationLog {
     id: string;
     userId: string;
@@ -404,4 +417,8 @@ export interface AIGenerationLog {
     savedToContainer?: boolean;
     published?: boolean;
     tags?: string[];
+    // 🧬 SCENE LOCK (Director Mode 2.0)
+    sceneLock?: SceneLock;
+    sceneType?: string;
+    seed?: number;
 }

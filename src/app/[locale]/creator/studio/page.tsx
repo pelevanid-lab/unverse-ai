@@ -43,6 +43,14 @@ export default function CopilotStudioPage() {
             href: "/creator/animate",
             color: "bg-amber-500/10",
             hover: "hover:border-amber-500/40"
+        },
+        {
+            title: t("tabFreeArt"),
+            desc: t("freeArtDesc"),
+            icon: <Sparkles className="w-6 h-6 text-emerald-400" />,
+            href: "/creator/free-art",
+            color: "bg-emerald-500/10",
+            hover: "hover:border-emerald-500/40"
         }
     ];
 

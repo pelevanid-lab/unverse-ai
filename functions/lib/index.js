@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.joinCreatorProgram = exports.sealEconomy_v2 = exports.createVestingSchedule_v2 = exports.optimizeMedia = void 0;
+exports.joinCreatorProgram = exports.sealEconomy_v2 = exports.createVestingSchedule_v2 = exports.getPostMedia = exports.optimizeMedia = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const storage_1 = require("firebase-functions/v2/storage");
 const https_1 = require("firebase-functions/v2/https");
@@ -92,12 +92,13 @@ exports.optimizeMedia = (0, storage_1.onObjectFinalized)({ timeoutSeconds: 540, 
     if (!filePath || !contentType || !filePath.startsWith("creator_media/") || filePath.includes("_optimized")) {
         return firebase_functions_1.logger.log("Not a triggerable file:", filePath);
     }
-    const originalFileUrl = await storageBucket.file(filePath).getSignedUrl({ action: 'read', expires: '03-09-2491' }).then(urls => urls[0]);
+    // We avoid getSignedUrl here to prevent iam.serviceAccounts.signBlob errors
+    // and because it's an unreliable way to match documents.
     const tempFilePath = path.join(os.tmpdir(), path.basename(filePath));
     await storageBucket.file(filePath).download({ destination: tempFilePath });
-    let optimizedTempPath = null;
-    let newFileName;
-    let newContentType;
+    let optimizedTempPath = "";
+    let newFileName = "";
+    let newContentType = "";
     try {
         if (contentType.startsWith("image/")) {
             newFileName = path.basename(filePath, path.extname(filePath)) + "_optimized.webp";
@@ -118,28 +119,39 @@ exports.optimizeMedia = (0, storage_1.onObjectFinalized)({ timeoutSeconds: 540, 
             });
         }
         else {
-            fs.unlinkSync(tempFilePath);
+            if (fs.existsSync(tempFilePath))
+                fs.unlinkSync(tempFilePath);
             return firebase_functions_1.logger.log("Unsupported content type:", contentType);
         }
         const optimizedFilePath = path.join(path.dirname(filePath), newFileName);
-        const [uploadedFile] = await storageBucket.upload(optimizedTempPath, {
+        await storageBucket.upload(optimizedTempPath, {
             destination: optimizedFilePath,
             metadata: { contentType: newContentType },
         });
-        const [optimizedUrl] = await uploadedFile.getSignedUrl({ action: 'read', expires: '03-09-2491' });
-        const snapshot = await db.collection("creator_media").where("mediaUrl", "==", originalFileUrl).get();
-        if (snapshot.empty) {
-            firebase_functions_1.logger.error("No matching document found for original file URL:", originalFileUrl);
-        }
-        else {
+        // Use publicUrl or simple formatting to avoid getSignedUrl crash if possible
+        const optimizedUrl = `https://storage.googleapis.com/${bucket}/${optimizedFilePath}`;
+        // Match by SEARCHING for the filePath in the mediaUrl string (robust fallback)
+        const snapshot = await db.collection("creator_media")
+            .where("mediaUrl", ">=", `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(filePath).replace(/%2F/g, '/')}`)
+            .get();
+        let matched = false;
+        if (!snapshot.empty) {
             for (const doc of snapshot.docs) {
-                const currentData = doc.data();
-                const updates = { mediaUrl: optimizedUrl, isOptimized: true };
-                if (currentData.status !== 'scheduled' && currentData.status !== 'published') {
-                    updates.status = 'draft';
+                const data = doc.data();
+                // Verify it's the right the right file
+                if (data.mediaUrl.includes(filePath)) {
+                    const currentData = doc.data();
+                    const updates = { mediaUrl: optimizedUrl, isOptimized: true };
+                    if (currentData.status !== 'scheduled' && currentData.status !== 'published') {
+                        updates.status = 'draft';
+                    }
+                    await doc.ref.update(updates);
+                    matched = true;
                 }
-                await doc.ref.update(updates);
             }
+        }
+        if (!matched) {
+            firebase_functions_1.logger.warn("No matching document found in creator_media for path:", filePath);
         }
         await storageBucket.file(filePath).delete();
     }
@@ -151,6 +163,86 @@ exports.optimizeMedia = (0, storage_1.onObjectFinalized)({ timeoutSeconds: 540, 
             fs.unlinkSync(tempFilePath);
         if (optimizedTempPath && fs.existsSync(optimizedTempPath))
             fs.unlinkSync(optimizedTempPath);
+    }
+});
+/**
+ * SECURE MEDIA ACCESS: Generates a signed URL for authorized users.
+ */
+exports.getPostMedia = (0, https_1.onCall)({ memory: "256MiB" }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError("unauthenticated", "Authentication required.");
+    const { postId } = request.data;
+    if (!postId)
+        throw new https_1.HttpsError("invalid-argument", "postId is required.");
+    const postRef = db.collection("posts").doc(postId);
+    const postSnap = await postRef.get();
+    if (!postSnap.exists)
+        throw new https_1.HttpsError("not-found", "Post not found.");
+    const postData = postSnap.data();
+    const userId = request.auth.uid;
+    const creatorId = postData.creatorId;
+    // 1. Authorization Logic: Resolve UID/Wallet mapping
+    const userDocResult = await getUserDoc(db, userId);
+    const userRef = userDocResult?.ref;
+    const userWallet = userDocResult?.data?.walletAddress || userRef?.id;
+    // Check if the requester is the owner (matching UID or Wallet)
+    let hasAccess = userId === creatorId || userWallet?.toLowerCase() === creatorId?.toLowerCase();
+    if (!hasAccess) {
+        // Resolve Creator's identities to be sure
+        const creatorDocResult = await getUserDoc(db, creatorId);
+        const creatorUid = creatorDocResult?.data?.uid || creatorId;
+        const creatorWallet = creatorDocResult?.data?.walletAddress || creatorId;
+        // Check Active Subscription (Try both UID and Wallet)
+        const subSnap = await db.collection("subscriptions")
+            .where("userId", "==", userId)
+            .where("creatorId", "in", [creatorUid, creatorWallet])
+            .where("status", "==", "active")
+            .limit(1).get();
+        if (!subSnap.empty)
+            hasAccess = true;
+        // Check Individual Unlock (Ledger)
+        if (!hasAccess) {
+            const unlockSnap = await db.collection("ledger")
+                .where("fromUserId", "==", userId)
+                .where("type", "==", "premium_unlock")
+                .where("referenceId", "==", postId)
+                .limit(1).get();
+            if (!unlockSnap.empty)
+                hasAccess = true;
+        }
+    }
+    if (!hasAccess)
+        throw new https_1.HttpsError("permission-denied", "You do not have access to this premium content.");
+    // 2. Generate Secure URL
+    try {
+        const bucket = admin.storage().bucket();
+        let storagePath = postData.mediaUrl;
+        // Robust path extraction from various Firebase/GCP URL formats
+        if (storagePath.startsWith("http")) {
+            const decoded = decodeURIComponent(storagePath);
+            if (decoded.includes("/o/")) {
+                // Firebase Storage format
+                storagePath = decoded.split("/o/")[1].split("?")[0];
+            }
+            else if (decoded.includes(bucket.name)) {
+                // Google Cloud Storage format
+                storagePath = decoded.split(bucket.name + "/")[1]?.split("?")[0] || storagePath;
+            }
+        }
+        firebase_functions_1.logger.log(`Generating signed URL for path: [${storagePath}] from mediaUrl: [${postData.mediaUrl}]`);
+        const [url] = await bucket.file(storagePath).getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000,
+        });
+        return { url };
+    }
+    catch (err) {
+        firebase_functions_1.logger.error("getPostMedia Error details:", {
+            error: err.message,
+            code: err.code,
+            mediaUrl: postData.mediaUrl
+        });
+        throw new https_1.HttpsError("internal", `Secure URL generation failed. Role needed: 'Service Account Token Creator' for the current service account. Error: ${err.message}`);
     }
 });
 exports.createVestingSchedule_v2 = (0, https_1.onCall)({ memory: "256MiB" }, async (request) => {

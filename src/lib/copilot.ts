@@ -13,8 +13,9 @@ import {
     addDoc,
     serverTimestamp
 } from 'firebase/firestore';
-import { UserProfile, AIGenerationLog, CharacterProfile, AIPreference, OnboardingState, CreatorMedia } from './types';
+import { UserProfile, AIGenerationLog, CharacterProfile, AIPreference, OnboardingState, CreatorMedia, SceneLock } from './types';
 import { processAiCreatorActivation, processAiCreatorGeneration } from './ledger';
+import { SceneRuleEngine } from './scene-engine';
 
 export class Copilot {
     private userId: string;
@@ -153,6 +154,91 @@ export class Copilot {
     }
 
     /**
+     * DIRECTOR MODE: Generates a strictly controlled variation prompt based on 5 categories.
+     * Ensures 'Same Photoshoot' consistency by preserving base scene verbatim.
+     */
+    async generateDirectorPrompt(params: {
+        originalPrompt: string,
+        presets: {
+            composition?: string,
+            angle?: string,
+            mood?: string,
+            action?: string,
+            lighting?: string
+        },
+        character?: CharacterProfile,
+        sceneLock?: SceneLock
+    }): Promise<{ enhancedPrompt: string }> {
+        const MAPPINGS: Record<string, Record<string, string>> = {
+            composition: {
+                wide: "wide cinematic composition, subject smaller in frame",
+                medium: "medium shot, balanced framing",
+                full_body: "full body shot, entire silhouette visible",
+                close_up: "close-up, face dominant",
+                extreme_close: "extreme close-up, detailed facial focus"
+            },
+            angle: {
+                front: "direct front view",
+                profile: "side profile view",
+                over_shoulder: "looking over shoulder",
+                back: "back facing camera",
+                low_angle: "low angle perspective, powerful presence",
+                high_angle: "high angle perspective, softer feeling"
+            },
+            mood: {
+                confident: "confident expression, strong posture",
+                mysterious: "subtle emotion, intense gaze",
+                seductive: "soft eyes, inviting expression",
+                relaxed: "natural posture, calm expression",
+                playful: "light smile, energetic mood",
+                cold: "distant expression, minimal emotion"
+            },
+            action: {
+                still: "standing still, stable pose",
+                walking: "natural walking motion",
+                sitting: "relaxed seated pose",
+                turning: "body slightly turning",
+                looking_away: "gaze away from camera",
+                interaction: "interacting with object (glass, hair, or clothing)"
+            },
+            lighting: {
+                golden_hour: "warm golden hour lighting",
+                soft_studio: "soft diffused studio lighting",
+                dramatic: "strong shadows, high contrast",
+                neon: "neon reflections, night lighting",
+                daylight: "natural daylight realism"
+            }
+        };
+
+        // 🛡️ SCENE RULE ENGINE: Cleanse presets based on scene type
+        const safePresets = params.sceneLock 
+            ? SceneRuleEngine.getSafeModifiers(params.sceneLock, params.presets)
+            : params.presets;
+
+        const appliedParts: string[] = [];
+        Object.entries(safePresets).forEach(([category, key]) => {
+            if (key && MAPPINGS[category]?.[key as string]) {
+                appliedParts.push(MAPPINGS[category][key as string]);
+            }
+        });
+
+        const variationMod = appliedParts.join(". ") || "cinematic variation";
+        
+        // 🧬 LAYERED PROMPT CONSTRUCTION (Director Mode 2.0)
+        // Layer A: Variation Modifiers (The Change)
+        // Layer B: Locked Scene Anchors (The Foundation)
+        // Layer C: Strict Photoshoot Reinforcement (The Fix)
+        
+        const sceneLock = params.sceneLock;
+        const outfitAnchor = sceneLock?.outfitSummary ? `OUTFIT: ${sceneLock.outfitSummary}` : "identical clothing";
+        const envAnchor = sceneLock?.environmentSummary ? `LOCATION: ${sceneLock.environmentSummary}` : "identical surroundings";
+        
+        const finalPrompt = `${variationMod}. Same photoshoot, ${outfitAnchor}, ${envAnchor}, same lighting, same location: ${params.originalPrompt}. STRICT RULE: do not change environment, outfit, lighting setup or character identity.`;
+
+        return { enhancedPrompt: finalPrompt };
+    }
+
+    /**
      * Smart Flow: Enhances an image prompt with character traits, styles, and memory.
      */
     async generateImagePrompt(params: {
@@ -163,7 +249,7 @@ export class Copilot {
         isEditMode?: boolean,
         referenceImageUrl?: string,
         outfit?: string
-    }): Promise<{ enhancedPrompt: string, originalPrompt: string, translation?: string, negativePrompt?: string }> {
+    }): Promise<{ enhancedPrompt: string, originalPrompt: string, translation?: string, negativePrompt?: string, sceneLock?: Partial<SceneLock> }> {
         
         // DISABLE memory to clear hallucinations for for current triage
         const memoryContext = ""; 
@@ -171,38 +257,39 @@ export class Copilot {
         
         // Character context construction (Persona Upgrade)
         const char = params.character || this.user?.savedCharacter;
+        const isLocked = !!char && (params.isEditMode || (this.user?.savedCharacter && char.id === this.user.savedCharacter.id));
+
         let charInfo = "A person";
         if (char) {
             const traits = [];
-            if (char.gender) traits.push(`Identity: ${char.gender}`);
-            if (char.hairColor && char.hairColor.toLowerCase() !== 'unknown') traits.push(`Hair: ${char.hairColor}`);
-            if (char.eyeColor && char.eyeColor.toLowerCase() !== 'unknown') traits.push(`Eyes: ${char.eyeColor}`);
-            if (char.faceStyle && char.faceStyle.toLowerCase() !== 'unknown') traits.push(`Face: ${char.faceStyle}`);
-            
-            charInfo = traits.join(", ") + ". Always maintain this EXACT identity.";
+            if (isLocked) {
+                traits.push(`Gender: ${char.gender}`);
+                charInfo = traits.join(", ") + ". (Core identity is locked and will be handled by reference image).";
+            } else {
+                if (char.gender) traits.push(`Identity: ${char.gender}`);
+                if (char.hairColor && char.hairColor.toLowerCase() !== 'unknown') traits.push(`Hair: ${char.hairColor}`);
+                if (char.eyeColor && char.eyeColor.toLowerCase() !== 'unknown') traits.push(`Eyes: ${char.eyeColor}`);
+                if (char.faceStyle && char.faceStyle.toLowerCase() !== 'unknown') traits.push(`Face: ${char.faceStyle}`);
+                charInfo = traits.join(", ") + ". Always maintain this EXACT identity.";
+            }
             if (char.persona_prompt) charInfo += ` Persona Context: ${char.persona_prompt}`;
         }
 
-        const systemInstructions = `You are a professional Prompt Engineer. Expand the user input into a photorealistic, high-quality 50-word AI image prompt.
+        const systemInstructions = `You are a professional Prompt Engineer. Expand the user input into a photorealistic, high-quality, and deeply cinematic 60-word AI image prompt.
 STRICT CONSTRAINTS:
-- DO NOT change the core user intent.
-- DO NOT introduce new subjects, characters, or objects not mentioned by the user.
-- DO NOT alter the meaning of the request.
-- ONLY improve clarity, detail, composition, and visual quality.
-- CHARACTER CONSISTENCY: Enforce a single subject ONLY. Same identity as defined below. No multiple subjects.
-- IDENTITY LOCK (MANDATORY): Maintain absolute 100% core identity consistency. Do not change the person's unique features.
+1. SCENE PRIMACY: Focus 80% of your expansion on location, lighting, atmosphere, composition, and storytelling details.
+2. STORYTELLING: Describe the mood, the "moment", and natural interactions.
+3. OUTPUT FORMAT: Return ONLY a JSON object with: enhancedPrompt, outfitSummary, environmentSummary, lightingSummary, propSummary.
+4. CHARACTER CONSISTENCY: Enforce a Subject. Use basic identifiers like gender.
 
 User Input: "${params.userInput}"
 Character: ${charInfo}
 Style/Atmosphere: ${params.style || 'natural'}
 Shot Type: ${params.composition || 'solo'}
-${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject identity perfectly. Focus ONLY on changing the background or specific elements requested.' : ''}
+${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject identity perfectly.' : ''}
+`;
 
-${memoryContext}
-
-Output ONLY the final prompt text. If the AI output tries to add people or change subjects, OVERRIDE and fix it to maintain consistency.`;
-
-        // Call the central Gemini API (re-using the existing route logic via fetch)
+        // Call the central Gemini API
         const response = await fetch('/api/ai/enhance-prompt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -213,7 +300,7 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
                 style: params.style,
                 composition: params.composition,
                 outfit: params.outfit,
-                negativeContext: negativeMemoryContext // Added negativeContext here
+                negativeContext: negativeMemoryContext
             })
         });
 
@@ -222,11 +309,21 @@ Output ONLY the final prompt text. If the AI output tries to add people or chang
         }
 
         const data = await response.json();
+        
+        // 🧬 SceneDNA extraction
+        const sceneLock: Partial<SceneLock> = {
+            outfitSummary: data.outfitSummary,
+            environmentSummary: data.environmentSummary,
+            lightingSummary: data.lightingSummary,
+            propSummary: data.propSummary
+        };
+
         return {
             enhancedPrompt: data.enhancedPrompt,
             originalPrompt: params.userInput,
             translation: data.translation,
-            negativePrompt: negativeMemoryContext
+            negativePrompt: negativeMemoryContext,
+            sceneLock
         };
     }
 
@@ -593,20 +690,13 @@ Output ONLY the caption text.`;
             params.presets.mood
         ].filter(Boolean).join(", ");
 
-        const systemInstructions = `You are a professional Creative Director. Transform the "Original Scene" into a new cinematic variation.
-STRICT VARIATION RULES:
-- KEEP the same character (Identity Locked).
-- KEEP the same outfit and clothing details.
-- KEEP the same location and environment.
-- KEEP the same emotional tone and vibe.
-- CHANGE ONLY the composition, camera framing, and mood emphasis according to the "Variation Directives".
-- IDENTITY LOCK: Use the same face as reference image, preserve identity, identical facial structure, same eyes, same nose, same lips, no facial drift.
+        const systemInstructions = `You are a professional Creative Director. Your task is to generate ONLY a minimalist framing and camera directive for an AI image variation.
+RULES:
+1. OUTPUT: Only a few framing/camera keywords (e.g. "close-up shot", "wide angle view from distance", "profile side view").
+2. NO DESCRIPTION: Do NOT describe the person, the outfit, or the scene.
+3. NO FULL SENTENCES: Output only keywords.
 
-Original Scene: "${params.originalPrompt}"
-Character: ${charInfo}
-Variation Directives: ${variationDirectives}
-
-Output ONLY the expanded, high-quality 50-word AI image prompt (in English) describing this specific variation.`;
+Variation Directives requested: ${variationDirectives}`;
 
         const response = await fetch('/api/ai/enhance-prompt', {
             method: 'POST',
