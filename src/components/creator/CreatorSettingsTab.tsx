@@ -17,23 +17,6 @@ import { Loader2, Wallet, ChevronRight, Twitter } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { useRouter } from 'next/navigation';
 
-function CollectionWalletsLinkCard() {
-    const router = useRouter();
-    return (
-        <Card className="glass-card max-w-2xl mx-auto border-white/10 mt-6">
-            <CardHeader>
-                <CardTitle className='flex items-center gap-2'><Wallet className="w-5 h-5 text-primary"/> Collection Wallets</CardTitle>
-                <CardDescription>Manage the TRON and TON wallets where you will receive your earnings.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 <Button onClick={() => router.push('/creator/collection-wallets')} className='w-full'>
-                    Manage Collection Wallets
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                 </Button>
-            </CardContent>
-        </Card>
-    );
-}
 
 export function CreatorSettingsTab() {
     const { user } = useWallet();
@@ -181,8 +164,6 @@ export function CreatorSettingsTab() {
                     </form>
                 </CardContent>
             </Card>
-            
-            <CollectionWalletsLinkCard />
         </div>
     );
 }

@@ -203,20 +203,7 @@ export default function CreatorSettingsPage() {
                                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                                 {t('saveSettings')}
                             </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-
-                <Card className="glass-card border-white/10 overflow-hidden relative group cursor-pointer hover:border-blue-500/30 transition-colors" onClick={() => router.push('/creator/collection-wallets')}>
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
-                    <CardHeader>
-                        <CardTitle className='flex items-center gap-2 text-blue-400'><WalletIcon className="w-5 h-5"/> {t('collectionAddressesTitle')}</CardTitle>
-                        <CardDescription>{t('collectionAddressesDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex justify-end pt-0">
-                         <div className="flex items-center gap-2 text-sm font-bold text-blue-400 group-hover:gap-3 transition-all">
-                            {t('manageAddresses')} <ChevronRightIcon className="w-4 h-4" />
-                         </div>
+                         </form>
                     </CardContent>
                 </Card>
             </div>

@@ -25,7 +25,7 @@ export async function getSystemConfig(): Promise<SystemConfig> {
     if (config.isSealed) {
         config.protocolFloorPrice = calculateProtocolFloorPrice(config, stats.totalBurnedULC || 0);
     } else {
-        config.protocolFloorPrice = config.listingPriceUSDT || 0.015;
+        config.protocolFloorPrice = config.listingPriceUSDC || 0.015;
     }
 
     systemConfigCache = config;
@@ -38,7 +38,7 @@ export async function getSystemConfig(): Promise<SystemConfig> {
  */
 export function calculateProtocolFloorPrice(config: SystemConfig, burnedAmount: number): number {
     const initialSupply = config.initialSupplyAtSeal || 1000000000;
-    const targetCap = config.targetCapitalizationUSDT || 15000000;
+    const targetCap = config.targetCapitalizationUSDC || 15000000;
     
     const remainingSupply = Math.max(1, initialSupply - burnedAmount);
     return Number((targetCap / remainingSupply).toFixed(6));
@@ -87,11 +87,11 @@ export async function grantWelcomeBonus(address: string): Promise<void> {
     await batch.commit();
 }
 
-export async function recordUsdtSubscription(
+export async function recordUsdcSubscription(
     subscriber: UserProfile,
     creator: UserProfile,
     config: SystemConfig,
-    network: 'TRON' | 'TON',
+    network: 'Base' | 'EVM',
     txHash: string
 ): Promise<void> {
     if (!creator.creatorData) throw new Error("Target user is not a creator.");
@@ -150,10 +150,10 @@ export async function recordUsdtSubscription(
         fromUserId: subscriber.uid,
         toUserId: creator.uid,
         amount: subscriptionPrice,
-        currency: 'USDT',
+        currency: 'USDC',
         network: network,
         txHash: txHash,
-        toWallet: config.treasury_wallets[network],
+        toWallet: config.treasury_address,
     });
 
     batch.set(doc(collection(db, "ledger")), {
@@ -170,7 +170,7 @@ export async function recordUsdtSubscription(
     // 3. Update Creator USDT Balance
     const creatorRef = doc(db, 'users', creator.uid);
     batch.update(creatorRef, {
-        'usdtBalance.available': increment(creatorEarning),
+        'usdcBalance.available': increment(creatorEarning),
         totalEarnings: increment(creatorEarning)
     });
 
@@ -181,17 +181,17 @@ export async function recordUsdtSubscription(
     const buybackStakingShare = buybackShare; // Entire 5% goes to staking
 
     batch.update(statsRef, {
-        totalTreasuryUSDT: increment(treasuryShare),
-        totalBuybackStakingUSDT: increment(buybackStakingShare)
+        totalTreasuryUSDC: increment(treasuryShare),
+        totalBuybackStakingUSDC: increment(buybackStakingShare)
     });
 
     batch.set(doc(collection(db, "ledger")), {
         type: 'treasury_fee',
         timestamp: now,
         amount: treasuryShare,
-        currency: 'USDT',
+        currency: 'USDC',
         referenceId: paymentRef.id,
-        toWallet: config.treasury_wallets[network]
+        toWallet: config.treasury_address
     });
 
     batch.set(doc(collection(db, "ledger")), {
@@ -211,7 +211,7 @@ export async function recordUsdtSubscription(
     await batch.commit();
 }
 
-export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{ available: number, pending: number }> {
+export async function calculateCreatorUsdcEarnings(creatorId: string): Promise<{ available: number, pending: number }> {
     const earningsQuery = query(
         collection(db, 'ledger'), 
         where('toUserId', '==', creatorId),
@@ -244,18 +244,17 @@ export async function calculateCreatorUsdtEarnings(creatorId: string): Promise<{
     };
 }
 
-export async function createClaimRequest(creator: Creator): Promise<string> {
+export async function createClaimRequest(creator: Creator, walletAddress: string): Promise<string> {
     if (!creator.uid) throw new Error("Creator ID is missing.");
-    const network = creator.preferredPayoutNetwork;
-    if (!network) throw new Error("Please select a default collection network in your settings.");
-    const walletAddress = creator.payoutWallets?.[network]?.address;
-    if (!walletAddress) throw new Error(`Your default ${network} collection address is not configured.`);
-    const { available } = await calculateCreatorUsdtEarnings(creator.uid);
-    if (available <= 0) throw new Error("You have no available USDT to claim.");
+    const network = 'Base';
+    
+    const { available } = await calculateCreatorUsdcEarnings(creator.uid);
+    if (available <= 0) throw new Error("You have no available USDC to claim.");
+    
     const newClaim: Omit<ClaimRequest, 'id'> = {
         creatorId: creator.uid,
         amount: available,
-        currency: "USDT",
+        currency: "USDC",
         network: network,
         walletAddress: walletAddress,
         status: "pending",
@@ -376,27 +375,21 @@ export async function syncSystemConfigAction() {
         premium_unlock_treasury_ratio: 0.67,
         subscription_buyback_ratio: 0.33,
         subscription_treasury_ratio: 0.67,
-        totalBuybackStakingUSDT: 0,
-        totalPresaleSold: 0,
-        totalStakedULC: 0,
-        totalTreasuryUSDT: 0,
-        treasury_wallets: {
-            TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
-            TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2",
-        },
+        totalTreasuryUSDC: 0,
+        treasury_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
         // Buyback Defaults (Post-Launch Preparation)
         treasury_buyback_enabled: true,
         treasury_buyback_ratio: 0.3,
-        operationCostUSDT: 0,
-        treasuryUSDTBalanceManual: 0,
+        operationCostUSDC: 0,
+        treasuryUSDCBalanceManual: 0,
         presaleCompleted: false,
         tokenLaunchCompleted: false,
         marketLiquidityReady: false,
         // Pre-Sale Tier Upgrade 2026
         presaleAllocationULC: 100000000,
         currentPresaleStage: 1,
-        presalePriceUSDT: 0.009,
-        listingPriceUSDT: 0.015,
+        presalePriceUSDC: 0.009,
+        listingPriceUSDC: 0.015,
     };
 
     // We use merge: true to not overwrite currently accumulated values like totalTreasuryUSDT, 

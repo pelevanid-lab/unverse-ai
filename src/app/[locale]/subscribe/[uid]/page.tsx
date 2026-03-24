@@ -4,12 +4,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/use-wallet';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { useAccount, useSwitchChain, useWriteContract } from 'wagmi';
+import { base } from 'wagmi/chains';
+import { parseUnits } from 'viem';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { UserProfile, SystemConfig } from '@/lib/types';
-import { getSystemConfig, recordUsdtSubscription } from '@/lib/ledger';
+import { getSystemConfig, recordUsdcSubscription } from '@/lib/ledger';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -24,13 +27,15 @@ export default function SubscribePage() {
     const { uid } = useParams();
     const router = useRouter();
     const { user: currentUser } = useWallet();
-    const [tonConnectUI] = useTonConnectUI();
+    const { chain, connector } = useAccount();
+    const isSmartWallet = connector?.id === 'coinbaseWallet';
+    const { switchChainAsync } = useSwitchChain();
+    const { writeContractAsync } = useWriteContract();
     const { toast } = useToast();
 
     const [creatorProfile, setCreatorProfile] = useState<UserProfile | null>(null);
     const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
 
     useEffect(() => {
         if (!uid) return;
@@ -53,50 +58,57 @@ export default function SubscribePage() {
         }
 
         const subscriptionPrice = creatorProfile.creatorData?.subscriptionPriceMonthly ?? 0;
-        const treasuryWallet = systemConfig.treasury_wallets[selectedNetwork];
+        const treasuryAddress = systemConfig.treasury_address;
 
-        if (!treasuryWallet || treasuryWallet.includes("REPLACE")) {
-            toast({ variant: "destructive", title: t('configError'), description: t('treasuryNotConfigured', { network: selectedNetwork }) });
+        if (!treasuryAddress) {
+            toast({ variant: "destructive", title: t('configError'), description: t('treasuryNotConfigured') });
             return;
         }
 
         setIsProcessing(true);
         try {
-            let txHash: string;
-
-            if (selectedNetwork === 'TON') {
-                if (!tonConnectUI.connected) {
-                    await tonConnectUI.openModal();
-                    setIsProcessing(false);
-                    return;
+            // 1. Ensure we are on Base
+            if (chain?.id !== base.id) {
+                try {
+                    await switchChainAsync({ chainId: base.id });
+                } catch (switchError) {
+                    throw new Error("Please switch to Base network to complete the subscription.");
                 }
-                
-                // Real TON-based transfer (Native for demo, Jetton payload for prod)
-                const result = await tonConnectUI.sendTransaction({
-                    validUntil: Math.floor(Date.now() / 1000) + 360,
-                    messages: [{ 
-                        address: treasuryWallet, 
-                        amount: (subscriptionPrice * 1_000_000_000).toString() 
-                    }]
-                });
-                txHash = result.boc;
-            } else {
-                // Real TRON USDT (TRC20) Transfer
-                const provider = (window as any).tronWeb;
-                if (!provider) throw new Error("TronLink not found. Please install TronLink extension.");
-                
-                const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; 
-                const contract = await provider.contract().at(usdtContractAddress);
-                const amountInSun = (subscriptionPrice * 1_000_000).toString(); // 6 decimals
-                
-                const result = await contract.transfer(treasuryWallet, amountInSun).send();
-                txHash = result;
             }
+
+            // 2. Execute USDC Transfer
+            const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+            const usdcDecimals = 6;
+            const amountInUnits = parseUnits(subscriptionPrice.toString(), usdcDecimals);
+
+            const txHash = await writeContractAsync({
+                address: usdcAddress as `0x${string}`,
+                abi: [
+                    {
+                        constant: false,
+                        inputs: [
+                            { name: "_to", type: "address" },
+                            { name: "_value", type: "uint256" }
+                        ],
+                        name: "transfer",
+                        outputs: [{ name: "", type: "bool" }],
+                        type: "function"
+                    }
+                ],
+                functionName: 'transfer',
+                args: [treasuryAddress as `0x${string}`, amountInUnits],
+                // @ts-ignore - capabilities is an experimental feature in wagmi
+                capabilities: {
+                    paymasterService: {
+                        url: process.env.NEXT_PUBLIC_PAYMASTER_URL
+                    }
+                }
+            });
 
             if (!txHash) throw new Error("Transaction cancelled by user.");
 
             // Success: Record the subscription in Firestore
-            await recordUsdtSubscription(currentUser, creatorProfile, systemConfig, selectedNetwork, txHash);
+            await recordUsdcSubscription(currentUser, creatorProfile, systemConfig, 'Base', txHash);
             
             toast({ title: t('activeSuccess'), description: t('subscribedTo', { username: creatorProfile.username }) });
             router.push(`/profile/${uid}`);
@@ -156,27 +168,22 @@ export default function SubscribePage() {
                     <CardContent className="space-y-8">
                         <div className="flex items-baseline gap-2">
                             <span className="text-6xl font-black font-headline text-primary tracking-tighter">{price}</span>
-                            <span className="text-xl font-bold text-muted-foreground">USDT</span>
+                            <span className="text-xl font-bold text-muted-foreground">USDC</span>
                         </div>
 
-                        <div className="space-y-4">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{t('chooseNetwork')}</Label>
-                            <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4">
-                                <div className="flex-1">
-                                    <RadioGroupItem value="TON" id="s-ton" className="sr-only" />
-                                    <Label htmlFor="s-ton" className={`flex flex-col items-center justify-center py-5 rounded-2xl border-2 cursor-pointer transition-all ${selectedNetwork === 'TON' ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}>
-                                        <span className="font-bold text-lg">TON</span>
-                                        <span className="text-[10px] opacity-50 font-bold uppercase">USDT</span>
-                                    </Label>
+                        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 rounded-lg bg-primary/10">
+                                    <ShieldCheck className="w-5 h-5 text-primary" />
                                 </div>
-                                <div className="flex-1">
-                                    <RadioGroupItem value="TRON" id="s-tron" className="sr-only" />
-                                    <Label htmlFor="s-tron" className={`flex flex-col items-center justify-center py-5 rounded-2xl border-2 cursor-pointer transition-all ${selectedNetwork === 'TRON' ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}>
-                                        <span className="font-bold text-lg">TRON</span>
-                                        <span className="text-[10px] opacity-50 font-bold uppercase">TRC20</span>
-                                    </Label>
+                                <div>
+                                    <p className="text-sm font-bold">Base Network</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-medium">Native USDC Payment</p>
                                 </div>
-                            </RadioGroup>
+                            </div>
+                            {isSmartWallet && (
+                                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] font-bold">Gas-less Ready</Badge>
+                            )}
                         </div>
 
                         <Button onClick={handleSubscribe} disabled={isProcessing} className="w-full h-16 text-xl font-black rounded-[1.5rem] shadow-2xl shadow-primary/30 bg-primary hover:bg-primary/90">

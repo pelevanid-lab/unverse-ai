@@ -174,21 +174,6 @@ export default function MyPage() {
                 </Card>
             </Link>
 
-            <Link href="/payment-wallets" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-blue-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors"><Wallet className="w-6 h-6 text-blue-400" /></div>
-                            <div>
-                                <p className="font-bold">{t('paymentWallets')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('connection')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-
             <Link href="/messages" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">

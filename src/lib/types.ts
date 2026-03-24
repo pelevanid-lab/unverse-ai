@@ -48,7 +48,7 @@ export interface UserProfile {
         staked: number; // Dedicated for Staking
         claimable: number;
     };
-    usdtBalance?: {
+    usdcBalance?: {
         available: number;
         claimable: number;
     };
@@ -59,10 +59,10 @@ export interface UserProfile {
     unlockedPostIds?: string[];
     activeSubscriptionIds?: string[];
     paymentWallets?: {
-        TRON?: NetworkWallet | null;
-        TON?: NetworkWallet | null;
+        Base?: NetworkWallet | null;
+        EVM?: NetworkWallet | null; // Generic EVM
     };
-    preferredPaymentNetwork?: 'TRON' | 'TON';
+    preferredPaymentNetwork?: 'Base' | 'EVM';
     creatorData?: Creator;
     isFrozen?: boolean;
     socials?: {
@@ -120,10 +120,9 @@ export interface Creator {
     avatar?: string;
     subscriptionPriceMonthly: number;
     payoutWallets?: {
-        TRON?: { address: string };
-        TON?: { address: string };
+        Base?: { address: string };
     };
-    preferredPayoutNetwork?: 'TRON' | 'TON';
+    preferredPayoutNetwork?: 'Base';
     category?: string;
     coverImage?: string;
     creatorStatus?: 'active' | 'inactive';
@@ -132,7 +131,7 @@ export interface Creator {
         TRON?: NetworkWallet | null;
         TON?: NetworkWallet | null;
     };
-    defaultClaimNetwork?: 'TRON' | 'TON';
+    defaultClaimNetwork?: 'Base';
 }
 
 export interface SystemConfig {
@@ -162,30 +161,25 @@ export interface SystemConfig {
     premium_unlock_treasury_ratio?: number;
     subscription_buyback_ratio?: number;
     subscription_treasury_ratio?: number;
-    totalBuybackStakingUSDT?: number;
+    totalTreasuryUSDC?: number;
     totalPresaleSold?: number;
-    totalStakedULC?: number;
-    totalTreasuryUSDT?: number;
-    treasury_wallets: {
-        TRON: string;
-        TON: string;
-    };
+    treasury_address: string;
     // Economic Persistence (The Seal)
     initialSupplyAtSeal?: number;      // Fixed at 1B
-    targetCapitalizationUSDT?: number; // Fixed at 15M
+    targetCapitalizationUSDC?: number; // Fixed at 15M
     initialPriceAtSeal?: number;       // Fixed at 0.015
     protocolFloorPrice?: number;       // Dynamically calculated
     // Pre-Sale Tier Upgrade
     presaleAllocationULC?: number;
     currentPresaleStage?: number;
-    presalePriceUSDT?: number;
-    listingPriceUSDT?: number;
+    presalePriceUSDC?: number;
+    listingPriceUSDC?: number;
 
     // Post-launch Buyback Configuration
     treasury_buyback_enabled?: boolean;
     treasury_buyback_ratio?: number;
-    operationCostUSDT?: number;
-    treasuryUSDTBalanceManual?: number;
+    operationCostUSDC?: number;
+    treasuryUSDCBalanceManual?: number;
     presaleCompleted?: boolean;
     tokenLaunchCompleted?: boolean;
     marketLiquidityReady?: boolean;
@@ -248,7 +242,7 @@ export interface LedgerEntry {
     timestamp: number;
     type: LedgerEntryType;
     amount: number;
-    currency: 'ULC' | 'USDT';
+    currency: 'ULC' | 'USDC';
     userId?: string;
     fromUserId?: string;
     toUserId?: string;
@@ -256,7 +250,7 @@ export interface LedgerEntry {
     toWallet?: string;
     creatorId?: string;
     txHash?: string;
-    network?: 'TRON' | 'TON';
+    network?: 'Base' | 'EVM';
     memo?: string;
     referenceId?: string;
     platformFee?: number;
@@ -271,8 +265,8 @@ export interface ClaimRequest {
     id: string;
     creatorId: string;
     amount: number;
-    currency: 'USDT' | 'ULC';
-    network: 'TRON' | 'TON';
+    currency: 'USDC' | 'ULC';
+    network: 'Base' | 'EVM';
     walletAddress: string;
     status: 'pending' | 'approved' | 'completed' | 'rejected';
     requestedAt: number;

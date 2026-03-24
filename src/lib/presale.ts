@@ -47,35 +47,35 @@ export function getPresaleStageInfo(totalSold: number): PresaleStageInfo {
 }
 
 /**
- * Calculates how much ULC a user gets for a given USDT amount.
+ * Calculates how much ULC a user gets for a given USDC amount.
  * Handles split Across multiple stages.
  */
-export function calculateUlcForUsdt(totalSold: number, usdtAmount: number) {
-  let remainingUsdt = usdtAmount;
+export function calculateUlcForUsdc(totalSold: number, usdcAmount: number) {
+  let remainingUsdc = usdcAmount;
   let totalUlc = 0;
   let currentSold = totalSold;
-  const breakdown: { stage: number; ulcAmount: number; priceUSDT: number }[] = [];
+  const breakdown: { stage: number; ulcAmount: number; priceUSDC: number }[] = [];
 
   if (totalSold >= PRESALE_TOTAL_ALLOCATION) return { totalUlc: 0, breakdown: [] };
 
   for (const tier of PRESALE_TIERS) {
     if (currentSold >= tier.limit) continue;
-    if (remainingUsdt <= 0) break;
+    if (remainingUsdc <= 0) break;
 
     const remainingInTier = tier.limit - currentSold;
     const costForTier = remainingInTier * tier.price;
 
-    if (remainingUsdt <= costForTier) {
+    if (remainingUsdc <= costForTier) {
       // Purchase fits in this tier
-      const ulcInTier = remainingUsdt / tier.price;
+      const ulcInTier = remainingUsdc / tier.price;
       totalUlc += ulcInTier;
-      breakdown.push({ stage: tier.stage, ulcAmount: ulcInTier, priceUSDT: tier.price });
-      remainingUsdt = 0;
+      breakdown.push({ stage: tier.stage, ulcAmount: ulcInTier, priceUSDC: tier.price });
+      remainingUsdc = 0;
     } else {
       // Purchase crosses to next tier
       totalUlc += remainingInTier;
-      breakdown.push({ stage: tier.stage, ulcAmount: remainingInTier, priceUSDT: tier.price });
-      remainingUsdt -= costForTier;
+      breakdown.push({ stage: tier.stage, ulcAmount: remainingInTier, priceUSDC: tier.price });
+      remainingUsdc -= costForTier;
       currentSold = tier.limit;
     }
   }
@@ -83,19 +83,19 @@ export function calculateUlcForUsdt(totalSold: number, usdtAmount: number) {
   return { 
     totalUlc: Math.floor(totalUlc), 
     breakdown,
-    effectiveAveragePrice: usdtAmount / totalUlc
+    effectiveAveragePrice: usdcAmount / totalUlc
   };
 }
 
 /**
- * Calculates how much USDT is needed for a specific ULC purchase.
+ * Calculates how much USDC is needed for a specific ULC purchase.
  * Handles split across multiple stages.
  */
-export function calculateUsdtForUlc(totalSold: number, ulcAmount: number) {
+export function calculateUsdcForUlc(totalSold: number, ulcAmount: number) {
     let remainingUlc = ulcAmount;
-    let totalUsdt = 0;
+    let totalUsdc = 0;
     let currentSold = totalSold;
-    const breakdown: { stage: number; ulcAmount: number; priceUSDT: number }[] = [];
+    const breakdown: { stage: number; ulcAmount: number; priceUSDC: number }[] = [];
 
     if (totalSold + ulcAmount > PRESALE_TOTAL_ALLOCATION) {
         remainingUlc = Math.max(0, PRESALE_TOTAL_ALLOCATION - totalSold);
@@ -112,23 +112,23 @@ export function calculateUsdtForUlc(totalSold: number, ulcAmount: number) {
         if (remainingUlc <= remainingInTier) {
             // Purchase fits in this tier
             const costInTier = remainingUlc * tier.price;
-            totalUsdt += costInTier;
-            breakdown.push({ stage: tier.stage, ulcAmount: remainingUlc, priceUSDT: tier.price });
+            totalUsdc += costInTier;
+            breakdown.push({ stage: tier.stage, ulcAmount: remainingUlc, priceUSDC: tier.price });
             remainingUlc = 0;
         } else {
             // Purchase crosses to next tier
             const costInTier = remainingInTier * tier.price;
-            totalUsdt += costInTier;
-            breakdown.push({ stage: tier.stage, ulcAmount: remainingInTier, priceUSDT: tier.price });
+            totalUsdc += costInTier;
+            breakdown.push({ stage: tier.stage, ulcAmount: remainingInTier, priceUSDC: tier.price });
             remainingUlc -= remainingInTier;
             currentSold = tier.limit;
         }
     }
 
     return { 
-        totalUsdt, 
+        totalUsdc, 
         breakdown, 
         effectiveUlc: effectiveUlcToBuy,
-        effectiveAveragePrice: totalUsdt / effectiveUlcToBuy 
+        effectiveAveragePrice: totalUsdc / effectiveUlcToBuy 
     };
 }

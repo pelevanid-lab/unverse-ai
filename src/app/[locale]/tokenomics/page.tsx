@@ -18,8 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { useAccount, useSwitchChain, useWriteContract } from 'wagmi';
+import { base } from 'wagmi/chains';
+import { parseUnits } from 'viem';
 import { 
     getSystemConfig, 
     confirmPresalePurchaseAction,
@@ -29,7 +30,7 @@ import { SystemConfig } from '@/lib/types';
 import { useTranslations } from 'next-intl';
 import { 
     getPresaleStageInfo, 
-    calculateUlcForUsdt, 
+    calculateUlcForUsdc, 
     PRESALE_TOTAL_ALLOCATION 
 } from '@/lib/presale';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -37,15 +38,18 @@ import { db } from '@/lib/firebase';
 
 export default function TokenomicsPage() {
   const t = useTranslations('Tokenomics');
-  const { isConnected, connectWallet, user } = useWallet();
+  const { isConnected, user } = useWallet();
   const { toast } = useToast();
-  const [tonConnectUI] = useTonConnectUI();
+  const { chain, connector } = useAccount();
+  const isSmartWallet = connector?.id === 'coinbaseWallet';
+  const { switchChainAsync } = useSwitchChain();
+  const { writeContractAsync } = useWriteContract();
+  
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   
   // Presale States
-  const [usdtAmount, setUsdtAmount] = useState(10);
+  const [usdcAmount, setUsdcAmount] = useState(10);
   const [ulcAmount, setUlcAmount] = useState(1111); // Initial based on ~$0.009
-  const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [stats, setStats] = useState<any>(null);
@@ -64,10 +68,10 @@ export default function TokenomicsPage() {
   const presaleSold = systemConfig?.totalPresaleSold || 0;
   const stageInfo = getPresaleStageInfo(presaleSold);
 
-  const handleUsdtChange = (val: string) => {
+  const handleUsdcChange = (val: string) => {
     const num = Number(val);
-    setUsdtAmount(num);
-    const { totalUlc } = calculateUlcForUsdt(presaleSold, num);
+    setUsdcAmount(num);
+    const { totalUlc } = calculateUlcForUsdc(presaleSold, num);
     setUlcAmount(totalUlc);
   };
 
@@ -77,30 +81,58 @@ export default function TokenomicsPage() {
         return;
     }
 
-    const treasuryWallet = systemConfig.treasury_wallets[selectedNetwork];
+    const treasuryAddress = systemConfig.treasury_address;
+    if (!treasuryAddress) {
+        toast({ variant: "destructive", title: t('configError'), description: t('treasuryNotConfigured') });
+        return;
+    }
+
     setIsProcessing(true);
 
     try {
-        let txHash: string;
-        if (selectedNetwork === 'TON') {
-            if (!tonConnectUI.connected) await tonConnectUI.openModal();
-            const result = await tonConnectUI.sendTransaction({
-                validUntil: Math.floor(Date.now() / 1000) + 360,
-                messages: [{ address: treasuryWallet, amount: (usdtAmount * 1_000_000_000).toString() }]
-            });
-            txHash = result.boc;
-        } else {
-            const provider = (window as any).tronWeb;
-            if (!provider) throw new Error("TronLink not found.");
-            const contract = await provider.contract().at("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
-            const result = await contract.transfer(treasuryWallet, (usdtAmount * 1_000_000).toString()).send();
-            txHash = result;
+        // 1. Ensure we are on Base
+        if (chain?.id !== base.id) {
+            try {
+                await switchChainAsync({ chainId: base.id });
+            } catch (switchError) {
+                throw new Error("Please switch to Base network to complete the purchase.");
+            }
         }
 
-        await confirmPresalePurchaseAction(user, usdtAmount, selectedNetwork, txHash);
+        // 2. Execute USDC Transfer
+        const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+        const usdcDecimals = 6;
+        const amountInUnits = parseUnits(usdcAmount.toString(), usdcDecimals);
+
+        const txHash = await writeContractAsync({
+            address: usdcAddress as `0x${string}`,
+            abi: [
+                {
+                    constant: false,
+                    inputs: [
+                        { name: "_to", type: "address" },
+                        { name: "_value", type: "uint256" }
+                    ],
+                    name: "transfer",
+                    outputs: [{ name: "", type: "bool" }],
+                    type: "function"
+                }
+            ],
+            functionName: 'transfer',
+            args: [treasuryAddress as `0x${string}`, amountInUnits],
+            // @ts-ignore - capabilities is an experimental feature in wagmi
+            capabilities: {
+                paymasterService: {
+                    url: process.env.NEXT_PUBLIC_PAYMASTER_URL
+                }
+            }
+        });
+
+        await confirmPresalePurchaseAction(user, usdcAmount, 'Base', txHash);
         toast({ title: t('successTitle'), description: t('successDesc', { amount: ulcAmount.toLocaleString() }) });
         getSystemConfig().then(setSystemConfig);
     } catch (e: any) {
+        console.error("Presale purchase failed", e);
         toast({ variant: "destructive", title: t('purchaseFailed'), description: e.message });
     } finally {
         setIsProcessing(false);
@@ -152,12 +184,12 @@ export default function TokenomicsPage() {
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden group">
                             <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('priceLabel')}</p>
-                            <p className="text-xl font-bold font-headline text-green-400">${stageInfo.currentPrice.toFixed(3)} <span className="text-xs font-normal opacity-50">USDT</span></p>
+                            <p className="text-xl font-bold font-headline text-green-400">${stageInfo.currentPrice.toFixed(3)} <span className="text-xs font-normal opacity-50">USDC</span></p>
                         </div>
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden">
                              <div className="absolute top-0 left-0 w-1 h-full bg-primary/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('listingLabel')}</p>
-                            <p className="text-xl font-bold font-headline text-primary">${systemConfig?.listingPriceUSDT || 0.015} <span className="text-xs font-normal opacity-50">USDT</span></p>
+                            <p className="text-xl font-bold font-headline text-primary">${systemConfig?.listingPriceUSDC || 0.015} <span className="text-xs font-normal opacity-50">USDC</span></p>
                         </div>
                     </div>
 
@@ -189,8 +221,8 @@ export default function TokenomicsPage() {
                                 <div className="relative">
                                     <Input
                                         type="number"
-                                        value={usdtAmount}
-                                        onChange={(e) => handleUsdtChange(e.target.value)}
+                                        value={usdcAmount}
+                                        onChange={(e) => handleUsdcChange(e.target.value)}
                                         disabled={stageInfo.isSoldOut}
                                         className="h-12 bg-white/5 border-white/10 font-bold pl-12"
                                     />
@@ -204,16 +236,17 @@ export default function TokenomicsPage() {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 items-center">
-                            <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="flex gap-4">
-                                <div className="flex items-center space-x-2 bg-white/5 px-4 h-11 rounded-xl border border-white/5 cursor-pointer">
-                                    <RadioGroupItem value="TON" id="p-ton" />
-                                    <Label htmlFor="p-ton" className="cursor-pointer font-bold">TON</Label>
+                            <div className="flex-1 p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">Base</Badge>
+                                    <span className="text-xs font-bold">Native Payment</span>
                                 </div>
-                                <div className="flex items-center space-x-2 bg-white/5 px-4 h-11 rounded-xl border border-white/5 cursor-pointer">
-                                    <RadioGroupItem value="TRON" id="p-tron" />
-                                    <Label htmlFor="p-tron" className="cursor-pointer font-bold">TRON</Label>
-                                </div>
-                            </RadioGroup>
+                                {isSmartWallet ? (
+                                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] font-bold">Gas-less Ready</Badge>
+                                ) : (
+                                    <Shield className="w-4 h-4 text-green-500/50" />
+                                )}
+                            </div>
                             
                             <Button 
                                 onClick={handlePurchase} 

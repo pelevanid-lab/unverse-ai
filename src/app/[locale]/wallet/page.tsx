@@ -8,15 +8,17 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { UserProfile, Creator, SystemConfig, VestingSchedule } from '@/lib/types';
-import { confirmUlcPurchase, createClaimRequest, getSystemConfig, calculateCreatorUsdtEarnings, getVestingSchedules, claimVestedULCAction, calculateProtocolFloorPrice } from '@/lib/ledger';
+import { confirmUlcPurchase, createClaimRequest, getSystemConfig, calculateCreatorUsdcEarnings, getVestingSchedules, claimVestedULCAction, calculateProtocolFloorPrice } from '@/lib/ledger';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck } from 'lucide-react';
-import { useTonConnectUI } from '@tonconnect/ui-react';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { useAccount, useSwitchChain, useWriteContract, usePublicClient } from 'wagmi';
+import { base } from 'wagmi/chains';
+import { parseUnits } from 'viem';
 import { useTranslations } from 'next-intl';
 import {
     Dialog,
@@ -182,11 +184,10 @@ function HistoryCardLink() {
     )
 }
 
-function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (ulcAmount: number, network: 'TRON' | 'TON', usdtCost: number) => Promise<void> }) {
+function BuyUlcCard({ user, systemConfig, onPurchase, isSmartWallet }: { user: UserProfile, systemConfig: SystemConfig | null, onPurchase: (ulcAmount: number, usdcCost: number) => Promise<void>, isSmartWallet?: boolean }) {
     const t = useTranslations('Wallet');
     const [ulcAmount, setUlcAmount] = useState<number>(1000);
-    const [usdtAmount, setUsdtAmount] = useState<number>(15);
-    const [selectedNetwork, setSelectedNetwork] = useState<'TRON' | 'TON'>('TON');
+    const [usdcAmount, setUsdcAmount] = useState<number>(15);
     const [isProcessing, setIsProcessing] = useState(false);
     const [stats, setStats] = useState<any>(null);
 
@@ -200,7 +201,7 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
 
     const currentPrice = systemConfig?.isSealed 
         ? calculateProtocolFloorPrice(systemConfig, stats?.totalBurnedULC || 0)
-        : (systemConfig?.listingPriceUSDT || 0.015);
+        : (systemConfig?.listingPriceUSDC || 0.015);
 
     // First Purchase Bonus Logic
     const isFirstPurchase = !user?.firstPurchaseBonusClaimed;
@@ -211,19 +212,19 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     const handleUlcChange = (val: string) => {
         const num = Math.max(0, Number(val));
         setUlcAmount(num);
-        setUsdtAmount(Number((num * currentPrice).toFixed(4)));
+        setUsdcAmount(Number((num * currentPrice).toFixed(4)));
     };
 
-    const handleUsdtChange = (val: string) => {
+    const handleUsdcChange = (val: string) => {
         const num = Math.max(0, Number(val));
-        setUsdtAmount(num);
+        setUsdcAmount(num);
         setUlcAmount(Number((num / currentPrice).toFixed(0)));
     };
 
     const handlePurchase = async () => {
         setIsProcessing(true);
         try {
-            await onPurchase(ulcAmount, selectedNetwork, usdtAmount);
+            await onPurchase(ulcAmount, usdcAmount);
         } finally {
             setIsProcessing(false);
         }
@@ -233,13 +234,6 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
         <Card className="glass-card lg:col-span-12 relative overflow-hidden group border-white/5">
              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl opacity-50 group-hover:bg-primary/10 transition-colors" />
             
-            <Link href="/payment-wallets" className="absolute top-6 right-6 z-10">
-                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-4 h-10 border border-white/5" title={t('paymentWallets')}>
-                    <Settings className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">{t('paymentWallets')}</span>
-                </Button>
-            </Link>
-
             <CardHeader className="pb-8">
                 <div className="flex items-center gap-3 mb-2">
                     <CardTitle className="text-2xl font-bold font-headline">{t('buyUlc')}</CardTitle>
@@ -296,43 +290,43 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
                     </div>
 
                     <div className="md:col-span-5 space-y-3">
-                        <Label className="text-xs font-bold text-muted-foreground uppercase opacity-70 tracking-tighter">{t('usdtCost')}</Label>
+                        <Label className="text-xs font-bold text-muted-foreground uppercase opacity-70 tracking-tighter">{t('usdcCost')}</Label>
                         <div className="relative group">
                             <Input
                                 type="number"
-                                value={usdtAmount}
-                                onChange={(e) => handleUsdtChange(e.target.value)}
+                                value={usdcAmount}
+                                onChange={(e) => handleUsdcChange(e.target.value)}
                                 className="h-16 text-3xl font-bold pl-20 bg-black/20 border-white/10 focus:border-primary/50 transition-all rounded-2xl"
                                 min="0.01"
                             />
-                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-green-500/40 font-black text-xl select-none group-focus-within:text-green-500 transition-colors">USDT</div>
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-green-500/40 font-black text-xl select-none group-focus-within:text-green-500 transition-colors">USDC</div>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    <Label className="text-sm font-bold uppercase tracking-widest text-muted-foreground opacity-50">{t('selectNetwork')}</Label>
-                    <RadioGroup value={selectedNetwork} onValueChange={(v) => setSelectedNetwork(v as 'TRON' | 'TON')} className="grid grid-cols-2 gap-4">
-                        <div className={`flex items-center space-x-3 px-6 py-4 rounded-2xl border transition-all cursor-pointer ${selectedNetwork === 'TON' ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 hover:bg-white/10'}`} onClick={() => setSelectedNetwork('TON')}>
-                            <RadioGroupItem value="TON" id="ton" className="border-primary text-primary" />
-                            <div className="flex flex-col">
-                                <Label htmlFor="ton" className="cursor-pointer font-bold text-lg">TON</Label>
-                                <span className="text-[10px] uppercase font-bold opacity-40">Native Jetton</span>
-                            </div>
+                <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                            <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">Base</Badge>
                         </div>
-                        <div className={`flex items-center space-x-3 px-6 py-4 rounded-2xl border transition-all cursor-pointer ${selectedNetwork === 'TRON' ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5' : 'bg-white/5 border-white/5 hover:bg-white/10'}`} onClick={() => setSelectedNetwork('TRON')}>
-                            <RadioGroupItem value="TRON" id="tron" className="border-primary text-primary" />
-                            <div className="flex flex-col">
-                                <Label htmlFor="tron" className="cursor-pointer font-bold text-lg">TRON</Label>
-                                <span className="text-[10px] uppercase font-bold opacity-40">USDT-TRC20</span>
-                            </div>
+                        <div>
+                            <p className="text-sm font-bold">Base Network</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium">Native USDC Payment</p>
                         </div>
-                    </RadioGroup>
+                    </div>
+                    {isSmartWallet ? (
+                        <div className="flex flex-col items-end">
+                            <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] font-bold">Gas-less Ready</Badge>
+                            <p className="text-[9px] text-muted-foreground mt-1 uppercase font-bold tracking-tighter">Fee paid in USDC</p>
+                        </div>
+                    ) : (
+                        <ShieldCheck className="w-5 h-5 text-green-500/50" />
+                    )}
                 </div>
 
                 <Button 
-                    onClick={handlePurchase} 
-                    disabled={isProcessing || !user || !systemConfig || usdtAmount <= 0} 
+                    onClick={() => onPurchase(ulcAmount, usdcAmount)} 
+                    disabled={isProcessing || !user || !systemConfig || usdcAmount <= 0} 
                     className="w-full h-16 text-xl font-bold shadow-xl shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.01] active:scale-[0.99] transition-all rounded-2xl group"
                 >
                     {isProcessing ? (
@@ -341,9 +335,9 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
                         <div className="flex items-center justify-center gap-2">
                             <DollarSign className="w-6 h-6" />
                             {isFirstPurchase ? (
-                                <span>{t('payButton', { usdt: usdtAmount, ulc: totalWithBonus })} <span className="text-sm font-normal opacity-70">({ulcAmount} + {bonusAmount} Bonus)</span></span>
+                                <span>{t('payButton', { usdc: usdcAmount, ulc: totalWithBonus })} <span className="text-sm font-normal opacity-70">({ulcAmount} + {bonusAmount} Bonus)</span></span>
                             ) : (
-                                <span>{t('payButton', { usdt: usdtAmount, ulc: ulcAmount })}</span>
+                                <span>{t('payButton', { usdc: usdcAmount, ulc: ulcAmount })}</span>
                             )}
                         </div>
                     )}
@@ -357,31 +351,25 @@ function BuyUlcCard({ user, systemConfig, onPurchase }: { user: UserProfile, sys
     );
 }
 
-function UsdtEarningsCard({ creator, onClaim, loading, availableBalance, pendingBalance }: { creator: Creator, onClaim: () => void, loading: boolean, availableBalance: number, pendingBalance: number }) {
+function UsdcEarningsCard({ creator, onClaim, loading, availableBalance, pendingBalance }: { creator: Creator, onClaim: () => void, loading: boolean, availableBalance: number, pendingBalance: number }) {
     const t = useTranslations('Wallet');
     return (
         <Card className="glass-card lg:col-span-5 relative border-white/10">
-            <Link href="/creator/collection-wallets" className="absolute top-4 right-4 z-10">
-                <Button variant="ghost" className="rounded-full bg-white/5 hover:bg-white/10 gap-2 px-2 sm:px-4 h-9" title={t('collectionAddresses')}>
-                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline text-xs font-medium">{t('collectionAddresses')}</span>
-                </Button>
-            </Link>
             <CardHeader>
-                <CardTitle>{t('usdtEarnings')}</CardTitle>
-                <CardDescription>{t('usdtEarningsDesc')}</CardDescription>
+                <CardTitle>{t('usdcEarnings')}</CardTitle>
+                <CardDescription>{t('usdcEarningsDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                  <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">{t('availableToClaim')}</p>
-                    <p className="text-2xl font-bold font-headline">{availableBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDT</span></p>
+                    <p className="text-2xl font-bold font-headline">{availableBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDC</span></p>
                 </div>
                 <div className="space-y-1">
                      <p className="text-sm text-muted-foreground">{t('pendingClaim')}</p>
-                    <p className="text-2xl font-bold font-headline">{pendingBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDT</span></p>
+                    <p className="text-2xl font-bold font-headline">{pendingBalance.toFixed(2)} <span className="text-base font-normal text-muted-foreground">USDC</span></p>
                 </div>
                  <Button onClick={onClaim} disabled={loading || availableBalance <= 0} className="w-full md:w-auto">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <WalletIcon className="w-4 h-4 mr-2" />}
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
                     {t('claimFunds')}
                 </Button>
             </CardContent>
@@ -396,7 +384,10 @@ export default function WalletPage() {
   const router = useRouter();
   const { user, isConnected } = useWallet();
   const { toast } = useToast();
-  const [tonConnectUI] = useTonConnectUI();
+  const { chain, connector } = useAccount();
+  const isSmartWallet = connector?.id === 'coinbaseWallet';
+  const { switchChainAsync } = useSwitchChain();
+  const { writeContractAsync } = useWriteContract();
   
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
@@ -405,6 +396,7 @@ export default function WalletPage() {
   const [earnings, setEarnings] = useState<{ available: number, pending: number }>({ available: 0, pending: 0 });
   const [schedules, setSchedules] = useState<VestingSchedule[]>([]);
   const [showVestingModal, setShowVestingModal] = useState(false);
+  const [isPurchaseProcessing, setIsPurchaseProcessing] = useState(false);
 
   // Fetch user profile and system config
   useEffect(() => {
@@ -421,53 +413,66 @@ export default function WalletPage() {
   useEffect(() => {
       if(userProfile?.uid) {
           if (userProfile.isCreator) {
-            calculateCreatorUsdtEarnings(userProfile.uid).then(setEarnings);
+            calculateCreatorUsdcEarnings(userProfile.uid).then(setEarnings);
           }
           getVestingSchedules(userProfile.uid).then(setSchedules);
       }
   }, [userProfile]);
 
-  const handlePurchase = async (ulcAmount: number, network: 'TRON' | 'TON', usdtCost: number) => {
+  const handlePurchase = async (ulcAmount: number, usdcCost: number) => {
     if (!user || !userProfile || !systemConfig) {
       toast({ variant: "destructive", title: t('errorTitle'), description: t('profileNotLoaded') });
       return;
     }
 
-    const treasuryWallet = systemConfig.treasury_wallets[network];
-    if (!treasuryWallet) {
-         toast({ variant: "destructive", title: t('errorTitle'), description: t('treasuryNotConfigured', { network }) });
+    const treasuryAddress = systemConfig.treasury_address;
+    if (!treasuryAddress) {
+         toast({ variant: "destructive", title: t('errorTitle'), description: t('treasuryNotConfigured') });
          return;
     }
 
+    setIsPurchaseProcessing(true);
     try {
-        let txHash: string;
-        if (network === 'TON') {
-             if (!tonConnectUI.connected) {
-                await tonConnectUI.openModal();
-             }
-            
-            const result = await tonConnectUI.sendTransaction({
-                validUntil: Math.floor(Date.now() / 1000) + 360,
-                messages: [{ 
-                    address: treasuryWallet, 
-                    amount: (usdtCost * 1_000_000_000).toString() 
-                }]
-            });
-            txHash = result.boc;
-        } else {
-             const provider = (window as any).tronWeb;
-             if (!provider) throw new Error("TronLink not found. Please install TronLink.");
-             
-             const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; 
-             const contract = await provider.contract().at(usdtContractAddress);
-             const decimals = 6;
-             const amountInSun = (usdtCost * Math.pow(10, decimals)).toString();
-             
-             const result = await contract.transfer(treasuryWallet, amountInSun).send();
-             txHash = result;
+        // 1. Ensure we are on Base
+        if (chain?.id !== base.id) {
+            try {
+                await switchChainAsync({ chainId: base.id });
+            } catch (switchError) {
+                throw new Error("Please switch to Base network to complete the purchase.");
+            }
         }
+
+        // 2. Execute USDC Transfer
+        // Base USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+        const usdcAddress = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+        const usdcDecimals = 6;
+        const amountInUnits = parseUnits(usdcCost.toString(), usdcDecimals);
+
+        const txHash = await writeContractAsync({
+            address: usdcAddress as `0x${string}`,
+            abi: [
+                {
+                    constant: false,
+                    inputs: [
+                        { name: "_to", type: "address" },
+                        { name: "_value", type: "uint256" }
+                    ],
+                    name: "transfer",
+                    outputs: [{ name: "", type: "bool" }],
+                    type: "function"
+                }
+            ],
+            functionName: 'transfer',
+            args: [treasuryAddress as `0x${string}`, amountInUnits],
+            // @ts-ignore - capabilities is an experimental feature in wagmi
+            capabilities: {
+                paymasterService: {
+                    url: process.env.NEXT_PUBLIC_PAYMASTER_URL
+                }
+            }
+        });
         
-        await confirmUlcPurchase(userProfile, ulcAmount, network, txHash);
+        await confirmUlcPurchase(userProfile, ulcAmount, 'Base', txHash);
 
         toast({
             title: t('purchaseSuccess'),
@@ -481,6 +486,8 @@ export default function WalletPage() {
             title: t('purchaseFailed'),
             description: e.message || t('errorOccurred'),
         });
+    } finally {
+        setIsPurchaseProcessing(false);
     }
   };
 
@@ -488,12 +495,12 @@ export default function WalletPage() {
     if (!userProfile?.creatorData) return;
     setClaimLoading(true);
     try {
-        const claimId = await createClaimRequest(userProfile.creatorData);
+        const claimId = await createClaimRequest(userProfile.creatorData, userProfile.walletAddress);
         toast({
             title: t('claimSubmitted'),
-            description: t('claimSubmittedDesc', { usdt: earnings.available.toFixed(2), id: claimId })
+            description: t('claimSubmittedDesc', { usdc: earnings.available.toFixed(2), id: claimId })
         });
-        calculateCreatorUsdtEarnings(userProfile.uid).then(setEarnings); // Refresh earnings
+        calculateCreatorUsdcEarnings(userProfile.uid).then(setEarnings); // Refresh earnings
     } catch (e: any) {
          toast({
             variant: "destructive",
@@ -561,7 +568,7 @@ export default function WalletPage() {
             />
 
             {userProfile.isCreator && (
-                <UsdtEarningsCard 
+                <UsdcEarningsCard 
                     creator={userProfile.creatorData || { uid: userProfile.uid, username: userProfile.username, subscriptionPriceMonthly: 0 }} 
                     onClaim={handleClaim} 
                     loading={claimLoading}
@@ -570,7 +577,14 @@ export default function WalletPage() {
                 />
             )}
 
-            <BuyUlcCard user={userProfile} systemConfig={systemConfig} onPurchase={handlePurchase} />
+            <BuyUlcCard 
+                user={userProfile} 
+                systemConfig={systemConfig} 
+                onPurchase={handlePurchase} 
+                // @ts-ignore
+                isProcessing={isPurchaseProcessing}
+                isSmartWallet={isSmartWallet}
+            />
 
             <div className="border-t border-white/5 pt-4">
                 <HistoryCardLink />

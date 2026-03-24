@@ -25,10 +25,8 @@ export default function InitV3() {
                 isSealed: false,
                 last_manual_fix_v3_at: Date.now(),
                 admin_wallet_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa",
-                treasury_wallets: {
-                    TON: "EQD09uY4E4729uY4E4729uY4E4729uY4E472",
-                    TRON: "TCY7Bm6hej8nwcjMDmXyYndjZBE4Zpmk2"
-                },
+                treasury_address: "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa", // Hazine adresi admin ile eşitlendi
+                
                 // 1. Subscription Split (15% total: 10% Treasury, 5% Staking)
                 platform_subscription_fee_split: 0.15,
                 subscription_treasury_ratio: 0.67, 
@@ -54,11 +52,14 @@ export default function InitV3() {
                     promo: 50000000,
                     exchanges: 40000000
                 },
-                totalTreasuryUSDT: 0,
-                totalBuybackStakingUSDT: 0,
+                totalTreasuryUSDC: 0,
                 totalStakedULC: 0,
-                totalPresaleSold: 0,
-                v3StatsResetAt: Date.now()
+                v3StatsResetAt: Date.now(),
+                
+                // Base/USDC Specifics
+                presalePriceUSDC: 0.009,
+                listingPriceUSDC: 0.015,
+                operationCostUSDC: 0
             };
 
             await setDoc(configRef, newConfig);
