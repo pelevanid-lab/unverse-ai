@@ -21,13 +21,19 @@ import {
     ChevronLeft, 
     User,
     Check,
-    Lock
+    Lock,
+    ShieldCheck,
+    TrendingUp,
+    Presentation,
+    Users as UsersIcon
 } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { createTopicAction, postReplyAction, ForumTopic, ForumReply } from '@/lib/forum';
 import { RoadmapOverlay } from '@/components/community/RoadmapOverlay';
+import { WhitepaperOverlay } from '@/components/community/WhitepaperOverlay';
+import { PresentationOverlay } from '@/components/community/PresentationOverlay';
 
 const XIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -52,6 +58,8 @@ export default function CommunityPage() {
     const [newReplyContent, setNewReplyContent] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showRoadmap, setShowRoadmap] = useState(false);
+    const [showWhitepaper, setShowWhitepaper] = useState(false);
+    const [presentationType, setPresentationType] = useState<'investor' | 'creator' | null>(null);
 
     useEffect(() => {
         // Fetch Community Config & Socials
@@ -238,20 +246,80 @@ export default function CommunityPage() {
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-                    <Card className="glass-card group overflow-hidden border-white/5 hover:border-white/10 transition-all cursor-not-allowed relative grayscale opacity-60">
-                        <div className="absolute top-0 right-0 p-6 opacity-5 transition-opacity">
-                            <FileText className="w-32 h-32 text-white" />
+                    <Card 
+                        onClick={() => setShowWhitepaper(true)}
+                        className="glass-card group overflow-hidden border-yellow-400/10 hover:border-yellow-400/40 transition-all cursor-pointer relative bg-yellow-400/5"
+                    >
+                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                            <FileText className="w-32 h-32 text-yellow-400" />
                         </div>
                         <CardHeader className="pb-2">
-                            <Badge className="w-fit mb-2 bg-white/10 text-white/50 border-none px-3 py-1 text-[10px] tracking-widest uppercase">Technical Document</Badge>
-                            <CardTitle className="text-3xl font-headline font-bold opacity-50">{t('whitepaperTitle')}</CardTitle>
-                            <CardDescription className="text-white/20 leading-relaxed text-sm">
+                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[10px] tracking-widest uppercase">Technical Document</Badge>
+                            <CardTitle className="text-3xl font-headline font-bold">{t('whitepaperTitle')}</CardTitle>
+                            <CardDescription className="text-white/40 leading-relaxed text-sm">
                                 {t('whitepaperDesc')}
                             </CardDescription>
                         </CardHeader>
+                        <CardContent className="pt-4 space-y-4">
+                            <div className="space-y-2 opacity-60">
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><ShieldCheck className="w-3 h-3 text-emerald-400"/> CORE ARCHITECTURE</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><TrendingUp className="w-3 h-3 text-primary"/> ECONOMIC FLYWHEEL</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><Lock className="w-3 h-3 text-blue-400"/> VESTING SCHEDULE</div>
+                            </div>
+                            <Button className="w-full h-14 bg-yellow-400 text-black font-bold gap-3 group">
+                                <FileText className="w-4 h-4"/> {t('readWhitepaper')}
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </section>
+
+            {/* 2.5 PRESENTATIONS (RE-ADDED) */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8 scroll-mt-24">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                    <Card 
+                        className="glass-card group overflow-hidden border-blue-500/10 hover:border-blue-500/40 transition-all cursor-pointer relative bg-blue-500/2"
+                        onClick={() => setPresentationType('investor')}
+                    >
+                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                            <ShieldCheck className="w-24 h-24 text-blue-400" />
+                        </div>
+                        <CardHeader className="pb-2">
+                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">Investor Deck</Badge>
+                            <CardTitle className="text-2xl font-headline font-bold">{t('investorTitle')}</CardTitle>
+                            <CardDescription className="text-white/40 leading-relaxed text-xs">
+                                {t('investorDesc')}
+                            </CardDescription>
+                        </CardHeader>
                         <CardContent className="pt-4">
-                            <Button disabled className="w-full h-14 bg-white/5 border border-white/10 text-white/20 font-bold gap-3">
-                                <Lock className="w-4 h-4"/> [RESERVED FOR MAINNET]
+                            <Button className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold gap-3 group text-xs">
+                                <Play className="w-3 h-3 fill-current"/> {t('exploreInvestor')}
+                                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform"/>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                    <Card 
+                        className="glass-card group overflow-hidden border-yellow-400/5 hover:border-yellow-400/40 transition-all cursor-pointer relative bg-yellow-400/2"
+                        onClick={() => setPresentationType('creator')}
+                    >
+                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                            <UsersIcon className="w-24 h-24 text-yellow-400" />
+                        </div>
+                        <CardHeader className="pb-2">
+                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">Creator Guide</Badge>
+                            <CardTitle className="text-2xl font-headline font-bold">{t('creatorTitle')}</CardTitle>
+                            <CardDescription className="text-white/40 leading-relaxed text-xs">
+                                {t('creatorDesc')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <Button className="w-full h-12 bg-yellow-400 hover:bg-yellow-500 text-black font-bold gap-3 group text-xs">
+                                <UsersIcon className="w-3 h-3"/> {t('viewCreator')}
+                                <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform"/>
                             </Button>
                         </CardContent>
                     </Card>
@@ -474,10 +542,19 @@ export default function CommunityPage() {
                 )}
             </AnimatePresence>
 
-            {/* Roadmap Overlay */}
+            {/* Overlays */}
             <RoadmapOverlay 
                 isOpen={showRoadmap} 
                 onClose={() => setShowRoadmap(false)} 
+            />
+            <WhitepaperOverlay
+                isOpen={showWhitepaper}
+                onClose={() => setShowWhitepaper(false)}
+            />
+            <PresentationOverlay
+                isOpen={!!presentationType}
+                onClose={() => setPresentationType(null)}
+                type={presentationType as 'investor' | 'creator'}
             />
 
             {/* Footer Tag */}
@@ -487,4 +564,3 @@ export default function CommunityPage() {
         </div>
     );
 }
-
