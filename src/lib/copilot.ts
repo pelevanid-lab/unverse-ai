@@ -599,10 +599,18 @@ Output ONLY the caption text.`;
             throw new Error("AI Copilot subscription is inactive or expired.");
         }
         
-        // Check 24h limit
+        // 🎯 RELAXED LOCK: 8:00 AM Reset Milestone
+        const today8AM = new Date();
+        today8AM.setHours(8, 0, 0, 0);
+
         const lastRun = this.user?.aiCreatorModeLastRunAt || 0;
-        if (now - lastRun < 24 * 60 * 60 * 1000) {
-            throw new Error("Already generated a draft today.");
+        const lastRunDate = new Date(lastRun);
+
+        // If today is past 8 AM, and last run was before today's 8 AM milestone
+        const isAlreadyRunToday = now >= today8AM.getTime() && lastRunDate.getTime() >= today8AM.getTime();
+        
+        if (isAlreadyRunToday) {
+            throw new Error("Already generated a draft today. Next window opens at 08:00 AM tomorrow.");
         }
 
         // 1. Charge fee (1 ULC per content/draft)
@@ -629,16 +637,23 @@ Output ONLY the caption text.`;
 
         // 4. API Call to Replicate (Simulated here, should be called via internal API fetch)
         const imageApiUrl = options?.baseUrl ? `${options.baseUrl}/api/ai/generate-image` : '/api/ai/generate-image';
+        // 🧬 IDENTITY ANCHORS: Digital Twin 3.0 (Muse Rules)
+        const char = this.user?.savedCharacter;
+        const identityAnchor = char ? 
+            `, SUBJECT: 1 adult ${char.gender}, with ${char.hairColor} hair, ${char.eyeColor} eyes, ${char.faceStyle} face shape, ${char.bodyStyle} body, height: ${char.height}. Vibe: ${char.vibe}. IDENTICAL FACE TO REFERENCE.` : 
+            "";
+
         const response = await fetch(imageApiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: enhancement.originalPrompt,
-                enhancedPrompt: enhancement.enhancedPrompt,
-                negativePrompt: enhancement.negativePrompt,
+                prompt: enhancement.originalPrompt + identityAnchor,
+                enhancedPrompt: enhancement.enhancedPrompt + identityAnchor,
+                translation: enhancement.enhancedPrompt,
                 userId: this.userId,
                 cost: 0, // Payment already handled above
-                character: this.user?.savedCharacter
+                character: char,
+                isDailyDraft: true // 🚩 Signal for max identity lock
             })
         });
 

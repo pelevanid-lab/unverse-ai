@@ -36,10 +36,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.joinCreatorProgram = exports.sealEconomy_v2 = exports.createVestingSchedule_v2 = exports.getPostMedia = exports.optimizeMedia = void 0;
+exports.checkScheduledPosts = exports.joinCreatorProgram = exports.sealEconomy_v2 = exports.createVestingSchedule_v2 = exports.getPostMedia = exports.optimizeMedia = void 0;
 const firebase_functions_1 = require("firebase-functions");
 const storage_1 = require("firebase-functions/v2/storage");
 const https_1 = require("firebase-functions/v2/https");
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const admin = __importStar(require("firebase-admin"));
 const sharp_1 = __importDefault(require("sharp"));
 const fluent_ffmpeg_1 = __importDefault(require("fluent-ffmpeg"));
@@ -360,5 +361,71 @@ exports.joinCreatorProgram = (0, https_1.onCall)({ memory: "256MiB" }, async (re
         transaction.update(configRef, { creatorProgramCount: admin.firestore.FieldValue.increment(1) });
         return { success: true };
     });
+});
+exports.checkScheduledPosts = (0, scheduler_1.onSchedule)("every 30 minutes", async (event) => {
+    firebase_functions_1.logger.log("Running scheduled post check...");
+    const now = Date.now();
+    // 1. Query for scheduled posts that are due
+    const snapshot = await admin.firestore().collection("creator_media")
+        .where("status", "==", "scheduled")
+        .where("scheduledFor", "<=", now)
+        .get();
+    if (snapshot.empty) {
+        firebase_functions_1.logger.log("No pending scheduled posts found.");
+        return;
+    }
+    firebase_functions_1.logger.log(`Found ${snapshot.size} posts to publish.`);
+    for (const doc of snapshot.docs) {
+        const mediaData = doc.data();
+        try {
+            // 2. Fetch Creator Metadata
+            const userSnap = await admin.firestore().collection("users").doc(mediaData.creatorId).get();
+            if (!userSnap.exists) {
+                firebase_functions_1.logger.error(`Creator ${mediaData.creatorId} not found for media ${doc.id}`);
+                continue;
+            }
+            const creator = userSnap.data();
+            // 3. Construct Post Document
+            const postData = {
+                creatorId: mediaData.creatorId,
+                creatorName: creator?.username || "Unknown",
+                creatorAvatar: creator?.avatar || "",
+                mediaUrl: mediaData.mediaUrl,
+                mediaType: mediaData.mediaType || "image",
+                content: mediaData.caption || "",
+                contentType: mediaData.contentType || "public",
+                unlockPrice: mediaData.priceULC || 0,
+                createdAt: now,
+                likes: 0,
+                unlockCount: 0,
+                earningsULC: 0,
+                // AI prompts
+                ...(mediaData.isAI && {
+                    isAI: true,
+                    aiPrompt: mediaData.aiPrompt || mediaData.prompt || "",
+                    aiEnhancedPrompt: mediaData.aiEnhancedPrompt || mediaData.enhancedPrompt || ""
+                }),
+                // Limited edition data
+                ...(mediaData.contentType === "limited" && {
+                    limited: {
+                        totalSupply: mediaData.limited?.totalSupply || 100,
+                        soldCount: 0,
+                        price: mediaData.limited?.price || mediaData.priceULC || 0
+                    }
+                })
+            };
+            // 4. Atomic Transaction: Create Post and Delete Media
+            const batch = admin.firestore().batch();
+            const postRef = admin.firestore().collection("posts").doc();
+            batch.set(postRef, postData);
+            batch.delete(doc.ref);
+            await batch.commit();
+            firebase_functions_1.logger.log(`Successfully published post ${postRef.id} for creator ${mediaData.creatorId}`);
+        }
+        catch (error) {
+            firebase_functions_1.logger.error(`Failed to publish media ${doc.id}:`, error);
+        }
+    }
+    firebase_functions_1.logger.log("Scheduled publish cycle completed.");
 });
 //# sourceMappingURL=index.js.map

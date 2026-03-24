@@ -8,10 +8,12 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, doc } from 'firebase/firestore';
 import { CreatorMedia, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Video, Calendar } from 'lucide-react';
+import { Loader2, Video, Calendar, MessageSquare, Upload, Wand2, Sparkles } from 'lucide-react';
 import { EditMediaModal } from './EditMediaModal';
 import { useTranslations } from 'next-intl';
 import { VideoPreview } from '../ui/VideoPreview';
+import { Link } from '@/i18n/routing';
+import { cn } from '@/lib/utils';
 
 export function ContainerTab() {
   const t = useTranslations('Container');
@@ -66,10 +68,31 @@ export function ContainerTab() {
 
   return (
     <Card className="glass-card border-white/10">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div>
           <CardTitle>{t('title')}</CardTitle>
           <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            {[
+                { id: 'copilot', icon: MessageSquare, color: 'bg-fuchsia-500/10 text-fuchsia-400 hover:bg-fuchsia-500/20 border-fuchsia-500/20', href: '/creator/studio?tab=standard' },
+                { id: 'edit', icon: Upload, color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20', href: '/creator/studio?tab=aiEdit' },
+                { id: 'muse', icon: Wand2, color: 'bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 border-pink-500/20', href: '/creator/muse' },
+                { id: 'animate', icon: Video, color: 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border-yellow-500/20', href: '/creator/animate' },
+                { id: 'freeArt', icon: Sparkles, color: 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/20', href: '/creator/free-art' }
+            ].map((shortcut) => (
+                <Link key={shortcut.id} href={shortcut.href}>
+                    <div className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all cursor-pointer group",
+                        shortcut.color
+                    )}>
+                        <shortcut.icon size={16} className="group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline-block">
+                            {t(`shortcuts.${shortcut.id}`)}
+                        </span>
+                    </div>
+                </Link>
+            ))}
         </div>
       </CardHeader>
       <CardContent>

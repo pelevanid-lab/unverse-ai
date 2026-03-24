@@ -24,6 +24,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt and userId are required' }, { status: 400 });
     }
 
+    console.log(`[API] Generation Request - Cost: ${cost}, Image: ${image ? 'Present' : 'Missing'}, Mask: ${mask ? 'Present' : 'Missing'}`);
+
     userIdForRefund = userId;
 
     // 1. Process Payment (Deduct amount)
@@ -35,17 +37,6 @@ export async function POST(req: Request) {
         }
         throw payErr;
     }
-
-    // Server-side check of the token
-    const rawToken = process.env.REPLICATE_API_TOKEN;
-    if (!rawToken) {
-      throw new Error('Replicate API token is missing on the server.');
-    }
-
-    // Initialize Replicate
-    const replicate = new Replicate({
-      auth: rawToken.trim(),
-    });
 
     // 2. FAIL-SAFE PROMPT MERGING
     const userOutfit = outfit || '';
@@ -147,6 +138,11 @@ export async function POST(req: Request) {
             const baseSceneContext = `Original location and setup: ${originalEnhancedPrompt}`;
             
             finalPromptForAI = `${framingDirective}. ${persistentContext}. ${baseSceneContext}. IDENTITY: ${identityLine}. STRICT RULE: do not change environment, outfit, lighting setup or character identity.`;
+        }
+        
+        // 🕊️ AI EDIT / IN-PAINTING PROMPT ASSEMBLY (Outside character block if needed)
+        if (!finalPromptForAI && (cost === 8 || cost === 4)) {
+            finalPromptForAI = translation || prompt || "";
         }
         
         // Dynamic Negative Prompt based on requested profile & scene
@@ -283,6 +279,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
           logId: logDocRef.id, 
           mediaUrl: finalUrl,
+          mediaBase64: `data:image/png;base64,${imageBase64}`, 
           finalAuditPrompt: finalPromptForAI 
       });
     // AI Edit / In-painting specialized model - NOW POWERED BY FAL.AI
@@ -290,7 +287,10 @@ export async function POST(req: Request) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) throw new Error("FAL_API_KEY missing.");
 
-      // We use Fal's dedicated in-painting model for superior background control
+      // 🧬 IDENTITY PROTECTION: We force the model to respect the original person by adding a strict directive
+      const inpaintPrompt = `(STRICT PIXEL-PERFECT IDENTITY LOCK: Do not change the person's face, features, expression, clothes, body or pose. Keep them 100% identical to the original image:1.8). ${finalPromptForAI}`;
+      const inpaintNegative = "different person, altered facial structure, change of clothes, different hairstyle, face change, older, younger, distorted face, changed body type, altered pose, different outfit";
+
       const response = await fetch("https://fal.run/fal-ai/flux-general/inpainting", {
         method: "POST",
         headers: {
@@ -298,18 +298,23 @@ export async function POST(req: Request) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            prompt: `Maintain the absolute likeness and details of the person in the image. ${finalPromptForAI}`,
+            prompt: inpaintPrompt,
             image_url: image, // Base64
-            mask_url: undefined, // Let Fal auto-detect or treat as a global edit if no mask
-            num_inference_steps: 28,
-            guidance_scale: 30,
-            strength: 0.95
+            mask_url: mask, 
+            negative_prompt: inpaintNegative,
+            num_inference_steps: 35, // 🚀 Increased steps for higher fidelity
+            guidance_scale: 20, // 🚀 Maximum allowed by Fal for flux-inpainting
+            strength: 0.90 // 🚀 Slightly lower strength to keep subject more anchored
         })
       });
 
       if (!response.ok) {
           const errData = await response.json();
-          throw new Error(`Fal.ai Edit Error: ${errData.detail || response.statusText}`);
+          // 🚀 Robust Error Serialization (Avoid [object Object])
+          const errorMsg = typeof errData.detail === 'string' 
+            ? errData.detail 
+            : JSON.stringify(errData.detail || errData);
+          throw new Error(`Fal.ai Edit Error: ${errorMsg}`);
       }
 
       const result = await response.json();
@@ -330,9 +335,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
           logId: logDocRef.id, 
           mediaUrl: finalUrl,
+          mediaBase64: `data:image/png;base64,${imageBase64}`,
           finalAuditPrompt: finalPromptForAI
       });
     }
+
+    // Standard fallback (Replicate)
+    const rawToken = process.env.REPLICATE_API_TOKEN;
+    if (!rawToken) {
+      throw new Error('Replicate API token is missing on the server.');
+    }
+
+    const replicate = new Replicate({
+      auth: rawToken.trim(),
+    });
 
     const output = await replicate.run(model, { input }) as string[];
 
@@ -365,9 +381,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       mediaUrl: finalUrl, 
+      mediaBase64: `data:image/png;base64,${imageBase64}`,
       logId: logDocRef.id,
       finalAuditPrompt,
-      seed: finalSeed // 🚀 RETURN SEED FOR VARIATION LOCKING
+      seed: finalSeed 
     });
 
   } catch (error: any) {
@@ -381,7 +398,7 @@ export async function POST(req: Request) {
     
     if (error.status === 401 || error.message?.includes('401') || error.message?.includes('Unauthenticated')) {
         return NextResponse.json({ 
-            error: 'Authentication failed with Replicate. Please check API token.' 
+            error: `AI Provider Authentication Failed (check API keys). Details: ${error.message}` 
         }, { status: 401 });
     }
 

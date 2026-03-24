@@ -95,12 +95,12 @@
     "noContent": "No public content available yet.",
     "syncing": "Syncing Sovereign Feed...",
     "updateName": "THE EVOLUTION",
-    "title": "Discover Unverse"
+    "title": "Undiscovered Unverse"
   },
   "Navbar": {
     "connect": "Connect Wallet",
     "mypage": "My Page",
-    "discover": "Discover",
+    "discover": "Undiscovered",
     "tokenomics": "Pre-Sale",
     "staking": "Staking",
     "community": "Community",
@@ -255,7 +255,14 @@
     "uploadCompleteDesc": "Your media is now in the container.",
     "uploadError": "Upload Error",
     "uploadMedia": "Upload Media",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "shortcuts": {
+      "copilot": "Copilot",
+      "edit": "Edit",
+      "muse": "Muse",
+      "animate": "Animate",
+      "freeArt": "Art"
+    }
   },
   "Published": {
     "title": "Published Content",
@@ -634,7 +641,7 @@
     "publicTab": "Public",
     "premiumTab": "Premium",
     "limitedTab": "Limited",
-    "backToDiscover": "Back to Discover",
+    "backToDiscover": "Back to Undiscovered",
     "message": "Message"
   },
   "Staking": {
@@ -850,6 +857,12 @@
     "aiPromptLabel": "CHANGE COMMAND (PROMPT)",
     "aiPromptPlaceholder": "Change background, make hair red...",
     "aiEditBtn": "Re-edit with AI (8 ULC)",
+    "aiComingSoon": "Coming Soon!",
+    "aiComingSoonDesc": "AI Edit Pro is currently in private beta. It will be available to everyone very soon!",
+    "changeBackground": "✨ Fix Character & Edit",
+    "copilotCutting": "Copilot: Fixing Character...",
+    "segmentFailed": "Character auto-selection failed.",
+    "autoSelectDesc": "Let Copilot scan and lock the character automatically.",
     "videoModeTitle": "Video Mode",
     "videoModeDesc": "Editing for videos is currently not supported. You can save the content directly to the pool.",
     "aiEditInfo": "In AI Edit mode, you can use professional commands to make changes to the photo. This process costs **8 ULC** (Regen: 4 ULC).",
@@ -860,7 +873,18 @@
     "error": "Error",
     "savedSuccess": "Saved to Pool!",
     "savedSuccessDesc": "Your content is now visible in your dashboard.",
-    "saveFailed": "Save Failed"
+    "saveFailed": "Save Failed",
+    "brushTitle": "Brush / Area Selection",
+    "clearBtn": "CLEAR",
+    "bgWizardTitle": "Background Wizard",
+    "scenarioStudio": "Studio",
+    "scenarioParis": "Paris",
+    "scenarioNeon": "Neon Night",
+    "scenarioNature": "Nature/Forest",
+    "scenarioStudioPrompt": "Cinematic studio background, professional lighting, soft bokeh",
+    "scenarioParisPrompt": "Parisian cafe background, Eiffel tower visible in distance, morning light",
+    "scenarioNeonPrompt": "Cyberpunk neon city background, wet streets, vibrant purple and blue lights",
+    "scenarioNaturePrompt": "Lush green forest background, sun rays through trees, misty atmosphere"
   },
   "Moderation": {
     "accountFrozen": "ACCOUNT SUSPENDED",

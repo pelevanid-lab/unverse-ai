@@ -1,6 +1,7 @@
 import { logger } from "firebase-functions";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import sharp from "sharp";
 import ffmpeg from "fluent-ffmpeg";
@@ -344,4 +345,79 @@ export const joinCreatorProgram = onCall({ memory: "256MiB" }, async (request) =
         transaction.update(configRef, { creatorProgramCount: admin.firestore.FieldValue.increment(1) });
         return { success: true };
     });
+});
+
+export const checkScheduledPosts = onSchedule("every 30 minutes", async (event) => {
+    logger.log("Running scheduled post check...");
+    const now = Date.now();
+    
+    // 1. Query for scheduled posts that are due
+    const snapshot = await admin.firestore().collection("creator_media")
+        .where("status", "==", "scheduled")
+        .where("scheduledFor", "<=", now)
+        .get();
+
+    if (snapshot.empty) {
+        logger.log("No pending scheduled posts found.");
+        return;
+    }
+
+    logger.log(`Found ${snapshot.size} posts to publish.`);
+
+    for (const doc of snapshot.docs) {
+        const mediaData = doc.data();
+        
+        try {
+            // 2. Fetch Creator Metadata
+            const userSnap = await admin.firestore().collection("users").doc(mediaData.creatorId).get();
+            if (!userSnap.exists) {
+                logger.error(`Creator ${mediaData.creatorId} not found for media ${doc.id}`);
+                continue;
+            }
+            const creator = userSnap.data();
+
+            // 3. Construct Post Document
+            const postData = {
+                creatorId: mediaData.creatorId,
+                creatorName: creator?.username || "Unknown",
+                creatorAvatar: creator?.avatar || "",
+                mediaUrl: mediaData.mediaUrl,
+                mediaType: mediaData.mediaType || "image",
+                content: mediaData.caption || "",
+                contentType: mediaData.contentType || "public",
+                unlockPrice: mediaData.priceULC || 0,
+                createdAt: now,
+                likes: 0,
+                unlockCount: 0,
+                earningsULC: 0,
+                // AI prompts
+                ...(mediaData.isAI && {
+                    isAI: true,
+                    aiPrompt: mediaData.aiPrompt || mediaData.prompt || "",
+                    aiEnhancedPrompt: mediaData.aiEnhancedPrompt || mediaData.enhancedPrompt || ""
+                }),
+                // Limited edition data
+                ...(mediaData.contentType === "limited" && {
+                    limited: {
+                        totalSupply: mediaData.limited?.totalSupply || 100,
+                        soldCount: 0,
+                        price: mediaData.limited?.price || mediaData.priceULC || 0
+                    }
+                })
+            };
+
+            // 4. Atomic Transaction: Create Post and Delete Media
+            const batch = admin.firestore().batch();
+            const postRef = admin.firestore().collection("posts").doc();
+            batch.set(postRef, postData);
+            batch.delete(doc.ref);
+            
+            await batch.commit();
+            logger.log(`Successfully published post ${postRef.id} for creator ${mediaData.creatorId}`);
+        } catch (error) {
+            logger.error(`Failed to publish media ${doc.id}:`, error);
+        }
+    }
+
+    logger.log("Scheduled publish cycle completed.");
 });

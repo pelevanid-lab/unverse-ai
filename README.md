@@ -11,6 +11,9 @@ This major release marks the transition to a fully autonomous and revenue-backed
 
 Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.
 
+## 🌌 The UN- Philosophy
+We believe that traditional social media cannot carry us into the future. The current social landscape is a cluttered universe that needs a foundational shift. Through the command **Un Universe > Unverse**, we distill the complexity of today into an autonomous, decentralized tomorrow. This is why our core products carry the **UN-** prefix, representing our transition to the **Undiscovered** and the **Unseen** potential of the creator economy.
+
 ## 🚀 Key Features
 
 - **Multi-Chain Payments**: Support for USDT payments on both **TON** and **TRON (TRC20)** networks as primary payment gateways.

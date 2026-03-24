@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, Clock, Lock, CheckCircle2, Check, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor, Calendar } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, updateDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile, CreatorMedia } from '@/lib/types';
@@ -24,6 +24,23 @@ import { Copilot } from '@/lib/copilot';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from '@/components/ui/CountdownTimer';
 import { SupportChatAi } from '@/components/creator/SupportChatAi';
+import { StrategicPlannerModal } from '@/components/creator/StrategicPlannerModal';
+
+interface AIpersonaConfig {
+    personaName: string;
+    niche: string;
+    tone: string;
+    targetAudience: string;
+    vibe: string;
+}
+
+const defaultConfig: AIpersonaConfig = {
+    personaName: '',
+    niche: '',
+    tone: '',
+    targetAudience: '',
+    vibe: ''
+};
 
 export default function CopilotPage() {
     const t = useTranslations('AIStudio');
@@ -48,9 +65,18 @@ export default function CopilotPage() {
     const [resetLoading, setResetLoading] = useState(false);
     const [containerCount, setContainerCount] = useState(0);
     const [isScheduling, setIsScheduling] = useState(false);
+    const [selectedDay, setSelectedDay] = useState<number | null>(null);
+    const [isPlannerOpen, setIsPlannerOpen] = useState(false);
+    const [scheduledItems, setScheduledItems] = useState<CreatorMedia[]>([]);
     const [mediaPool, setMediaPool] = useState<CreatorMedia[]>([]);
     const [showSupport, setShowSupport] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    const calendarStartDate = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+    }, []);
 
     useEffect(() => {
         if (user?.aiCreatorModeConfig) {
@@ -61,40 +87,52 @@ export default function CopilotPage() {
         }
     }, [user?.aiCreatorModeConfig]);
 
-    // 🚀 Fetch Last AI Drop
+    const fetchScheduledItems = useCallback(async () => {
+        if (!user?.uid) return;
+        const q = query(
+            collection(db, 'creator_media'),
+            where('creatorId', '==', user.uid),
+            where('status', 'in', ['scheduled', 'planned'])
+        );
+        const snap = await getDocs(q);
+        setScheduledItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia)));
+    }, [user?.uid]);
+
+    const fetchContainerMedia = useCallback(async () => {
+        if (!user?.uid) return;
+        const q = query(
+            collection(db, 'creator_media'),
+            where('creatorId', '==', user.uid),
+            where('status', '==', 'draft'),
+            orderBy('createdAt', 'desc')
+        );
+        const snap = await getDocs(q);
+        setContainerCount(snap.size);
+        setMediaPool(snap.docs.map(d => ({ id: d.id, ...d.data() } as CreatorMedia)));
+    }, [user?.uid]);
+
     useEffect(() => {
         if (!user?.uid) return;
 
-        const fetchLastDrop = async () => {
-            const q = query(
+        const fetchData = async () => {
+            // 1. Fetch Last AI Drop
+            const qLast = query(
                 collection(db, 'creator_media'),
                 where('creatorId', '==', user.uid),
                 where('source', '==', 'ai_auto'),
                 orderBy('createdAt', 'desc'),
                 limit(1)
             );
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                setLastDrop({ id: snap.docs[0].id, ...snap.docs[0].data() } as CreatorMedia);
+            const snapLast = await getDocs(qLast);
+            if (!snapLast.empty) {
+                setLastDrop({ id: snapLast.docs[0].id, ...snapLast.docs[0].data() } as CreatorMedia);
             }
-        };
 
-        fetchLastDrop();
+            // 2. Initial Fetches
+            fetchContainerMedia();
+            fetchScheduledItems();
 
-        const fetchContainer = async () => {
-            const q = query(
-                collection(db, 'creator_media'),
-                where('creatorId', '==', user.uid),
-                where('status', '==', 'draft'),
-                orderBy('createdAt', 'desc')
-            );
-            const snap = await getDocs(q);
-            setContainerCount(snap.size);
-            setMediaPool(snap.docs.map(d => ({ id: d.id, ...d.data() } as CreatorMedia)));
-        };
-        fetchContainer();
-
-        const checkAdmin = async () => {
+            // 3. Admin Check
             if (user?.walletAddress) {
                 const sysConfig = await getSystemConfig();
                 if (sysConfig?.admin_wallet_address?.toLowerCase() === user.walletAddress.toLowerCase()) {
@@ -102,8 +140,9 @@ export default function CopilotPage() {
                 }
             }
         };
-        checkAdmin();
-    }, [user?.uid, user?.walletAddress]);
+
+        fetchData();
+    }, [user?.uid, user?.walletAddress, fetchContainerMedia, fetchScheduledItems]);
 
     // 🤖 Auto-Pilot Logic: Trigger initial/daily draft if active (Fixed 8 AM Drop)
     useEffect(() => {
@@ -112,6 +151,7 @@ export default function CopilotPage() {
         const isActive = user.aiCreatorModeExpiresAt && user.aiCreatorModeExpiresAt > Date.now();
         if (!isActive) return;
 
+        // 🎯 SYNC TRIGGER: 8:00 AM Reset Milestone
         const now = new Date();
         const today8AM = new Date();
         today8AM.setHours(8, 0, 0, 0);
@@ -173,7 +213,8 @@ export default function CopilotPage() {
     }
 
     const isActive = user.aiCreatorModeExpiresAt && user.aiCreatorModeExpiresAt > Date.now();
-    const daysLeft = isActive ? Math.ceil((user.aiCreatorModeExpiresAt! - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+    // 🎯 USER-FRIENDLY COUNTER: Floor gives immediate feedback after a few hours pass
+    const daysLeft = isActive ? Math.floor((user.aiCreatorModeExpiresAt! - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
     const isFirstTime = !user.aiCreatorModeActivatedAt;
 
     const handleActivate = async () => {
@@ -226,28 +267,189 @@ export default function CopilotPage() {
     };
 
     const handleAutoSchedule = async () => {
-        if (containerCount < 7) return;
+        if (mediaPool.length === 0) return;
         setIsScheduling(true);
         try {
-            // Logic: Schedule 7 items over 14 days (Every 2 days)
-            const itemsToSchedule = mediaPool.slice(0, 7);
-            const now = Date.now();
-            const dayInMs = 24 * 60 * 60 * 1000;
+            const copilot = new Copilot(user.uid);
+            await copilot.init();
 
-            const promises = itemsToSchedule.map((item, index) => {
-                const scheduledTime = now + (index * 2 * dayInMs); // Spread: Day 0, 2, 4, 6, 8, 10, 12
-                return updateDoc(doc(db, 'creator_media', item.id), {
-                    status: 'scheduled',
-                    scheduledFor: scheduledTime
-                });
+            // 0. Clear existing 'planned' items (The current draft plan)
+            const qExisting = query(
+                collection(db, 'creator_media'),
+                where('creatorId', '==', user.uid),
+                where('status', '==', 'planned')
+            );
+            const snapExisting = await getDocs(qExisting);
+            const clearPromises = snapExisting.docs.map(d => 
+                updateDoc(doc(db, 'creator_media', d.id), {
+                    status: 'draft',
+                    scheduledFor: null,
+                    contentType: 'public' // Reset to default
+                })
+            );
+            await Promise.all(clearPromises);
+
+            // 1. Cluster Media by "Session" (Enhanced Logic)
+            const sessions: typeof mediaPool[] = [];
+            let remainingPool = [...mediaPool].sort((a, b) => {
+                const timeA = typeof a.createdAt === 'object' && a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                const timeB = typeof b.createdAt === 'object' && b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                return timeB - timeA; // Newest first
             });
 
-            await Promise.all(promises);
-            toast({ title: "Calendar Optimized", description: "7 items have been spread across the next 14 days." });
-            setContainerCount(prev => prev - 7);
-            setMediaPool(prev => prev.slice(7));
+            while (remainingPool.length > 0) {
+                const seed = remainingPool.shift()!;
+                const session = [seed];
+                const seedPrompt = (seed.aiEnhancedPrompt || seed.prompt || "").toLowerCase();
+                const seedTime = typeof seed.createdAt === 'object' && seed.createdAt?.toMillis ? seed.createdAt.toMillis() : (seed.createdAt || 0);
+
+                // Find others in this "session"
+                for (let i = 0; i < remainingPool.length; i++) {
+                    const m = remainingPool[i];
+                    const mPrompt = (m.aiEnhancedPrompt || m.prompt || "").toLowerCase();
+                    const mTime = typeof m.createdAt === 'object' && m.createdAt?.toMillis ? m.createdAt.toMillis() : (m.createdAt || 0);
+
+                    const timeDiff = Math.abs(seedTime - mTime);
+                    const keywords = seedPrompt.split(/\s+/).filter(w => w.length > 4);
+                    const overlap = keywords.filter(w => mPrompt.includes(w)).length;
+                    
+                    // FLEXIBLE grouping: Within 15 mins (same set) OR within 4 hours with some overlap
+                    if (timeDiff < 15 * 60 * 1000 || (timeDiff < 4 * 60 * 60 * 1000 && overlap >= 2)) {
+                        session.push(m);
+                        remainingPool.splice(i, 1);
+                        i--;
+                    }
+                }
+                sessions.push(session);
+            }
+
+            // Flatten unassigned items for gap filling
+            let generalPool = sessions.flatMap(s => s); // We'll re-extract from here to fill trios
+            
+            const now = new Date();
+            now.setHours(8, 0, 0, 0);
+            const dayInMs = 24 * 60 * 60 * 1000;
+            const batchPromises = [];
+            
+            // 2. Schedule for every other day
+            for (let i = 0; i < 14; i += 2) {
+                if (generalPool.length < 3) break; // Need at least 3 for a full strategy day
+
+                // Try to find a cohesive session first
+                let dailyTrio: typeof mediaPool = [];
+                const firstSession = sessions.find(s => s.length > 0);
+                
+                if (firstSession) {
+                    // Take up to 3 from the same session
+                    dailyTrio = firstSession.splice(0, 3);
+                    // Remove from general pool
+                    dailyTrio.forEach(item => {
+                        const idx = generalPool.findIndex(g => g.id === item.id);
+                        if (idx !== -1) generalPool.splice(idx, 1);
+                    });
+
+                    // If we need more to reach 3, take from general pool (closest in time)
+                    while (dailyTrio.length < 3 && generalPool.length > 0) {
+                        dailyTrio.push(generalPool.shift()!);
+                    }
+                    
+                    // Cleanup empty sessions
+                    if (firstSession.length === 0) {
+                        const sIdx = sessions.indexOf(firstSession);
+                        if (sIdx !== -1) sessions.splice(sIdx, 1);
+                    }
+                } else {
+                    // Just take 3 from general pool
+                    dailyTrio = generalPool.splice(0, 3);
+                }
+
+                if (dailyTrio.length < 3) break;
+
+                const baseTime = now.getTime() + (i * dayInMs);
+                const slotTimes = {
+                    public: baseTime + (10 * 60 * 60 * 1000), // 10 AM
+                    premium: baseTime + (16 * 60 * 60 * 1000), // 4 PM
+                    limited: baseTime + (20 * 60 * 60 * 1000) // 8 PM
+                };
+
+                // Rank the trio items for the slots
+                const rankedItems = dailyTrio.map(m => {
+                    const p = (m.aiEnhancedPrompt || m.prompt || "").toLowerCase();
+                    let shotWeight = 0;
+                    if (p.includes("close") || p.includes("portrait") || p.includes("face")) shotWeight = 3;
+                    else if (p.includes("medium") || p.includes("upper")) shotWeight = 1.5;
+                    else if (p.includes("wide") || p.includes("full body") || p.includes("lifestyle")) shotWeight = -1;
+                    
+                    return { media: m, weight: shotWeight + (copilot.evaluateContentScore({ prompt: p }) / 30) };
+                }).sort((a, b) => b.weight - a.weight);
+
+                // Assign slots: 0 -> Limited, 1 -> Premium, 2 -> Public
+                // Limited (Highest weight)
+                batchPromises.push(updateDoc(doc(db, 'creator_media', rankedItems[0].media.id), {
+                    status: 'planned',
+                    scheduledFor: slotTimes.limited,
+                    contentType: 'limited',
+                    priceULC: 50,
+                    limited: { totalSupply: 5, price: 50 }
+                }));
+                // Premium (Second)
+                batchPromises.push(updateDoc(doc(db, 'creator_media', rankedItems[1].media.id), {
+                    status: 'planned',
+                    scheduledFor: slotTimes.premium,
+                    contentType: 'premium',
+                    priceULC: 25
+                }));
+                // Public (Last - The teaser)
+                batchPromises.push(updateDoc(doc(db, 'creator_media', rankedItems[2].media.id), {
+                    status: 'planned',
+                    scheduledFor: slotTimes.public,
+                    contentType: 'public',
+                    priceULC: 0
+                }));
+            }
+
+            if (batchPromises.length > 0) {
+                await Promise.all(batchPromises);
+                toast({ 
+                    title: "Strategic Drafts Generated", 
+                    description: "Vibe-matched plan is ready! Please click on each day to review and 'Confirm Day' to activate the schedule.",
+                    className: "bg-primary text-black font-bold border-none"
+                });
+                fetchScheduledItems();
+                fetchContainerMedia();
+            }
         } catch (err) {
-            toast({ variant: "destructive", title: "Scheduling Error", description: "Failed to sync with the calendar." });
+            console.error("Auto-schedule failed:", err);
+            toast({ variant: "destructive", title: "Scheduling Error", description: "Failed to build the strategic timeline." });
+        } finally {
+            setIsScheduling(false);
+        }
+    };
+
+    const handleResetSchedule = async () => {
+        if (!confirm("Tüm planlanmış içerikleri temizlemek ve takvimi kurguya hazır hale getirmek istediğine emin misin?")) return;
+        setIsScheduling(true);
+        try {
+            const q = query(
+                collection(db, 'creator_media'),
+                where('creatorId', '==', user.uid),
+                where('status', 'in', ['planned', 'scheduled'])
+            );
+            const snap = await getDocs(q);
+            const batchPromises = snap.docs.map(d => 
+                updateDoc(doc(db, 'creator_media', d.id), {
+                    status: 'draft',
+                    scheduledFor: null,
+                    contentType: 'public'
+                })
+            );
+            await Promise.all(batchPromises);
+            toast({ title: "Takvim Temizlendi", description: "Bütün planlanmış içerikler taslak havuzuna geri gönderildi." });
+            fetchScheduledItems();
+            fetchContainerMedia();
+        } catch (err) {
+            console.error("Reset failed:", err);
+            toast({ variant: "destructive", title: "İşlem Başarısız", description: "Takvim temizlenirken bir hata oluştu." });
         } finally {
             setIsScheduling(false);
         }
@@ -589,44 +791,104 @@ export default function CopilotPage() {
                         <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Premium Calendar</span></h2>
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Strategic Content Deployment Grid</p>
                     </div>
-                    {containerCount >= 7 ? (
+                    <div className="flex items-center gap-3">
                         <Button 
-                            onClick={handleAutoSchedule} 
-                            disabled={isScheduling}
-                            className="rounded-full bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 px-6 gap-2"
+                            onClick={handleResetSchedule}
+                            variant="ghost" 
+                            size="icon"
+                            className="rounded-full bg-white/5 h-10 w-10 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                            title="Planı Temizle"
                         >
-                            {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <Calendar size={14} />}
-                            Auto-Schedule 2 Weeks
+                            <Zap size={16} />
                         </Button>
-                    ) : (
-                        <Badge variant="outline" className="opacity-40 border-dashed border-white/20 px-4 py-2">
-                            Need {7 - containerCount} more items for Auto-Schedule
-                        </Badge>
-                    )}
+                        {containerCount >= 7 ? (
+                            <Button 
+                                onClick={handleAutoSchedule} 
+                                disabled={isScheduling}
+                                className="rounded-full bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 px-6 gap-2"
+                            >
+                                {isScheduling ? <Loader2 className="animate-spin" size={14} /> : <Calendar size={14} />}
+                                Auto-Schedule 2 Weeks
+                            </Button>
+                        ) : (
+                            <Badge variant="outline" className="opacity-40 border-dashed border-white/20 px-4 py-2">
+                                Need {7 - containerCount} more items for Auto-Schedule
+                            </Badge>
+                        )}
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-4">
-                    {Array.from({ length: 14 }).map((_, i) => (
-                        <div key={i} className={cn(
-                            "aspect-square rounded-[1.5rem] border flex flex-col items-center justify-center gap-2 transition-all relative group",
-                            i % 2 === 0 && containerCount >= (i/2 + 1) && i < 14 ? "bg-primary/5 border-primary/20" : "bg-white/[0.02] border-white/5 opacity-50"
-                        )}>
-                            <span className="text-[10px] font-black opacity-30">DAY {i + 1}</span>
-                            {i % 2 === 0 && containerCount >= (i/2 + 1) && i < 14 ? (
-                                <div className="relative">
-                                     <CheckCircle2 size={16} className="text-primary animate-in zoom-in duration-500" />
-                                     <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
+                    {Array.from({ length: 14 }).map((_, i) => {
+                        const targetStart = calendarStartDate + (i * 24 * 60 * 60 * 1000);
+                        const targetEnd = targetStart + (24 * 60 * 60 * 1000);
+                        
+                        const dayMedia = scheduledItems.filter(item => 
+                            item.scheduledFor && item.scheduledFor >= targetStart && item.scheduledFor < targetEnd
+                        );
+                        const isDayScheduled = dayMedia.some(m => m.status === 'scheduled');
+                        const isDayPlanned = dayMedia.some(m => m.status === 'planned');
+                        const hasContent = dayMedia.length > 0;
+
+                        return (
+                            <motion.div 
+                                key={i} 
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => {
+                                    setSelectedDay(i);
+                                    setIsPlannerOpen(true);
+                                }}
+                                className={cn(
+                                    "aspect-square rounded-[2rem] p-5 border flex flex-col items-center justify-center gap-3 transition-all relative group cursor-pointer",
+                                    isDayScheduled ? "bg-primary/10 border-primary/40 shadow-xl shadow-primary/5" : 
+                                    isDayPlanned ? "bg-white/[0.04] border-dashed border-white/20 shadow-lg" :
+                                    "bg-white/[0.02] border-white/5 hover:border-white/20"
+                                )}
+                            >
+                                <div className="flex flex-col items-center gap-0.5">
+                                    <span className={cn(
+                                        "text-[9px] font-black uppercase tracking-[0.2em] transition-opacity",
+                                        isDayScheduled ? "text-primary" : isDayPlanned ? "text-primary/60" : "text-muted-foreground opacity-30"
+                                    )}>DAY {i + 1}</span>
+                                    <span className="text-[7px] font-bold text-muted-foreground/40 uppercase tracking-widest leading-none">
+                                        {new Intl.DateTimeFormat('tr-TR', { 
+                                            day: 'numeric', 
+                                            month: 'short' 
+                                        }).format(new Date(calendarStartDate + (i * 24 * 60 * 60 * 1000)))}
+                                    </span>
                                 </div>
-                            ) : (
-                                <Clock size={16} className="opacity-10" />
-                            )}
-                            
-                            {/* Visual Indicator for scheduled slots */}
-                            {i % 2 === 0 && i < 14 && (
-                                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary/40 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                            )}
-                        </div>
-                    ))}
+                                                         {hasContent ? (
+                                    <div className="relative group/thumb w-full h-full flex flex-col items-center justify-center gap-2">
+                                         <div className={cn(
+                                             "w-10 h-10 rounded-2xl overflow-hidden border bg-primary/20",
+                                             isDayScheduled ? "border-primary/40" : "border-white/10 opacity-70"
+                                         )}>
+                                            {dayMedia[0].mediaUrl ? (
+                                                <img src={dayMedia[0].mediaUrl} className="w-full h-full object-cover" alt="Planned" />
+                                            ) : (
+                                                <CheckCircle2 size={16} className="text-primary m-auto mt-3" />
+                                            )}
+                                         </div>
+                                         {isDayPlanned && !isDayScheduled && (
+                                             <span className="text-[7px] font-bold text-primary/60 uppercase tracking-tighter">DRAFT PLAN</span>
+                                         )}
+                                         {dayMedia.length > 1 && (
+                                             <Badge variant="secondary" className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 rounded-full text-[8px] bg-primary text-white border-primary shadow-lg">+{dayMedia.length - 1}</Badge>
+                                         )}
+                                    </div>
+                                ) : (
+                                    <div className="w-10 h-10 rounded-2xl border border-dashed border-white/10 flex items-center justify-center opacity-20 group-hover:opacity-100 group-hover:border-primary/50 transition-all">
+                                        <Clock size={16} className="text-muted-foreground group-hover:text-primary" />
+                                    </div>
+                                )}
+
+                                <div className={cn(
+                                    "absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] pointer-events-none"
+                                )} />
+                            </motion.div>
+                        );
+                    })}
                 </div>
                 
                 {containerCount < 7 && (
@@ -656,6 +918,19 @@ export default function CopilotPage() {
                 </div>
             </motion.div>
 
+
+            <StrategicPlannerModal 
+                dayIndex={selectedDay ?? 0}
+                initialDate={calendarStartDate}
+                userId={user?.uid || ''}
+                isOpen={isPlannerOpen}
+                onClose={() => setIsPlannerOpen(false)}
+                onPlanned={() => {
+                    fetchScheduledItems();
+                    fetchContainerMedia();
+                }}
+            />
+
             <AnimatePresence>
                 {showSupport && (
                     <SupportChatAi onClose={() => setShowSupport(false)} />
@@ -673,5 +948,5 @@ function ImageIcon({ className }: { className?: string }) {
             <circle cx="9" cy="9" r="2" />
             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
         </svg>
-    )
+    );
 }

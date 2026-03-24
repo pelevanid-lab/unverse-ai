@@ -95,12 +95,12 @@
     "noContent": "Henüz açık içerik mevcut değil.",
     "syncing": "Kozmik Akış Senkronize Ediliyor...",
     "updateName": "EVRİM",
-    "title": "Keşfet Unverse"
+    "title": "Undiscovered Unverse"
   },
   "Navbar": {
     "connect": "Cüzdan Bağla",
     "mypage": "Sayfam",
-    "discover": "Keşfet",
+    "discover": "Undiscovered",
     "tokenomics": "Ön Satış",
     "staking": "Staking",
     "community": "Topluluk",
@@ -260,7 +260,14 @@
     "generateVideo": "Videoyu Oluştur",
     "selectFromContainer": "Havuzdan Görsel Seç",
     "noAnimateForVideo": "Videolar tekrar hareketlendirilemez.",
-    "animateSuccess": "Video başarıyla üretildi ve havuza eklendi."
+    "animateSuccess": "Video başarıyla üretildi ve havuza eklendi.",
+    "shortcuts": {
+      "copilot": "Copilot",
+      "edit": "Düzenle",
+      "muse": "Muse",
+      "animate": "Animate",
+      "freeArt": "Sanat"
+    }
   },
   "Published": {
     "title": "Yayınlanan İçerik",
@@ -642,7 +649,7 @@
     "publicTab": "Herkese Açık",
     "premiumTab": "Premium",
     "limitedTab": "Sınırlı",
-    "backToDiscover": "Keşfet'e Dön",
+    "backToDiscover": "Undiscovered'a Dön",
     "message": "Mesaj Gönder"
   },
   "Staking": {
@@ -840,7 +847,7 @@
     "saveToPool": "Havuza Kaydet",
     "aiEditing": "AI Yeniden Düzenliyor...",
     "aiEditingDesc": "Arka plan siliniyor ve objeler hayalinize göre yerleşiyor.",
-    "manuelMode": "MANUEL MOD",
+    "manualMode": "MANUEL MOD",
     "aiEditMode": "AI EDIT MOD (BETA)",
     "manualEdit": "Manuel Edit",
     "aiEdit": "AI Edit",
@@ -858,6 +865,12 @@
     "aiPromptLabel": "DEĞİŞİM KOMUTU (PROMPT)",
     "aiPromptPlaceholder": "Arka planı değiştir, saçı kızıl yap...",
     "aiEditBtn": "AI İle Yeniden Düzenle (8 ULC)",
+    "aiComingSoon": "Çok Yakında!",
+    "aiComingSoonDesc": "AI Edit Pro şu an kapalı beta aşamasındadır. Çok yakında tüm kullanıcılarımıza açılacaktır!",
+    "changeBackground": "✨ Karakteri Sabitle ve Düzenle",
+    "copilotCutting": "Copilot: Karakter Sabitleniyor...",
+    "segmentFailed": "Karakter otomatik seçilemedi.",
+    "autoSelectDesc": "Copilot karakteri otomatik analiz etsin ve sabitlesin.",
     "videoModeTitle": "Video Modu",
     "videoModeDesc": "Videolar için düzenleme şu an desteklenmemektedir. İçeriği doğrudan havuza kaydedebilirsiniz.",
     "aiEditInfo": "AI Edit modunda fotoğrafın üzerinde değişiklik yapmak için profesyonel komutlar kullanabilirsin. Bu işlem **8 ULC** (Regen: 4 ULC) ile ücretlendirilir.",
@@ -867,8 +880,19 @@
     "aiPerfectDesc": "AI fotoğrafınızı yeniden yorumladı.",
     "error": "Hata",
     "savedSuccess": "Havuza Kaydedildi!",
-    "savedSuccessDesc": "İçeriğiniz artık panelinizde görünüyor.",
-    "saveFailed": "Kayıt Başarısız"
+    "savedSuccessDesc": "İçeriğiniz artık panelinizde görünebilir.",
+    "saveFailed": "Kaydetme Başarısız",
+    "brushTitle": "Fırça / Alan Seçimi",
+    "clearBtn": "TEMİZLE",
+    "bgWizardTitle": "Arka Plan Sihirbazı",
+    "scenarioStudio": "Stüdyo",
+    "scenarioParis": "Paris",
+    "scenarioNeon": "Neon Gece",
+    "scenarioNature": "Doğa/Orman",
+    "scenarioStudioPrompt": "Sinematik stüdyo arka planı, profesyonel ışıklandırma, yumuşak bokeh",
+    "scenarioParisPrompt": "Paris kafe arka planı, uzakta görünen Eyfel kulesi, sabah ışığı",
+    "scenarioNeonPrompt": "Cyberpunk neon şehir arka planı, ıslak sokaklar, canlı mor ve mavi ışıklar",
+    "scenarioNaturePrompt": "Gür yeşil orman arka planı, ağaçların arasından süzülen güneş ışığı, puslu atmosfer"
   },
   "Moderation": {
     "accountFrozen": "HESAP ASKIYA ALINDI",

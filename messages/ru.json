@@ -95,12 +95,12 @@
     "noContent": "Публичных публикаций пока нет. Будьте первым, кто опубликует!",
     "syncing": "Синхронизация Вселенной...",
     "updateName": "ЭВОЛЮЦИЯ",
-    "title": "Discover Unverse"
+    "title": "Undiscovered Unverse"
   },
   "Navbar": {
     "connect": "Подключить",
     "mypage": "Моя Страница",
-    "discover": "Обзор",
+    "discover": "Undiscovered",
     "tokenomics": "Предпродажа",
     "staking": "Стейкинг",
     "community": "Сообщество",
@@ -212,7 +212,14 @@
     "emptyStateDesc": "Созданный или загруженный контент появится здесь.",
     "errorTitle": "Ошибка",
     "profileLoadError": "Не удалось загрузить профиль.",
-    "untitled": "Без названия"
+    "untitled": "Без названия",
+    "shortcuts": {
+      "copilot": "Copilot",
+      "edit": "Edit",
+      "muse": "Muse",
+      "animate": "Animate",
+      "freeArt": "Art"
+    }
   },
   "Creator": {
     "becomeCreatorTitle": "Стать Автором",
@@ -617,7 +624,7 @@
     "publicTab": "Публичный",
     "premiumTab": "Премиум",
     "limitedTab": "Ограниченный",
-    "backToDiscover": "Вернуться к обзору",
+    "backToDiscover": "Вернуться в Undiscovered",
     "message": "Сообщение"
   },
   "Staking": {
@@ -820,6 +827,9 @@
     "aiPromptLabel": "КОМАНДА ИЗМЕНЕНИЯ (PROMPT)",
     "aiPromptPlaceholder": "Измени фон, сделай волосы рыжими...",
     "aiEditBtn": "Переделать с помощью ИИ (8 ULC)",
+    "aiComingSoon": "Скоро!",
+    "aiComingSoonDesc": "AI Edit Pro сейчас находится на стадии приватного бета-тестирования. Совсем скоро функция станет доступна всем!",
+    "changeBackground": "✨ Закрепить персонажа",
     "videoModeTitle": "Видеорежим",
     "videoModeDesc": "Редактирование видео в данный момент не поддерживается. Вы можете сохранить контент напрямую в пул.",
     "aiEditInfo": "В режиме ИИ-редактирования вы можете использовать профессиональные команды для внесения изменений в фото. Этот процесс стоит **8 ULC** (Повтор: 4 ULC).",
@@ -830,7 +840,18 @@
     "error": "Ошибка",
     "savedSuccess": "Сохранено в пул!",
     "savedSuccessDesc": "Ваш контент теперь отображается на вашей панели управления.",
-    "saveFailed": "Ошибка сохранения"
+    "saveFailed": "Ошибка сохранения",
+    "brushTitle": "Кисть / Выбор области",
+    "clearBtn": "ОЧИСТИТЬ",
+    "bgWizardTitle": "Мастер фона",
+    "scenarioStudio": "Студия",
+    "scenarioParis": "Париж",
+    "scenarioNeon": "Неоновая ночь",
+    "scenarioNature": "Природа/Лес",
+    "scenarioStudioPrompt": "Cinematic studio background, professional lighting, soft bokeh",
+    "scenarioParisPrompt": "Parisian cafe background, Eiffel tower visible in distance, morning light",
+    "scenarioNeonPrompt": "Cyberpunk neon city background, wet streets, vibrant purple and blue lights",
+    "scenarioNaturePrompt": "Lush green forest background, sun rays through trees, misty atmosphere"
   },
   "Moderation": {
     "accountFrozen": "АККАУНТ ЗАБЛОКИРОВАН",
