@@ -129,7 +129,7 @@ export default function InvestorTokenomics() {
                 </div>
                 
                 <Card className="glass-card border-primary/30 bg-gradient-to-br from-primary/10 via-transparent to-transparent p-8 relative overflow-hidden group">
-                    <div className="absolute -right-10 -bottom-10 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <div className="absolute -end-10 -bottom-10 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Lock className="w-48 h-48" />
                     </div>
                     
@@ -148,7 +148,7 @@ export default function InvestorTokenomics() {
                             </div>
                         </div>
                         
-                        <div className="space-y-4 border-l border-white/10 md:pl-8">
+                        <div className="space-y-4 border-s border-white/10 md:ps-8">
                             <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
                                 <p className="text-[10px] font-bold uppercase text-primary/70">Allocation Ratios</p>
                                 <div className="space-y-1 text-xs">

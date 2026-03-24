@@ -59,7 +59,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                 className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex flex-col md:flex-row h-screen overflow-hidden"
             >
                 {/* Sidebar Navigation */}
-                <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-white/10 p-6 flex flex-col gap-8 bg-black/40">
+                <div className="w-full md:w-80 border-b md:border-b-0 md:border-e border-white/10 p-6 flex flex-col gap-8 bg-black/40">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
@@ -99,13 +99,13 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="flex flex-col gap-1 overflow-y-auto pe-2 custom-scrollbar">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Chapters</p>
                         {sections.map((s) => (
                             <button
                                 key={s.id}
                                 onClick={() => scrollToSection(s.id)}
-                                className={`flex items-center justify-between p-3 rounded-xl text-left transition-all group ${activeSection === s.id ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
+                                className={`flex items-center justify-between p-3 rounded-xl text-start transition-all group ${activeSection === s.id ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
                             >
                                 <span className="text-[11px] font-bold">{activeLang === 'ru' ? s.ru : (activeLang === 'tr' ? s.tr : s.en)}</span>
                                 <ChevronRight className={`w-4 h-4 transition-transform ${activeSection === s.id ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100'}`} />
@@ -115,7 +115,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
 
                     <div className="mt-auto pt-6 border-t border-white/10">
                          <div className="bg-gradient-to-br from-primary/20 to-blue-600/20 p-4 rounded-2xl border border-primary/20 relative overflow-hidden group/card">
-                            <div className="absolute top-0 right-0 p-2 opacity-20 group-hover/card:scale-110 transition-transform">
+                            <div className="absolute top-0 end-0 p-2 opacity-20 group-hover/card:scale-110 transition-transform">
                                 <ShieldCheck className="w-8 h-8 text-primary" />
                             </div>
                             <p className="text-[10px] font-bold text-primary mb-1 uppercase tracking-tighter">Economic Seal</p>
@@ -185,7 +185,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
 
                         {/* Principles */}
                         <section id="wp-principles" className="scroll-mt-20">
-                             <h3 className="text-2xl font-headline font-bold text-white mb-6 border-l-4 border-primary pl-4 uppercase tracking-tight">
+                             <h3 className="text-2xl font-headline font-bold text-white mb-6 border-s-4 border-primary ps-4 uppercase tracking-tight">
                                 {activeLang === 'ru' ? 'Основные Принципы' : (activeLang === 'tr' ? 'Temel İlkeler' : 'Core Principles')}
                             </h3>
                             <ul className="space-y-8">
@@ -208,7 +208,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
 
                         {/* Tokenomics */}
                         <section id="wp-tokenomics" className="scroll-mt-20 p-8 rounded-[2rem] bg-gradient-to-br from-zinc-900 to-black border border-white/10 relative overflow-hidden">
-                             <div className="absolute top-0 right-0 p-8 opacity-5">
+                             <div className="absolute top-0 end-0 p-8 opacity-5">
                                 <Coins className="w-40 h-40" />
                             </div>
                             <h3 className="text-3xl font-headline font-bold text-white mb-8">
@@ -314,7 +314,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                             </p>
                             
                             <div className="overflow-x-auto rounded-3xl border border-white/10">
-                                <table className="w-full text-left text-sm">
+                                <table className="w-full text-start text-sm">
                                     <thead className="bg-white/5 text-muted-foreground uppercase text-[10px] font-bold">
                                         <tr>
                                             <th className="p-4">{activeLang === 'en' ? 'Phase' : (activeLang === 'tr' ? 'Aşama' : 'Фаза')}</th>
@@ -373,7 +373,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                 {/* Close Button - Desktop */}
                 <button 
                     onClick={onClose}
-                    className="hidden md:flex absolute top-8 right-8 w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full items-center justify-center text-white transition-all hover:rotate-90"
+                    className="hidden md:flex absolute top-8 end-8 w-12 h-12 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full items-center justify-center text-white transition-all hover:rotate-90"
                 >
                     <X className="w-6 h-6" />
                 </button>

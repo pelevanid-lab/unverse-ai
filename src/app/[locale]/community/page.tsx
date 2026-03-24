@@ -218,7 +218,7 @@ export default function CommunityPage() {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-8 scroll-mt-24" id="roadmap">
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
                     <Card className="glass-card group overflow-hidden border-blue-500/20 hover:border-blue-500/40 transition-all cursor-pointer relative bg-blue-500/5">
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <div className="absolute top-0 end-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
                             <Milestone className="w-32 h-32 text-blue-400" />
                         </div>
                         <CardHeader className="pb-2">
@@ -250,7 +250,7 @@ export default function CommunityPage() {
                         onClick={() => setShowWhitepaper(true)}
                         className="glass-card group overflow-hidden border-yellow-400/10 hover:border-yellow-400/40 transition-all cursor-pointer relative bg-yellow-400/5"
                     >
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <div className="absolute top-0 end-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
                             <FileText className="w-32 h-32 text-yellow-400" />
                         </div>
                         <CardHeader className="pb-2">
@@ -282,7 +282,7 @@ export default function CommunityPage() {
                         className="glass-card group overflow-hidden border-blue-500/10 hover:border-blue-500/40 transition-all cursor-pointer relative bg-blue-500/2"
                         onClick={() => setPresentationType('investor')}
                     >
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <div className="absolute top-0 end-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
                             <ShieldCheck className="w-24 h-24 text-blue-400" />
                         </div>
                         <CardHeader className="pb-2">
@@ -306,7 +306,7 @@ export default function CommunityPage() {
                         className="glass-card group overflow-hidden border-yellow-400/5 hover:border-yellow-400/40 transition-all cursor-pointer relative bg-yellow-400/2"
                         onClick={() => setPresentationType('creator')}
                     >
-                        <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <div className="absolute top-0 end-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
                             <UsersIcon className="w-24 h-24 text-yellow-400" />
                         </div>
                         <CardHeader className="pb-2">
@@ -441,7 +441,7 @@ export default function CommunityPage() {
                                 </div>
                             </Card>
 
-                            <div className="space-y-4 pl-6 border-l-2 border-white/5">
+                            <div className="space-y-4 ps-6 border-s-2 border-white/5">
                                 {replies.map(reply => (
                                     <Card key={reply.id} className="glass-card p-4 bg-white/2 border-white/5">
                                         <div className="flex items-center justify-between mb-2">
@@ -465,7 +465,7 @@ export default function CommunityPage() {
                                             disabled={isSubmitting || !newReplyContent.trim()}
                                             className="bg-yellow-400 text-black font-bold h-12 px-8 rounded-xl"
                                         >
-                                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <Send className="w-4 h-4 mr-2"/>} {t('postReply')}
+                                            {isSubmitting ? <Loader2 className="animate-spin me-2"/> : <Send className="w-4 h-4 me-2"/>} {t('postReply')}
                                         </Button>
                                     </div>
                                 ) : (

@@ -145,7 +145,7 @@ export default function TokenomicsPage() {
     <div className="space-y-16 pb-20 overflow-hidden">
       {/* Hero Section */}
       <section className="relative pt-10 md:pt-20 text-center space-y-8 max-w-5xl mx-auto px-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-primary/10 blur-[150px] rounded-full -z-10" />
+        <div className="absolute top-0 start-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-primary/10 blur-[150px] rounded-full -z-10" />
         
         <h1 className="text-6xl md:text-8xl font-headline font-bold tracking-tighter leading-[0.9]">
             {t('title1')} <br/>
@@ -163,7 +163,7 @@ export default function TokenomicsPage() {
         {/* Pre-Sale Card */}
         <div className="mt-12 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
             <Card className={`glass-card border-primary/30 relative overflow-hidden group shadow-2xl shadow-primary/10 ${stageInfo.isSoldOut ? 'opacity-70 grayscale' : ''}`}>
-                <div className="absolute top-0 right-0 p-4 flex gap-2">
+                <div className="absolute top-0 end-0 p-4 flex gap-2">
                     <Badge variant="outline" className="text-primary border-primary/20 backdrop-blur-md">
                         Stage {stageInfo.currentStage}/3
                     </Badge>
@@ -172,22 +172,22 @@ export default function TokenomicsPage() {
                     </Badge>
                 </div>
                 
-                <CardHeader className="text-left pb-2">
+                <CardHeader className="text-start pb-2">
                     <CardTitle className="text-2xl font-headline font-bold text-yellow-500 flex items-center gap-2">
                         <Zap className="fill-yellow-500" /> {t('presaleTitle')}
                     </CardTitle>
                     <CardDescription>{t('presaleDesc')}</CardDescription>
                 </CardHeader>
                 
-                <CardContent className="space-y-6 text-left">
+                <CardContent className="space-y-6 text-start">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
+                            <div className="absolute top-0 start-0 w-1 h-full bg-green-500/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('priceLabel')}</p>
                             <p className="text-xl font-bold font-headline text-green-400">${stageInfo.currentPrice.toFixed(3)} <span className="text-xs font-normal opacity-50">USDC</span></p>
                         </div>
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden">
-                             <div className="absolute top-0 left-0 w-1 h-full bg-primary/50" />
+                             <div className="absolute top-0 start-0 w-1 h-full bg-primary/50" />
                             <p className="text-[10px] uppercase font-bold text-muted-foreground">{t('listingLabel')}</p>
                             <p className="text-xl font-bold font-headline text-primary">${systemConfig?.listingPriceUSDC || 0.015} <span className="text-xs font-normal opacity-50">USDC</span></p>
                         </div>
@@ -224,9 +224,9 @@ export default function TokenomicsPage() {
                                         value={usdcAmount}
                                         onChange={(e) => handleUsdcChange(e.target.value)}
                                         disabled={stageInfo.isSoldOut}
-                                        className="h-12 bg-white/5 border-white/10 font-bold pl-12"
+                                        className="h-12 bg-white/5 border-white/10 font-bold ps-12"
                                     />
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                                    <DollarSign className="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
                                 </div>
                             </div>
                             <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 flex flex-col justify-center">
@@ -316,13 +316,13 @@ export default function TokenomicsPage() {
         {systemConfig?.isSealed && (
             <div className="mt-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
                 <Card className="glass-card border-blue-500/30 overflow-hidden relative shadow-2xl shadow-blue-500/10">
-                    <div className="absolute top-0 right-0 p-4">
+                    <div className="absolute top-0 end-0 p-4">
                         <Badge className="bg-blue-500 text-black font-bold animate-pulse">
                             {t('militaryPrice')}
                         </Badge>
                     </div>
                     
-                    <CardHeader className="text-left pb-2">
+                    <CardHeader className="text-start pb-2">
                         <CardTitle className="text-2xl font-headline font-bold text-blue-400 flex items-center gap-2">
                             <Shield className="fill-blue-400" /> {t('dynamicFloorPrice')}
                         </CardTitle>
@@ -331,7 +331,7 @@ export default function TokenomicsPage() {
                         </CardDescription>
                     </CardHeader>
                     
-                    <CardContent className="space-y-6 text-left">
+                    <CardContent className="space-y-6 text-start">
                         <div className="p-6 rounded-3xl bg-blue-500/5 border border-blue-500/10 flex flex-col items-center justify-center text-center space-y-2">
                             <p className="text-xs font-bold text-blue-400/70 uppercase tracking-widest">{t('militaryPrice')}</p>
                             <h3 className="text-5xl font-headline font-bold text-blue-400">
@@ -378,7 +378,7 @@ export default function TokenomicsPage() {
       <section className="max-w-4xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-6">
           <Link href="/tokenomics/investors">
             <Card className="glass-card p-8 border-yellow-500/20 hover:border-yellow-500/50 transition-all group overflow-hidden relative">
-                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <div className="absolute -end-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <TrendingUp className="w-32 h-32 text-yellow-500" />
                 </div>
                 <div className="space-y-4 relative z-10">
@@ -394,7 +394,7 @@ export default function TokenomicsPage() {
 
           <Link href="/tokenomics/creators">
             <Card className="glass-card p-8 border-pink-500/20 hover:border-pink-500/50 transition-all group overflow-hidden relative">
-                <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <div className="absolute -end-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Sparkles className="w-32 h-32 text-pink-500" />
                 </div>
                 <div className="space-y-4 relative z-10">
@@ -411,10 +411,10 @@ export default function TokenomicsPage() {
 
       <section className="max-w-5xl mx-auto px-4 py-8">
         <Card className="glass-card border-pink-500/30 overflow-hidden relative shadow-2xl shadow-pink-500/10 group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 blur-[100px] rounded-full -z-10 group-hover:bg-pink-500/20 transition-all duration-700" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full -z-10" />
+          <div className="absolute top-0 end-0 w-64 h-64 bg-pink-500/10 blur-[100px] rounded-full -z-10 group-hover:bg-pink-500/20 transition-all duration-700" />
+          <div className="absolute -bottom-16 -start-16 w-64 h-64 bg-purple-500/10 blur-[100px] rounded-full -z-10" />
           
-          <CardHeader className="text-center md:text-left">
+          <CardHeader className="text-center md:text-start">
             <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-pink-500/20 scale-110">
                     <Award className="text-white w-10 h-10" />
@@ -512,7 +512,7 @@ export default function TokenomicsPage() {
           </div>
 
           <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-primary/5 via-primary/10 to-transparent border border-white/5 flex flex-col md:flex-row items-center gap-8 justify-between relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-primary/20 blur-3xl opacity-50" />
+              <div className="absolute top-0 start-0 w-32 h-32 bg-primary/20 blur-3xl opacity-50" />
               <div className="space-y-4 relative z-10">
                   <h3 className="text-3xl font-headline font-bold">{t('capTitle1')} <br/> <span className="opacity-50">{t('capTitle2')}</span></h3>
                   <p className="text-muted-foreground max-w-sm">{t('capDesc')}</p>

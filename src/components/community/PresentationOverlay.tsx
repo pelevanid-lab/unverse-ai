@@ -80,7 +80,7 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                 {/* Close Button */}
                 <button 
                     onClick={onClose}
-                    className="absolute top-8 right-8 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:rotate-90 transition-all z-[120]"
+                    className="absolute top-8 end-8 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:rotate-90 transition-all z-[120]"
                 >
                     <X className="w-6 h-6" />
                 </button>
@@ -146,7 +146,7 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                                 </div>
                                 <div className="flex-1 h-[2px] bg-white/10 relative rounded-full overflow-hidden">
                                     <motion.div 
-                                        className="absolute inset-y-0 left-0 bg-primary"
+                                        className="absolute inset-y-0 start-0 bg-primary"
                                         initial={{ width: 0 }}
                                         animate={{ width: `${((currentSlide + 1) / slides.length) * 100}%` }}
                                     />
@@ -206,8 +206,8 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                                     </div>
                                     
                                     {/* Design Elements */}
-                                    <div className="absolute -top-4 -right-4 w-24 h-24 bg-primary/20 blur-3xl rounded-full" />
-                                    <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/10 blur-[100px] rounded-full" />
+                                    <div className="absolute -top-4 -end-4 w-24 h-24 bg-primary/20 blur-3xl rounded-full" />
+                                    <div className="absolute -bottom-10 -start-10 w-40 h-40 bg-blue-500/10 blur-[100px] rounded-full" />
                                 </motion.div>
                             </AnimatePresence>
                         </div>
