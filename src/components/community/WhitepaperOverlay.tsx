@@ -304,7 +304,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
 
                         {/* Reserve Pool & Vesting Table */}
                         <section id="wp-reserve" className="scroll-mt-20">
-                            <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
+                             <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
                                 {activeLang === 'ru' ? '20-летняя стратегия' : (activeLang === 'tr' ? '20 Yıllık Strateji' : '20-Year Strategy')}
                             </h3>
                             <p className="text-white/70 mb-8 leading-relaxed">
@@ -350,6 +350,86 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </section>
+
+                        {/* Distribution Section 8 */}
+                        <section id="wp-distribution" className="scroll-mt-20">
+                            <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
+                                {activeLang === 'ru' ? '8. Распределение' : (activeLang === 'tr' ? '8. Dağılım ve Güvenlik' : '8. Distribution & Security')}
+                            </h3>
+                            <div className="overflow-x-auto rounded-3xl border border-white/10 mb-8">
+                                <table className="w-full text-start text-sm">
+                                    <thead className="bg-white/5 text-muted-foreground uppercase text-[10px] font-bold">
+                                        <tr>
+                                            <th className="p-4">{activeLang === 'ru' ? 'Пул' : (activeLang === 'tr' ? 'Havuz' : 'Pool')}</th>
+                                            <th className="p-4">{activeLang === 'ru' ? 'Квота' : (activeLang === 'tr' ? 'Oran' : 'Allocation')}</th>
+                                            <th className="p-4">{activeLang === 'ru' ? 'Стратегия' : (activeLang === 'tr' ? 'Strateji' : 'Strategy')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {[
+                                            { p: "Reserve", a: "420M", s: activeLang === 'ru' ? '20 лет блокировки' : (activeLang === 'tr' ? '20 Yıllık Kilit' : '20-Year Horizon') },
+                                            { p: "Team", a: "130M", s: activeLang === 'ru' ? '3 года вестинга' : (activeLang === 'tr' ? '3 Yıl Vesting' : '3-Year Vesting') },
+                                            { p: "Creators", a: "120M", s: activeLang === 'ru' ? 'Награда за активность' : (activeLang === 'tr' ? 'Performans Bazlı' : 'Performance-based') },
+                                            { p: "Presale", a: "100M", s: activeLang === 'ru' ? '3 этапа продаж' : (activeLang === 'tr' ? '3 Aşamalı Ön Satış' : '3-Stage Public Raise') },
+                                            { p: "Staking", a: "80M", s: activeLang === 'ru' ? 'Награда холдерам' : (activeLang === 'tr' ? 'Stake Ödülleri' : 'Staking Rewards') },
+                                            { p: "Liquidity", a: "60M", s: "DEX/CEX MM" },
+                                            { p: "Growth", a: "90M", s: "Airdrop/Promo" }
+                                        ].map((row, i) => (
+                                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                                                <td className="p-4 font-bold text-white">{row.p}</td>
+                                                <td className="p-4 text-primary font-black">{row.a}</td>
+                                                <td className="p-4 text-white/50 text-xs">{row.s}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        {/* Roadmap Section 9 */}
+                        <section id="wp-roadmap" className="scroll-mt-20">
+                            <h3 className="text-2xl font-headline font-bold text-white mb-8 uppercase tracking-tight">
+                                {activeLang === 'ru' ? '9. Дорожная карта' : (activeLang === 'tr' ? '9. Yol Haritası' : '9. Strategic Roadmap')}
+                            </h3>
+                            <div className="space-y-4">
+                                {[
+                                    { 
+                                        phase: "1", 
+                                        en: "Genesis Era", tr: "Genesis Dönemi", ru: "Эра Генезиса",
+                                        items: activeLang === 'ru' ? ["Миграция на Base/USDC", "Запуск AI Studio", "Предпродажа (Раунд 1)"] : (activeLang === 'tr' ? ["Base/USDC Altyapısına Geçiş", "AI Studio Aktivasyonu", "Stratejik Ön Satış (Round 1)"] : ["Migration to Base/USDC", "AI Studio Activation", "Strategic Presale (Round 1)"])
+                                    },
+                                    { 
+                                        phase: "2", 
+                                        en: "Expansion", tr: "Büyüme & Genişleme", ru: "Расширение",
+                                        items: activeLang === 'ru' ? ["Запуск AI Video", "Программа Creator 100", "Предпродажа (Раунд 2-3)"] : (activeLang === 'tr' ? ["AI Video Lansmanı", "Creator 100 Programı", "Ön Satış 2. ve 3. Aşama"] : ["AI Video Launch", "Creator 100 Program", "Presale Rounds 2 & 3"])
+                                    },
+                                    { 
+                                        phase: "3", 
+                                        en: "Convergence", tr: "Mainnet & TGE", ru: "Конвергенция",
+                                        items: activeLang === 'ru' ? ["Листинг на DEX ($0.015)", "Запуск пулов стейкинга", "CEX Листинги"] : (activeLang === 'tr' ? ["DEX Listelemesi ($0.015)", "Stake Havuzlarının Açılışı", "CEX Listeleme Müzakereleri"] : ["DEX Listing ($0.015)", "Staking Pools Live", "CEX Listing Strategy"])
+                                    },
+                                    { 
+                                        phase: "4", 
+                                        en: "Maturity", tr: "Platform Olgunluğu", ru: "Зрелость",
+                                        items: activeLang === 'ru' ? ["Fan Token Тест", "Планирование DAO", "Глобальная экспансия"] : (activeLang === 'tr' ? ["Fan Token Test Aşaması", "DAO Planlaması", "Küresel Ekosistem Büyümesi"] : ["Fan Token Test Phase", "DAO Transition Planning", "Global Ecosystem Expansion"])
+                                    }
+                                ].map((p, i) => (
+                                    <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden group">
+                                        <div className="absolute -end-4 -top-4 text-4xl font-black text-white/5 group-hover:text-primary/10 transition-colors">{p.phase}</div>
+                                        <h4 className="text-lg font-bold text-white mb-3">
+                                            {activeLang === 'ru' ? p.ru : (activeLang === 'tr' ? p.tr : p.en)}
+                                        </h4>
+                                        <ul className="space-y-2">
+                                            {p.items.map((item, idx) => (
+                                                <li key={idx} className="flex items-center gap-2 text-xs text-white/50">
+                                                    <div className="w-1 h-1 rounded-full bg-primary" /> {item}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
                             </div>
                         </section>
 
