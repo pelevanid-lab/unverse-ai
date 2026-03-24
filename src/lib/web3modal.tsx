@@ -1,9 +1,8 @@
 "use client";
 
-import { createWeb3Modal } from '@web3modal/wagmi/react'
-import { createConfig, http, WagmiProvider } from 'wagmi'
+import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
 import { mainnet, base } from 'wagmi/chains'
-import { coinbaseWallet, walletConnect, injected } from 'wagmi/connectors'
+import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react';
 
@@ -21,21 +20,10 @@ const metadata = {
   icons: ['https://unverse-ai.vercel.app/icon.png']
 }
 
-export const config = createConfig({
+export const config = defaultWagmiConfig({
   chains: [base, mainnet],
-  multiInjectedProviderDiscovery: true,
-  transports: {
-    [base.id]: http(),
-    [mainnet.id]: http(),
-  },
-  connectors: [
-    coinbaseWallet({ 
-      appName: 'Unverse',
-      preference: 'all', // Shows both Smart Wallet and Extension
-    }),
-    walletConnect({ projectId, metadata, showQrModal: false }),
-    injected({ shimDisconnect: true }),
-  ],
+  projectId,
+  metadata,
 })
 
 // 3. Create modal
@@ -43,7 +31,6 @@ createWeb3Modal({
   wagmiConfig: config,
   projectId,
   enableAnalytics: true,
-  enableOnramp: true,
   themeMode: 'dark',
   themeVariables: {
     '--w3m-accent': '#0052FF',
