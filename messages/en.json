@@ -852,7 +852,50 @@
     "topicTitlePlaceholder": "Topic Title",
     "topicContentPlaceholder": "What's on your mind?",
     "submitTopic": "Submit Topic",
-    "viewRoadmap": "Explore Roadmap"
+    "viewRoadmap": "Explore Roadmap",
+    "roadmapPhases": {
+      "p0_name": "PHASE 0: Foundations",
+      "p0_desc": "Completed. Core engine development and USDC alignment.",
+      "p0_points": [
+        "USDC Migration (Base Network Compatibility)",
+        "Account Abstraction (Gas-less Transactions)",
+        "Strategic 3-Tier Presale Modeling",
+        "Economic Seal & M-Floor Activation",
+        "Withdrawal Infrastructure Completion"
+      ],
+      "p1_name": "PHASE 1: Genesis Era",
+      "p1_desc": "Current. Focused on early believers and AI creators.",
+      "p1_points": [
+        "Genesis Presale Round ($0.009)",
+        "First-100 Verified Creator Onboarding",
+        "AI Studio V1 Core Launch",
+        "Global Staking Fee Accumulation"
+      ],
+      "p2_name": "PHASE 2: Expansion & Growth",
+      "p2_desc": "Q3 2026. Scaling the user base and DeFi integration.",
+      "p2_points": [
+        "DeFi Launchpad Strategic Rounds ($0.012)",
+        "Institutional Backer Onboarding",
+        "Copilot Pro: Director Mode Features",
+        "Mobile Experience & PWA Polish"
+      ],
+      "p3_name": "PHASE 3: Mainnet Convergence",
+      "p3_desc": "Q4 2026. Liquidity activation and pool connectivity.",
+      "p3_points": [
+        "Final Presale Round before Listing ($0.014)",
+        "BaseSwap DEX Official Liquidity Launch ($0.015)",
+        "On-Chain Pool Protocol Integration",
+        "Global Staking Reward Multiplier Activation",
+        "TGE & Initial Protocol Supply Burn"
+      ],
+      "p4_name": "PHASE 4: Ecosystem Maturity",
+      "p4_desc": "2027+. Sustainable growth and innovation.",
+      "p4_points": [
+        "Creator Fan Token Trial Phase",
+        "AI Studio Pro: Professional Suite",
+        "Cross-Chain SocialFi Expansion"
+      ]
+    }
   },
   "Upload": {
     "title": "Upload Content",

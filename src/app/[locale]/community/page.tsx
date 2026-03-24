@@ -27,6 +27,7 @@ import { Link } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { createTopicAction, postReplyAction, ForumTopic, ForumReply } from '@/lib/forum';
+import { RoadmapOverlay } from '@/components/community/RoadmapOverlay';
 
 const XIcon = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -50,6 +51,7 @@ export default function CommunityPage() {
     const [newTopicData, setNewTopicData] = useState({ title: '', content: '' });
     const [newReplyContent, setNewReplyContent] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showRoadmap, setShowRoadmap] = useState(false);
 
     useEffect(() => {
         // Fetch Community Config & Socials
@@ -224,7 +226,10 @@ export default function CommunityPage() {
                                 <div className="flex items-center gap-2 text-xs font-bold text-white"><Play className="w-3 h-3 text-yellow-400 animate-pulse"/> PHASE 1: GENESIS ERA</div>
                                 <div className="flex items-center gap-2 text-xs font-bold opacity-40">PHASE 2: EXPANSION & GROWTH</div>
                             </div>
-                            <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 font-bold gap-3 group">
+                            <Button 
+                                onClick={() => setShowRoadmap(true)}
+                                className="w-full h-14 bg-blue-600 hover:bg-blue-700 font-bold gap-3 group"
+                            >
                                 <FileText className="w-4 h-4"/> VIEW DETAILED ROADMAP
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
                             </Button>
@@ -469,6 +474,12 @@ export default function CommunityPage() {
                 )}
             </AnimatePresence>
 
+            {/* Roadmap Overlay */}
+            <RoadmapOverlay 
+                isOpen={showRoadmap} 
+                onClose={() => setShowRoadmap(false)} 
+            />
+
             {/* Footer Tag */}
             <div className="text-center pt-10">
                 <p className="text-[10px] uppercase tracking-[0.4em] opacity-20 font-bold">Unverse Unity Platform // Beta v1.0</p>
@@ -476,3 +487,4 @@ export default function CommunityPage() {
         </div>
     );
 }
+

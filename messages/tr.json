@@ -860,7 +860,50 @@
     "topicTitlePlaceholder": "Konu Başlığı",
     "topicContentPlaceholder": "Neler düşünüyorsun?",
     "submitTopic": "Konuyu Paylaş",
-    "viewRoadmap": "Yol Haritasını Keşfet"
+    "viewRoadmap": "Yol Haritasını Keşfet",
+    "roadmapPhases": {
+      "p0_name": "FAZ 0: Temeller",
+      "p0_desc": "Tamamlandı. Çekirdek motor geliştirme ve USDC uyumu.",
+      "p0_points": [
+        "USDC Migrasyonu (Base Ağ Uyumluluğu)",
+        "Hesap Soyutlama (AA) - Gazsız İşlemler",
+        "Stratejik 3 Aşamalı Ön Satış Modellemesi",
+        "Ekonomik Mühür ve M-Floor Aktivasyonu",
+        "Çekim Altyapısının Tamamlanması"
+      ],
+      "p1_name": "FAZ 1: Genesis Dönemi",
+      "p1_desc": "Güncel. Erken inananlara ve AI yaratıcılarına odaklı.",
+      "p1_points": [
+        "Genesis Ön Satış Turu ($0.009)",
+        "İlk 100 Doğrulanmış Yaratıcı Kaydı",
+        "AI Studio V1 Çekirdek Lansmanı",
+        "Küresel Stake Ücret Birikimi"
+      ],
+      "p2_name": "FAZ 2: Genişleme ve Büyüme",
+      "p2_desc": "2026 3. Çeyrek. Kullanıcı tabanını büyütme ve DeFi entegrasyonu.",
+      "p2_points": [
+        "DeFi Launchpad Stratejik Turları ($0.012)",
+        "Kurumsal Destekçi Kayıtları",
+        "Copilot Pro: Yönetmen Modu Özellikleri",
+        "Mobil Deneyim ve PWA İyileştirmeleri"
+      ],
+      "p3_name": "FAZ 3: Mainnet Birleşmesi",
+      "p3_desc": "2026 4. Çeyrek. Likidite aktivasyonu ve havuz bağlantısı.",
+      "p3_points": [
+        "Listeleme Öncesi Son Ön Satış Turu ($0.014)",
+        "BaseSwap DEX Resmi Likidite Lansmanı ($0.015)",
+        "On-Chain Havuz Protokolü Entegrasyonu",
+        "Küresel Stake Ödül Çarpanı Aktivasyonu",
+        "TGE ve İlk Protokol Arz Yakımı"
+      ],
+      "p4_name": "FAZ 4: Ekosistem Olgunluğu",
+      "p4_desc": "2027+. Sürdürülebilir büyüme ve inovasyon.",
+      "p4_points": [
+        "Yaratıcı Fan Token Test Aşaması",
+        "AI Studio Pro: Profesyonel Paket",
+        "Zincirler Arası SocialFi Genişlemesi"
+      ]
+    }
   },
   "Upload": {
     "title": "İçerik Yükle",
