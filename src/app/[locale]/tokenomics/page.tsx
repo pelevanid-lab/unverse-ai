@@ -139,7 +139,7 @@ export default function TokenomicsPage() {
     }
   };
 
-  const presaleProgress = (presaleSold / PRESALE_TOTAL_ALLOCATION) * 100;
+  const presaleProgress = (presaleSold / 20000000) * 100;
 
   return (
     <div className="space-y-16 pb-20 overflow-hidden">
@@ -165,7 +165,7 @@ export default function TokenomicsPage() {
             <Card className={`glass-card border-primary/30 relative overflow-hidden group shadow-2xl shadow-primary/10 ${stageInfo.isSoldOut ? 'opacity-70 grayscale' : ''}`}>
                 <div className="absolute top-0 right-0 p-4 flex gap-2">
                     <Badge variant="outline" className="text-primary border-primary/20 backdrop-blur-md">
-                        Stage {stageInfo.currentStage}/5
+                        Stage {stageInfo.currentStage}/3
                     </Badge>
                     <Badge className={`${stageInfo.isSoldOut ? 'bg-red-500' : 'bg-green-500'} text-black font-bold animate-pulse`}>
                         {stageInfo.isSoldOut ? 'SOLD OUT' : t('presaleBadge')}
@@ -276,6 +276,40 @@ export default function TokenomicsPage() {
                     </div>
                 </CardContent>
             </Card>
+        </div>
+        
+        {/* Strategic Rounds Timeline */}
+        <div className="mt-8 max-w-2xl mx-auto space-y-4">
+            <h3 className="text-xl font-headline font-bold text-center mb-6">{t('strategicRoundsTitle')}</h3>
+            <div className="grid grid-cols-1 gap-4">
+                <Card className="glass-card border-green-500/20 bg-green-500/5 p-4 flex gap-4 items-center">
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                        <Badge className="bg-green-500 text-black">1</Badge>
+                    </div>
+                    <div>
+                        <p className="font-bold text-green-400">{t('round1Title')}</p>
+                        <p className="text-xs text-muted-foreground">{t('round1Desc')}</p>
+                    </div>
+                </Card>
+                <Card className="glass-card border-white/10 p-4 flex gap-4 items-center opacity-70">
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                        <Badge variant="outline">2</Badge>
+                    </div>
+                    <div>
+                        <p className="font-bold">{t('round2Title')}</p>
+                        <p className="text-xs text-muted-foreground">{t('round2Desc')}</p>
+                    </div>
+                </Card>
+                <Card className="glass-card border-white/10 p-4 flex gap-4 items-center opacity-70">
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                        <Badge variant="outline">3</Badge>
+                    </div>
+                    <div>
+                        <p className="font-bold">{t('round3Title')}</p>
+                        <p className="text-xs text-muted-foreground">{t('round3Desc')}</p>
+                    </div>
+                </Card>
+            </div>
         </div>
 
         {/* Dynamic Floor Price Tracking */}

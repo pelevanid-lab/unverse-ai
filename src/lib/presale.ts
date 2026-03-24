@@ -7,11 +7,9 @@
 
 export const PRESALE_TOTAL_ALLOCATION = 100000000;
 export const PRESALE_TIERS = [
-  { stage: 1, limit: 20000000, price: 0.009 },
-  { stage: 2, limit: 40000000, price: 0.010 },
-  { stage: 3, limit: 60000000, price: 0.011 },
-  { stage: 4, limit: 80000000, price: 0.012 },
-  { stage: 5, limit: 100000000, price: 0.013 },
+  { stage: 1, limit: 20000000, price: 0.009, label: "Genesis Round" },
+  { stage: 2, limit: 60000000, price: 0.012, label: "Growth Round" },
+  { stage: 3, limit: 100000000, price: 0.014, label: "Launch Round" },
 ];
 
 export interface PresaleStageInfo {
