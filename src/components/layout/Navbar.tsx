@@ -68,6 +68,8 @@ export function Navbar() {
                 <Link href={pathname || '/'} locale="tr" className={`hover:text-primary transition-colors ${locale === 'tr' ? 'text-primary opacity-100' : 'opacity-70'}`}>TR</Link>
                 <span className="opacity-50">/</span>
                 <Link href={pathname || '/'} locale="ru" className={`hover:text-primary transition-colors ${locale === 'ru' ? 'text-primary opacity-100' : 'opacity-70'}`}>RU</Link>
+                <span className="opacity-50">/</span>
+                <Link href={pathname || '/'} locale="ar" className={`hover:text-primary transition-colors ${locale === 'ar' ? 'text-primary opacity-100' : 'opacity-70'}`}>AR</Link>
               </div>
             </div>
           </div>

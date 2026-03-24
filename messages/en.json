@@ -846,6 +846,13 @@
     "creatorTitle": "First 100 Program",
     "creatorDesc": "Learn how the first 100 creators earn dynamic bonuses and unlock high-yield monetization.",
     "viewCreator": "VIEW CREATOR PRESENTATION",
+    "roadmapSubtitle": "Strategic Vision & Mainnet Convergence (2026-2027)",
+    "immutableNote": "Protocol Economic Persistence: Sealed & Immutable",
+    "status": {
+      "completed": "Completed",
+      "active": "Active",
+      "upcoming": "Upcoming"
+    },
     "newTopic": "New Topic",
     "postReply": "Post Reply",
     "noTopics": "No topics yet. Be the first to start a discussion!",
@@ -964,6 +971,12 @@
     "frozenDesc": "This account and its content are currently inaccessible due to a violation of our Unity guidelines or account suspension.",
     "backToDiscover": "Back to Discover",
     "supportCenter": "Support Center"
+  },
+  "Presentation": {
+    "loading": "Loading Presentation...",
+    "slide": "Slide",
+    "strategicAsset": "Unverse Strategic Asset",
+    "verificationActive": "Protocol Level Verification Active"
   },
   "SupportChat": {
     "initialAiMessage": "Hello! I am your Unverse AI Premium Support. You can ask me anything about the platform, subscriptions, or Copilot Premium features.",

@@ -13,8 +13,8 @@ interface WhitepaperOverlayProps {
 
 export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
     const defaultLocale = useLocale();
-    const [activeLang, setActiveLang] = useState<'en' | 'tr' | 'ru'>(
-        defaultLocale === 'ru' ? 'ru' : (defaultLocale === 'tr' ? 'tr' : 'en')
+    const [activeLang, setActiveLang] = useState<'en' | 'tr' | 'ru' | 'ar'>(
+        defaultLocale === 'ar' ? 'ar' : (defaultLocale === 'ru' ? 'ru' : (defaultLocale === 'tr' ? 'tr' : 'en'))
     );
     const [activeSection, setActiveSection] = useState('vision');
 
@@ -31,15 +31,15 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
     if (!isOpen) return null;
 
     const sections = [
-        { id: 'vision', en: '1. Vision', tr: '1. Vizyon', ru: '1. Видение' },
-        { id: 'principles', en: '2. Core Principles', tr: '2. Temel İlkeler', ru: '2. Принципы' },
-        { id: 'architecture', en: '3. Product Architecture', tr: '3. Mimari', ru: '3. Архитектура' },
-        { id: 'tokenomics', en: '4. Tokenomics ($ULC)', tr: '4. Tokenomi ($ULC)', ru: '4. Токеномика' },
-        { id: 'flywheel', en: '5. Revenue Flywheel', tr: '5. Gelir Modeli', ru: '5. Доходность' },
-        { id: 'staking', en: '6. Staking Model', tr: '6. Staking & Gelir', ru: '6. Стейкинг' },
-        { id: 'reserve', en: '7. Reserve Pool', tr: '7. Rezerv Havuzu', ru: '7. Резерв' },
-        { id: 'distribution', en: '8. Distribution', tr: '8. Dağılım', ru: '8. Распределение' },
-        { id: 'roadmap', en: '9. Roadmap', tr: '9. Yol Haritası', ru: '9. Карта' },
+        { id: 'vision', en: '1. Vision', tr: '1. Vizyon', ru: '1. Видение', ar: '١. الرؤية' },
+        { id: 'principles', en: '2. Core Principles', tr: '2. Temel İlkeler', ru: '2. Принципы', ar: '٢. المبادئ الأساسية' },
+        { id: 'architecture', en: '3. Product Architecture', tr: '3. Mimari', ru: '3. Архитектура', ar: '٣. هيكلية المنتج' },
+        { id: 'tokenomics', en: '4. Tokenomics ($ULC)', tr: '4. Tokenomi ($ULC)', ru: '4. Токеномика', ar: '٤. اقتصاديات الرموز ($ULC)' },
+        { id: 'flywheel', en: '5. Revenue Flywheel', tr: '5. Gelir Modeli', ru: '5. Доходность', ar: '٥. دولاب الموازنة للعوائد' },
+        { id: 'staking', en: '6. Staking Model', tr: '6. Staking & Gelir', ru: '6. Стейкинг', ar: '٦. نموذج التخزين' },
+        { id: 'reserve', en: '7. Reserve Pool', tr: '7. Rezerv Havuzu', ru: '7. Резерв', ar: '٧. مجمع الاحتياطي' },
+        { id: 'distribution', en: '8. Distribution', tr: '8. Dağılım', ru: '8. Распределение', ar: '٨. التوزيع' },
+        { id: 'roadmap', en: '9. Roadmap', tr: '9. Yol Haritası', ru: '9. Карта', ar: '٩. خارطة الطريق' },
     ];
 
     const scrollToSection = (id: string) => {
@@ -76,8 +76,8 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Language / Dil / Язык</p>
-                        <div className="grid grid-cols-3 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Language / Dil / Язык / اللغة</p>
+                        <div className="grid grid-cols-4 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
                             <button 
                                 onClick={() => setActiveLang('en')}
                                 className={`py-2 text-[10px] font-bold rounded-lg transition-all ${activeLang === 'en' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
@@ -96,6 +96,12 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                             >
                                 RU
                             </button>
+                            <button 
+                                onClick={() => setActiveLang('ar')}
+                                className={`py-2 text-[10px] font-bold rounded-lg transition-all ${activeLang === 'ar' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+                            >
+                                AR
+                            </button>
                         </div>
                     </div>
 
@@ -107,7 +113,7 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                 onClick={() => scrollToSection(s.id)}
                                 className={`flex items-center justify-between p-3 rounded-xl text-start transition-all group ${activeSection === s.id ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:bg-white/5 hover:text-white'}`}
                             >
-                                <span className="text-[11px] font-bold">{activeLang === 'ru' ? s.ru : (activeLang === 'tr' ? s.tr : s.en)}</span>
+                                <span className="text-[11px] font-bold">{activeLang === 'ar' ? s.ar : (activeLang === 'ru' ? s.ru : (activeLang === 'tr' ? s.tr : s.en))}</span>
                                 <ChevronRight className={`w-4 h-4 transition-transform ${activeSection === s.id ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100'}`} />
                             </button>
                         ))}
@@ -137,7 +143,21 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                 {activeLang === 'ru' ? 'Суверенная экономика создателей' : (activeLang === 'tr' ? 'Egemen Yaratıcı Ekonomisi' : 'The Sovereign Creator Economy')}
                             </h2>
                             <div className="space-y-6 text-lg leading-relaxed font-medium text-white/70">
-                                {activeLang === 'ru' ? (
+                                {activeLang === 'ar' ? (
+                                    <>
+                                        <p>Unverse AI هو نظام بيئي من الجيل القادم يدمج إنتاج المحتوى القائم على الذكاء الاصطناعي، والتوزيع اللامركزي، وتسييل الأرباح المدعوم بالإيرادات في نظام واحد.</p>
+                                        <div className="grid md:grid-cols-2 gap-6 mt-12">
+                                            <div className="p-6 bg-white/5 rounded-3xl border border-white/10 text-start">
+                                                <h4 className="text-white font-bold mb-3 font-headline">المبدعون في المركز</h4>
+                                                <p className="text-sm">٨٥٪ من جميع الإيرادات تتدفق مباشرة إلى المبدع، مما يعكس الطبيعة الاستغلالية للمنصات التقليدية.</p>
+                                            </div>
+                                            <div className="p-6 bg-white/5 rounded-3xl border border-white/10 text-start">
+                                                <h4 className="text-white font-bold mb-3 font-headline">الذكاء الاصطناعي كمساوٍ</h4>
+                                                <p className="text-sm">يعمل AI Studio على خفض حاجز الدخول، مما يسمح لأي شخص بإنتاج محتوى بجودة الاستوديو على الفور.</p>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : activeLang === 'ru' ? (
                                     <>
                                         <p>Unverse AI — это экосистема нового поколения, которая объединяет создание контента на базе ИИ, децентрализованное распространение и монетизацию в единую экономическую систему.</p>
                                         <div className="grid md:grid-cols-2 gap-6 mt-12">
@@ -186,21 +206,21 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Principles */}
                         <section id="wp-principles" className="scroll-mt-20">
                              <h3 className="text-2xl font-headline font-bold text-white mb-6 border-s-4 border-primary ps-4 uppercase tracking-tight">
-                                {activeLang === 'ru' ? 'Основные Принципы' : (activeLang === 'tr' ? 'Temel İlkeler' : 'Core Principles')}
+                                {activeLang === 'ar' ? 'المبادئ الأساسية' : (activeLang === 'ru' ? 'Основные Принципы' : (activeLang === 'tr' ? 'Temel İlkeler' : 'Core Principles'))}
                             </h3>
                             <ul className="space-y-8">
                                 <li className="flex gap-4">
                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center font-black text-primary border border-primary/20">1</div>
                                     <div>
-                                        <h4 className="text-white font-bold text-lg">{activeLang === 'ru' ? 'Экономика создателей' : (activeLang === 'tr' ? 'Önce Yaratıcı Ekonomisi' : 'Creator-First Economics')}</h4>
-                                        <p className="mt-1 text-white/50">{activeLang === 'ru' ? '85% чистой выручки распределяется создателям.' : (activeLang === 'tr' ? 'Net gelirin %85\'i doğrudan yaratıcılara ayrılır.' : '85% net revenue allocated directly to creators.')}</p>
+                                        <h4 className="text-white font-bold text-lg">{activeLang === 'ar' ? 'اقتصاد المبدع أولاً' : (activeLang === 'ru' ? 'Экономика создателей' : (activeLang === 'tr' ? 'Önce Yaratıcı Ekonomisi' : 'Creator-First Economics'))}</h4>
+                                        <p className="mt-1 text-white/50">{activeLang === 'ar' ? 'تخصيص ٨٥٪ من صافي الإيرادات مباشرة للمبدعين.' : (activeLang === 'ru' ? '85% чистой выручки распределяется создателям.' : (activeLang === 'tr' ? 'Net gelirin %85\'i doğrudan yaratıcılara ayrılır.' : '85% net revenue allocated directly to creators.'))}</p>
                                     </div>
                                 </li>
                                 <li className="flex gap-4">
                                     <div className="w-10 h-10 rounded-full bg-primary/10 flex-shrink-0 flex items-center justify-center font-black text-primary border border-primary/20">2</div>
                                     <div>
-                                        <h4 className="text-white font-bold text-lg">{activeLang === 'ru' ? 'Невидимый Web3' : (activeLang === 'tr' ? 'Görünmez Web3' : 'Invisible Web3')}</h4>
-                                        <p className="mt-1 text-white/50">{activeLang === 'ru' ? 'Платежи в USDC без комиссий за газ через Base Network.' : (activeLang === 'tr' ? 'Base Network üzerinde USDC ödemeleri ve gazsız işlemler.' : 'USDC native and gas-less transactions via Base Network.')}</p>
+                                        <h4 className="text-white font-bold text-lg">{activeLang === 'ar' ? 'Web3 غير مرئي' : (activeLang === 'ru' ? 'Невидимый Web3' : (activeLang === 'tr' ? 'Görünmez Web3' : 'Invisible Web3'))}</h4>
+                                        <p className="mt-1 text-white/50">{activeLang === 'ar' ? 'معاملات USDC أصلية وبدون غاز عبر شبكة Base.' : (activeLang === 'ru' ? 'Платежи в USDC без комиссий за газ через Base Network.' : (activeLang === 'tr' ? 'Base Network üzerinde USDC öدمeleri ve gazsız işlemler.' : 'USDC native and gas-less transactions via Base Network.'))}</p>
                                     </div>
                                 </li>
                             </ul>
@@ -212,25 +232,25 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                 <Coins className="w-40 h-40" />
                             </div>
                             <h3 className="text-3xl font-headline font-bold text-white mb-8">
-                                {activeLang === 'ru' ? 'Токеномика ($ULC)' : (activeLang === 'tr' ? 'Tokenomi ($ULC)' : 'Tokenomics ($ULC)')}
+                                {activeLang === 'ar' ? 'اقتصاديات الرموز ($ULC)' : (activeLang === 'ru' ? 'Токеномика ($ULC)' : (activeLang === 'tr' ? 'Tokenomi ($ULC)' : 'Tokenomics ($ULC)'))}
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'en' ? 'Symbol' : (activeLang === 'tr' ? 'Sembol' : 'Символ')}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'ar' ? 'الرمز' : (activeLang === 'en' ? 'Symbol' : (activeLang === 'tr' ? 'Sembol' : 'Символ'))}</p>
                                     <p className="text-lg font-black text-primary">$ULC</p>
                                     <p className="text-[9px] text-primary/50 font-bold uppercase mt-1">Unlock Currency</p>
                                 </div>
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'en' ? 'Total Supply' : (activeLang === 'tr' ? 'Arz' : 'Предложение')}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'ar' ? 'إجمالي المخزون' : (activeLang === 'en' ? 'Total Supply' : (activeLang === 'tr' ? 'Arz' : 'Предложение'))}</p>
                                     <p className="text-lg font-black text-white">1,000,000,000</p>
-                                    <p className="text-[9px] text-white/50 font-bold uppercase mt-1">Fixed / Fixed</p>
+                                    <p className="text-[9px] text-white/50 font-bold uppercase mt-1">{activeLang === 'ar' ? 'ثابت / غير قابل للتعديل' : 'Fixed / Immutable'}</p>
                                 </div>
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'en' ? 'Network' : (activeLang === 'tr' ? 'Ağ' : 'Сеть')}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'ar' ? 'الشبكة' : (activeLang === 'en' ? 'Network' : (activeLang === 'tr' ? 'Ağ' : 'Сеть'))}</p>
                                     <p className="text-lg font-black text-white">Base (L2)</p>
                                 </div>
                                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'en' ? 'Type' : (activeLang === 'tr' ? 'Tür' : 'Тип')}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">{activeLang === 'ar' ? 'النوع' : (activeLang === 'en' ? 'Type' : (activeLang === 'tr' ? 'Tür' : 'Тип'))}</p>
                                     <p className="text-lg font-black text-white">Utility</p>
                                 </div>
                             </div>
@@ -240,18 +260,20 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         <section id="wp-flywheel" className="scroll-mt-20">
                             <h3 className="text-2xl font-headline font-bold text-white mb-8 flex items-center gap-3">
                                 <TrendingUp className="w-6 h-6 text-primary" />
-                                {activeLang === 'ru' ? 'Доходный маховик' : (activeLang === 'tr' ? 'Gelir Döngüsü' : 'Revenue Flywheel')}
+                                {activeLang === 'ar' ? 'دولاب الموازنة للعوائد' : (activeLang === 'ru' ? 'Доходный маховик' : (activeLang === 'tr' ? 'Gelir Döngüsü' : 'Revenue Flywheel'))}
                             </h3>
                             <div className="p-8 rounded-[2rem] bg-primary/5 border border-primary/20 space-y-6">
                                 <ol className="list-decimal list-inside space-y-4 text-sm font-medium text-white/80">
-                                    <li>{activeLang === 'ru' ? 'Пользователи тратят USDC' : (activeLang === 'tr' ? 'Kullanıcılar USDC harcar' : 'Users spend USDC')}</li>
-                                    <li>{activeLang === 'ru' ? 'Платформа берет маржу 15%' : (activeLang === 'tr' ? 'Platform %15 margin alır' : 'Platform takes 15% margin')}</li>
-                                    <li>{activeLang === 'ru' ? '5% выручки идет на обратный выкуп $ULC' : (activeLang === 'tr' ? '%5 toplam gelir ile geri alım yapılır' : '5% total revenue for $ULC Buybacks')}</li>
-                                    <li>{activeLang === 'ru' ? '100% выкупа идет в пулы стейкинга' : (activeLang === 'tr' ? 'Geri alımların %100\'ü Stake Havuzlarına aktarılır' : '100% of buybacks to Staking Pools')}</li>
+                                    <li>{activeLang === 'ar' ? 'المستخدمون ينفقون USDC' : (activeLang === 'ru' ? 'Пользователи тратят USDC' : (activeLang === 'tr' ? 'Kullanıcılar USDC harcar' : 'Users spend USDC'))}</li>
+                                    <li>{activeLang === 'ar' ? 'المنصة تأخذ هامش ١٥٪' : (activeLang === 'ru' ? 'Платформа берет маржу 15%' : (activeLang === 'tr' ? 'Platform %15 margin alır' : 'Platform takes 15% margin'))}</li>
+                                    <li>{activeLang === 'ar' ? '٥٪ من إجمالي الإيرادات لإعادة شراء $ULC' : (activeLang === 'ru' ? '5% выручки идет на обратный выкуп $ULC' : (activeLang === 'tr' ? '%5 toplam gelir ile geri alım yapılır' : '5% total revenue for $ULC Buybacks'))}</li>
+                                    <li>{activeLang === 'ar' ? '١٠٠٪ من عمليات إعادة الشراء تذهب لمجمعات التخزين' : (activeLang === 'ru' ? '100% выкупа идет в пулы стейкинга' : (activeLang === 'tr' ? 'Geri alımların %100\'ü Stake Havuzlarına aktarılır' : '100% of buybacks to Staking Pools'))}</li>
                                 </ol>
                                 <div className="p-6 bg-primary/10 rounded-2xl border border-primary/20 mt-8">
                                     <p className="text-primary font-bold italic leading-relaxed">
-                                        {activeLang === 'ru'
+                                        {activeLang === 'ar'
+                                            ? '«مع نمو إيرادات المنصة، يزداد ضغط إعادة الشراء، مما يخلق طلباً مستداماً على $ULC مع تقليل العرض في نفس الوقت.»'
+                                            : activeLang === 'ru'
                                             ? '«По мере роста доходов платформы давление на обратный выкуп увеличивается, создавая устойчивый спрос на $ULC при одновременном сокращении предложения.»'
                                             : activeLang === 'tr'
                                             ? '“Platform geliri arttıkça, geri alım baskısı da artar; bu durum $ULC için sürdürülebilir bir talep oluşturur.”'
@@ -264,21 +286,23 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Burn & Deflation */}
                         <section id="wp-burn" className="scroll-mt-20">
                             <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
-                                {activeLang === 'ru' ? 'Механизмы сжигания' : (activeLang === 'tr' ? 'Yakım Mekanizmaları' : 'Burn Mechanisms')}
+                                {activeLang === 'ar' ? 'آليات الحرق' : (activeLang === 'ru' ? 'Механизмы сжигания' : (activeLang === 'tr' ? 'Yakım Mekanizmaları' : 'Burn Mechanisms'))}
                             </h3>
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="p-6 rounded-2xl bg-zinc-900 border border-white/5">
                                     <h4 className="text-red-400 font-black text-lg mb-2">30% BURN</h4>
-                                    <p className="text-sm text-white/60">{activeLang === 'ru' ? 'За каждую генерацию ИИ' : (activeLang === 'tr' ? 'Her AI üretimi ücretinden' : 'On every AI generation fee')}</p>
+                                    <p className="text-sm text-white/60">{activeLang === 'ar' ? 'على كل رسوم إنتاج ذكاء اصطناعي' : (activeLang === 'ru' ? 'За каждую генерацию ИИ' : (activeLang === 'tr' ? 'Her AI üretimi ücretinden' : 'On every AI generation fee'))}</p>
                                 </div>
                                 <div className="p-6 rounded-2xl bg-zinc-900 border border-white/5">
                                     <h4 className="text-red-400 font-black text-lg mb-2">5% BURN</h4>
-                                    <p className="text-sm text-white/60">{activeLang === 'ru' ? 'При разблокировке контента' : (activeLang === 'tr' ? 'İçerik kilitlerinden' : 'On content unlocks')}</p>
+                                    <p className="text-sm text-white/60">{activeLang === 'ar' ? 'على رسوم فتح المحتوى' : (activeLang === 'ru' ? 'При разблокировке контента' : (activeLang === 'tr' ? 'İçerik kilitlerinden' : 'On content unlocks'))}</p>
                                 </div>
                             </div>
                             <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-2xl mt-6">
                                 <p className="text-emerald-400 font-bold italic text-sm">
-                                    {activeLang === 'ru'
+                                    {activeLang === 'ar'
+                                        ? '«تم تصميم البروتوكول ليصبح انكماشياً بشكل متزايد مع توسع نطاق الاستخدام.»'
+                                        : activeLang === 'ru'
                                         ? '«Протокол разработан так, чтобы становиться все более дефляционным по мере масштабирования использования.»'
                                         : (activeLang === 'tr' ? '“Protokol, kullanım ölçeklendikçe giderek daha fazla deflasyonist olacak şekilde tasarlanmıştır.”' : '“The protocol is designed to become increasingly deflationary as usage scales.”')}
                                 </p>
@@ -288,13 +312,15 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Staking with Russian punchline */}
                         <section id="wp-staking" className="scroll-mt-20">
                             <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
-                                {activeLang === 'ru' ? 'Стейкинг' : (activeLang === 'tr' ? 'Staking' : 'Staking')}
+                                {activeLang === 'ar' ? 'التخزين' : (activeLang === 'ru' ? 'Стейкинг' : (activeLang === 'tr' ? 'Staking' : 'Staking'))}
                             </h3>
                             <div className="space-y-6">
-                                <p className="text-white/60">{activeLang === 'ru' ? 'Запуск одновременно с основной сетью Base.' : (activeLang === 'tr' ? 'Mainnet ile eş zamanlı aktif edilecektir.' : 'Launching simultaneously with Mainnet.')}</p>
+                                <p className="text-white/60">{activeLang === 'ar' ? 'الإطلاق بالتزامن مع الشبكة الرئيسية لـ Base.' : (activeLang === 'ru' ? 'Запуск одновременно с основной сетью Base.' : (activeLang === 'tr' ? 'Mainnet ile eş zamanlı aktif edilecektir.' : 'Launching simultaneously with Mainnet.'))}</p>
                                 <div className="bg-primary/5 p-6 rounded-2xl border border-primary/20">
                                     <p className="text-primary font-bold italic leading-relaxed">
-                                        {activeLang === 'ru'
+                                        {activeLang === 'ar'
+                                            ? '«يعمل التخزين كمجمع للسيولة، مما يقلل من ضغط البيع ويوحد الحوافز طويلة الأجل.»'
+                                            : activeLang === 'ru'
                                             ? '«Стейкинг действует как поглотитель ликвидности, снижая давление на продажу и согласовывая долгосрочные стимулы.»'
                                             : (activeLang === 'tr' ? '“Staking, bir likidite havuzu görevi görerek satış baskısını azaltır.”' : '“Staking acts as a liquidity sink, reducing sell pressure.”')}
                                     </p>
@@ -305,10 +331,12 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Reserve Pool & Vesting Table */}
                         <section id="wp-reserve" className="scroll-mt-20">
                              <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
-                                {activeLang === 'ru' ? '20-летняя стратегия' : (activeLang === 'tr' ? '20 Yıllık Strateji' : '20-Year Strategy')}
+                                {activeLang === 'ar' ? 'استراتيجية الـ ٢٠ عاماً' : (activeLang === 'ru' ? '20-летняя стратегия' : (activeLang === 'tr' ? '20 Yıllık Strateji' : '20-Year Strategy'))}
                             </h3>
                             <p className="text-white/70 mb-8 leading-relaxed">
-                                {activeLang === 'ru' 
+                                {activeLang === 'ar' 
+                                    ? 'احتياطي ٤٢٠ مليون $ULC مغلق. اعتباراً من العام العاشر، تنتقل الإدارة إلى DAO المجتمع.'
+                                    : activeLang === 'ru' 
                                     ? 'Резерв в 420M $ULC заблокирован. С 10-го года управление переходит к DAO сообщества.'
                                     : (activeLang === 'tr' ? '420M $ULC Rezerv Havuzu kilitlidir. 10. yıldan itibaren yönetim DAO\'ya geçer.' : 'The 420M $ULC Reserve is locked. From Year 10, management transitions to Community DAO.')}
                             </p>
@@ -317,36 +345,36 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                 <table className="w-full text-start text-sm">
                                     <thead className="bg-white/5 text-muted-foreground uppercase text-[10px] font-bold">
                                         <tr>
-                                            <th className="p-4">{activeLang === 'en' ? 'Phase' : (activeLang === 'tr' ? 'Aşama' : 'Фаза')}</th>
-                                            <th className="p-4">{activeLang === 'en' ? 'Duration' : (activeLang === 'tr' ? 'Süre' : 'Срок')}</th>
-                                            <th className="p-4">{activeLang === 'en' ? 'Rate' : (activeLang === 'tr' ? 'Oran' : 'Квота')}</th>
-                                            <th className="p-4">{activeLang === 'en' ? 'Focus' : (activeLang === 'tr' ? 'Odak' : 'Фокус')}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'المرحلة' : (activeLang === 'en' ? 'Phase' : (activeLang === 'tr' ? 'Aşama' : 'Фаза'))}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'المدة' : (activeLang === 'en' ? 'Duration' : (activeLang === 'tr' ? 'Süre' : 'Срок'))}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'المعدل' : (activeLang === 'en' ? 'Rate' : (activeLang === 'tr' ? 'Oran' : 'Квота'))}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'التركيز' : (activeLang === 'en' ? 'Focus' : (activeLang === 'tr' ? 'Odak' : 'Фокус'))}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         <tr className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 font-bold text-white">Cliff</td>
-                                            <td className="p-4">1 yr</td>
+                                            <td className="p-4 font-bold text-white">{activeLang === 'ar' ? 'الجرف' : 'Cliff'}</td>
+                                            <td className="p-4">{activeLang === 'ar' ? 'سنة ١' : '1 yr'}</td>
                                             <td className="p-4">0%</td>
-                                            <td className="p-4 text-xs font-medium text-white/50">Bootstrap</td>
+                                            <td className="p-4 text-xs font-medium text-white/50">{activeLang === 'ar' ? 'التأسيس' : 'Bootstrap'}</td>
                                         </tr>
                                         <tr className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 font-bold text-white">Genesis</td>
-                                            <td className="p-4">2-5 yr</td>
+                                            <td className="p-4 font-bold text-white">{activeLang === 'ar' ? 'Genesis' : 'Genesis'}</td>
+                                            <td className="p-4">{activeLang === 'ar' ? '٢-٥ سنوات' : '2-5 yr'}</td>
                                             <td className="p-4">15%</td>
-                                            <td className="p-4 text-xs font-medium text-white/50">R&D</td>
+                                            <td className="p-4 text-xs font-medium text-white/50">{activeLang === 'ar' ? 'البحث والتطوير' : 'R&D'}</td>
                                         </tr>
                                         <tr className="hover:bg-white/5 transition-colors">
-                                            <td className="p-4 font-bold text-white">Expansion</td>
-                                            <td className="p-4">6-10 yr</td>
+                                            <td className="p-4 font-bold text-white">{activeLang === 'ar' ? 'التوسع' : 'Expansion'}</td>
+                                            <td className="p-4">{activeLang === 'ar' ? '٦-١٠ سنوات' : '6-10 yr'}</td>
                                             <td className="p-4">25%</td>
-                                            <td className="p-4 text-xs font-medium text-white/50">Scaling</td>
+                                            <td className="p-4 text-xs font-medium text-white/50">{activeLang === 'ar' ? 'توسيع النطاق' : 'Scaling'}</td>
                                         </tr>
                                         <tr className="hover:bg-white/5 transition-colors bg-primary/5">
-                                            <td className="p-4 font-bold text-primary">DAO Era</td>
-                                            <td className="p-4">11-20 yr</td>
+                                            <td className="p-4 font-bold text-primary">{activeLang === 'ar' ? 'عصر DAO' : 'DAO Era'}</td>
+                                            <td className="p-4">{activeLang === 'ar' ? '١١-٢٠ سنة' : '11-20 yr'}</td>
                                             <td className="p-4">60%</td>
-                                            <td className="p-4 text-xs font-medium text-primary/50">Community</td>
+                                            <td className="p-4 text-xs font-medium text-primary/50">{activeLang === 'ar' ? 'المجتمعي' : 'Community'}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -356,26 +384,26 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Distribution Section 8 */}
                         <section id="wp-distribution" className="scroll-mt-20">
                             <h3 className="text-2xl font-headline font-bold text-white mb-6 uppercase tracking-tight">
-                                {activeLang === 'ru' ? '8. Распределение' : (activeLang === 'tr' ? '8. Dağılım ve Güvenlik' : '8. Distribution & Security')}
+                                {activeLang === 'ar' ? '٨. التوزيع والأمان' : (activeLang === 'ru' ? '8. Распределение' : (activeLang === 'tr' ? '8. Dağılım ve Güvenlik' : '8. Distribution & Security'))}
                             </h3>
                             <div className="overflow-x-auto rounded-3xl border border-white/10 mb-8">
                                 <table className="w-full text-start text-sm">
                                     <thead className="bg-white/5 text-muted-foreground uppercase text-[10px] font-bold">
                                         <tr>
-                                            <th className="p-4">{activeLang === 'ru' ? 'Пул' : (activeLang === 'tr' ? 'Havuz' : 'Pool')}</th>
-                                            <th className="p-4">{activeLang === 'ru' ? 'Квота' : (activeLang === 'tr' ? 'Oran' : 'Allocation')}</th>
-                                            <th className="p-4">{activeLang === 'ru' ? 'Стратегия' : (activeLang === 'tr' ? 'Strateji' : 'Strategy')}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'المجمع' : (activeLang === 'ru' ? 'Пул' : (activeLang === 'tr' ? 'Havuz' : 'Pool'))}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'التوزيع' : (activeLang === 'ru' ? 'Квота' : (activeLang === 'tr' ? 'Oran' : 'Allocation'))}</th>
+                                            <th className="p-4">{activeLang === 'ar' ? 'الاستراتيجية' : (activeLang === 'ru' ? 'Стратегия' : (activeLang === 'tr' ? 'Strateji' : 'Strategy'))}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
                                         {[
-                                            { p: "Reserve", a: "420M", s: activeLang === 'ru' ? '20 лет блокировки' : (activeLang === 'tr' ? '20 Yıllık Kilit' : '20-Year Horizon') },
-                                            { p: "Team", a: "130M", s: activeLang === 'ru' ? '3 года вестинга' : (activeLang === 'tr' ? '3 Yıl Vesting' : '3-Year Vesting') },
-                                            { p: "Creators", a: "120M", s: activeLang === 'ru' ? 'Награда за активность' : (activeLang === 'tr' ? 'Performans Bazlı' : 'Performance-based') },
-                                            { p: "Presale", a: "100M", s: activeLang === 'ru' ? '3 этапа продаж' : (activeLang === 'tr' ? '3 Aşamalı Ön Satış' : '3-Stage Public Raise') },
-                                            { p: "Staking", a: "80M", s: activeLang === 'ru' ? 'Награда холдерам' : (activeLang === 'tr' ? 'Stake Ödülleri' : 'Staking Rewards') },
+                                            { p: "Reserve", a: "420M", s: activeLang === 'ar' ? 'أفق ٢٠ عاماً' : (activeLang === 'ru' ? '20 лет блокировки' : (activeLang === 'tr' ? '20 Yıllık Kilit' : '20-Year Horizon')) },
+                                            { p: "Team", a: "130M", s: activeLang === 'ar' ? 'استحقاق ٣ سنوات' : (activeLang === 'ru' ? '3 года вестинга' : (activeLang === 'tr' ? '3 Yıl Vesting' : '3-Year Vesting')) },
+                                            { p: "Creators", a: "120M", s: activeLang === 'ar' ? 'قائم على الأداء' : (activeLang === 'ru' ? 'Награда за активность' : (activeLang === 'tr' ? 'Performans Bazlı' : 'Performance-based')) },
+                                            { p: "Presale", a: "100M", s: activeLang === 'ar' ? 'طرح عام على ٣ مراحل' : (activeLang === 'ru' ? '3 этапа продаж' : (activeLang === 'tr' ? '3 Aşamalı Ön Satış' : '3-Stage Public Raise')) },
+                                            { p: "Staking", a: "80M", s: activeLang === 'ar' ? 'مكافآت التخزين' : (activeLang === 'ru' ? 'Награда холдерам' : (activeLang === 'tr' ? 'Stake Ödülleri' : 'Staking Rewards')) },
                                             { p: "Liquidity", a: "60M", s: "DEX/CEX MM" },
-                                            { p: "Growth", a: "90M", s: "Airdrop/Promo" }
+                                            { p: "Growth", a: "90M", s: activeLang === 'ar' ? 'إنزال جوي/ترويج' : "Airdrop/Promo" }
                                         ].map((row, i) => (
                                             <tr key={i} className="hover:bg-white/5 transition-colors">
                                                 <td className="p-4 font-bold text-white">{row.p}</td>
@@ -391,35 +419,35 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                         {/* Roadmap Section 9 */}
                         <section id="wp-roadmap" className="scroll-mt-20">
                             <h3 className="text-2xl font-headline font-bold text-white mb-8 uppercase tracking-tight">
-                                {activeLang === 'ru' ? '9. Дорожная карта' : (activeLang === 'tr' ? '9. Yol Haritası' : '9. Strategic Roadmap')}
+                                {activeLang === 'ar' ? '٩. خارطة الطريق الاستراتيجية' : (activeLang === 'ru' ? '9. Дорожная карта' : (activeLang === 'tr' ? '9. Yol Haritası' : '9. Strategic Roadmap'))}
                             </h3>
                             <div className="space-y-4">
                                 {[
                                     { 
                                         phase: "1", 
-                                        en: "Genesis Era", tr: "Genesis Dönemi", ru: "Эра Генезиса",
-                                        items: activeLang === 'ru' ? ["Миграция на Base/USDC", "Запуск AI Studio", "Предпродажа (Раунд 1)"] : (activeLang === 'tr' ? ["Base/USDC Altyapısına Geçiş", "AI Studio Aktivasyonu", "Stratejik Ön Satış (Round 1)"] : ["Migration to Base/USDC", "AI Studio Activation", "Strategic Presale (Round 1)"])
+                                        en: "Genesis Era", tr: "Genesis Dönemi", ru: "Эра Генезиса", ar: "عصر التكوين (Genesis)",
+                                        items: activeLang === 'ar' ? ["الهجرة إلى Base/USDC", "تفعيل AI Studio", "البيع المسبق (الجولة ١)"] : (activeLang === 'ru' ? ["Миграция на Base/USDC", "Запуск AI Studio", "Предпродажа (Раунд 1)"] : (activeLang === 'tr' ? ["Base/USDC Altyapısına Geçiş", "AI Studio Aktivasyonu", "Stratejik Ön Satış (Round 1)"] : ["Migration to Base/USDC", "AI Studio Activation", "Strategic Presale (Round 1)"]))
                                     },
                                     { 
                                         phase: "2", 
-                                        en: "Expansion", tr: "Büyüme & Genişleme", ru: "Расширение",
-                                        items: activeLang === 'ru' ? ["Запуск AI Video", "Программа Creator 100", "Предпродажа (Раунд 2-3)"] : (activeLang === 'tr' ? ["AI Video Lansmanı", "Creator 100 Programı", "Ön Satış 2. ve 3. Aşama"] : ["AI Video Launch", "Creator 100 Program", "Presale Rounds 2 & 3"])
+                                        en: "Expansion", tr: "Büyüme & Genişleme", ru: "Расширение", ar: "التوسع",
+                                        items: activeLang === 'ar' ? ["إطلاق AI Video", "برنامج المبدعين الـ ١٠٠", "جولات البيع المسبق ٢ و ٣"] : (activeLang === 'ru' ? ["Запуск AI Video", "Программа Creator 100", "Предпродажа (Раунд 2-3)"] : (activeLang === 'tr' ? ["AI Video Lansmanı", "Creator 100 Programı", "Ön Satış 2. ve 3. Aşama"] : ["AI Video Launch", "Creator 100 Program", "Presale Rounds 2 & 3"]))
                                     },
                                     { 
                                         phase: "3", 
-                                        en: "Convergence", tr: "Mainnet & TGE", ru: "Конвергенция",
-                                        items: activeLang === 'ru' ? ["Листинг на DEX ($0.015)", "Запуск пулов стейкинга", "CEX Листинги"] : (activeLang === 'tr' ? ["DEX Listelemesi ($0.015)", "Stake Havuzlarının Açılışı", "CEX Listeleme Müzakereleri"] : ["DEX Listing ($0.015)", "Staking Pools Live", "CEX Listing Strategy"])
+                                        en: "Convergence", tr: "Mainnet & TGE", ru: "Конвергенция", ar: "التقارب",
+                                        items: activeLang === 'ar' ? ["الإدراج في DEX (٠.٠١٥ دولار)", "بدء مجمعات التخزين", "استراتيجية الإدراج في CEX"] : (activeLang === 'ru' ? ["Листинг на DEX ($0.015)", "Запуск пулов стейкинга", "CEX Листинги"] : (activeLang === 'tr' ? ["DEX Listelemesi ($0.015)", "Stake Havuzlarının Açılışı", "CEX Listeleme Müzakereleri"] : ["DEX Listing ($0.015)", "Staking Pools Live", "CEX Listing Strategy"]))
                                     },
                                     { 
                                         phase: "4", 
-                                        en: "Maturity", tr: "Platform Olgunluğu", ru: "Зрелость",
-                                        items: activeLang === 'ru' ? ["Fan Token Тест", "Планирование DAO", "Глобальная экспансия"] : (activeLang === 'tr' ? ["Fan Token Test Aşaması", "DAO Planlaması", "Küresel Ekosistem Büyümesi"] : ["Fan Token Test Phase", "DAO Transition Planning", "Global Ecosystem Expansion"])
+                                        en: "Maturity", tr: "Platform Olgunluğu", ru: "Зрелость", ar: "النضج",
+                                        items: activeLang === 'ar' ? ["المرحلة التجريبية لرمز المعجبين", "تخطيط التحول لـ DAO", "توسع النظام البيئي العالمي"] : (activeLang === 'ru' ? ["Fan Token Тест", "Планирование DAO", "Глобальная экспансия"] : (activeLang === 'tr' ? ["Fan Token Test Aşaması", "DAO Planlaması", "Küresel Ekosistem Büyümesi"] : ["Fan Token Test Phase", "DAO Transition Planning", "Global Ecosystem Expansion"]))
                                     }
                                 ].map((p, i) => (
                                     <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/5 relative overflow-hidden group">
                                         <div className="absolute -end-4 -top-4 text-4xl font-black text-white/5 group-hover:text-primary/10 transition-colors">{p.phase}</div>
                                         <h4 className="text-lg font-bold text-white mb-3">
-                                            {activeLang === 'ru' ? p.ru : (activeLang === 'tr' ? p.tr : p.en)}
+                                            {activeLang === 'ar' ? p.ar : (activeLang === 'ru' ? p.ru : (activeLang === 'tr' ? p.tr : p.en))}
                                         </h4>
                                         <ul className="space-y-2">
                                             {p.items.map((item, idx) => (
@@ -439,12 +467,14 @@ export function WhitepaperOverlay({ isOpen, onClose }: WhitepaperOverlayProps) {
                                 UNVERSE AI
                             </p>
                             <p className="text-xl md:text-2xl font-medium text-white/50 max-w-lg mx-auto leading-relaxed">
-                                {activeLang === 'ru' 
+                                {activeLang === 'ar' 
+                                    ? 'المحرك الاقتصادي السيادي لرؤية تمتد لـ ٢٠ عاماً.' 
+                                    : activeLang === 'ru' 
                                     ? 'Суверенный экономический двигатель с 20-летним видением.' 
                                     : (activeLang === 'tr' ? '20 yıllık vizyon için egemen ekonomik motor.' : 'The sovereign economic engine for a 20-year vision.')}
                             </p>
                             <Button size="lg" onClick={onClose} className="mt-12 h-14 rounded-full px-12 bg-primary text-black font-black hover:scale-105 transition-all text-sm uppercase tracking-widest">
-                                {activeLang === 'ru' ? 'Вернуться' : (activeLang === 'tr' ? 'Dön' : 'Back')}
+                                {activeLang === 'ar' ? 'عودة' : (activeLang === 'ru' ? 'Вернуться' : (activeLang === 'tr' ? 'Dön' : 'Back'))}
                             </Button>
                         </section>
                     </div>

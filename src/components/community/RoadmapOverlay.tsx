@@ -107,7 +107,7 @@ export function RoadmapOverlay({ isOpen, onClose }: RoadmapOverlayProps) {
                                 </div>
                                 <div>
                                     <h2 className="text-2xl font-headline font-bold text-white tracking-tight uppercase">{t('roadmapTitle')}</h2>
-                                    <p className="text-sm text-white/40">Strategic Vision & Mainnet Convergence (2026-2027)</p>
+                                    <p className="text-sm text-white/40">{t('roadmapSubtitle')}</p>
                                 </div>
                             </div>
                             <Button 
@@ -148,7 +148,7 @@ export function RoadmapOverlay({ isOpen, onClose }: RoadmapOverlayProps) {
                                                             phase.status === 'active' ? 'text-yellow-500 border-yellow-500/50' :
                                                             'text-white/30 border-white/10'
                                                         }`}>
-                                                            {phase.status}
+                                                            {t(`status.${phase.status}`)}
                                                         </Badge>
                                                         {phase.status === 'active' && <Sparkles className="w-4 h-4 text-yellow-500 animate-spin-slow" />}
                                                     </div>
@@ -193,7 +193,7 @@ export function RoadmapOverlay({ isOpen, onClose }: RoadmapOverlayProps) {
                             <div className="pt-12 text-center pb-8 border-t border-white/5">
                                 <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
                                     <ShieldCheck className="w-5 h-5" />
-                                    <span className="text-xs font-bold uppercase tracking-widest">Protocol Economic Persistence: Sealed & Immutable</span>
+                                    <span className="text-xs font-bold uppercase tracking-widest">{t('immutableNote')}</span>
                                 </div>
                             </div>
                         </div>

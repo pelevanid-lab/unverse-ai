@@ -16,6 +16,7 @@ import {
     Loader2,
     MonitorPlay
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 // Fix: UI imports
 const ButtonReal = ({ children, onClick, variant, className, size }: any) => {
@@ -32,6 +33,7 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
     const [data, setData] = useState<any>(null);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [loading, setLoading] = useState(true);
+    const t = useTranslations('Presentation');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -88,7 +90,7 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                 {loading ? (
                     <div className="flex flex-col items-center gap-4 opacity-50">
                         <Loader2 className="w-12 h-12 animate-spin text-primary" />
-                        <p className="text-[10px] uppercase font-bold tracking-widest">Loading Presentation...</p>
+                        <p className="text-[10px] uppercase font-bold tracking-widest">{t('loading')}</p>
                     </div>
                 ) : (
                     <div className="w-full max-w-7xl h-full flex flex-col md:flex-row gap-8 items-center justify-center relative">
@@ -152,7 +154,7 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                                     />
                                 </div>
                                 <span className="text-[10px] font-black text-white/20 uppercase">
-                                    Slide {currentSlide + 1} / {slides.length}
+                                    {t('slide')} {currentSlide + 1} / {slides.length}
                                 </span>
                             </div>
                         </div>
@@ -195,12 +197,12 @@ export function PresentationOverlay({ isOpen, onClose, type }: PresentationOverl
                                         
                                         {/* Overlay Info */}
                                         <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-black/80 to-transparent">
-                                            <p className="text-[10px] font-black tracking-[0.3em] text-primary uppercase mb-2">Unverse Strategic Asset</p>
+                                            <p className="text-[10px] font-black tracking-[0.3em] text-primary uppercase mb-2">{t('strategicAsset')}</p>
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
                                                     <Info className="w-4 h-4 text-white/40" />
                                                 </div>
-                                                <span className="text-[11px] font-bold text-white/60 tracking-tight uppercase">Protocol Level Verification Active</span>
+                                                <span className="text-[11px] font-bold text-white/60 tracking-tight uppercase">{t('verificationActive')}</span>
                                             </div>
                                         </div>
                                     </div>

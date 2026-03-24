@@ -854,6 +854,13 @@
     "creatorTitle": "İlk 100 Programı",
     "creatorDesc": "İlk 100 içerik üreticisinin nasıl dinamik bonuslar kazandığını ve yüksek getirili monetizasyonu keşfedin.",
     "viewCreator": "YARATICI SUNUMUNU GÖRÜNTÜLE",
+    "roadmapSubtitle": "Stratejik Vizyon ve Mainnet Yakınsaması (2026-2027)",
+    "immutableNote": "Protokol Ekonomik Sürekliliği: Mühürlü ve Değiştirilemez",
+    "status": {
+      "completed": "Tamamlandı",
+      "active": "Aktif",
+      "upcoming": "Gelecek"
+    },
     "newTopic": "Yeni Başlık",
     "postReply": "Cevapla",
     "noTopics": "Henüz konu yok. Tartışmayı başlatan ilk kişi olun!",
@@ -972,6 +979,12 @@
     "frozenDesc": "Bu hesap Unity kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
     "backToDiscover": "Keşfet'e Dön",
     "supportCenter": "Destek Merkezi"
+  },
+  "Presentation": {
+    "loading": "Sunum Yükleniyor...",
+    "slide": "Slayt",
+    "strategicAsset": "Unverse Stratejik Varlık",
+    "verificationActive": "Protokol Seviyesi Doğrulama Aktif"
   },
   "SupportChat": {
     "initialAiMessage": "Merhaba! Ben Unverse AI Premium Desteğim. Platform, abonelikler veya Copilot Premium özellikleri hakkında merak ettiğin her şeyi sorabilirsin.",
