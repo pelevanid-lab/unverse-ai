@@ -103,7 +103,7 @@
     "discover": "Undiscovered",
     "tokenomics": "Ön Satış",
     "staking": "Staking",
-    "community": "Topluluk",
+    "community": "Unity",
     "comingSoon": "Yakında"
   },
   "MyPage": {
@@ -689,7 +689,7 @@
     "unstakeButton": "ULC Stake Boz",
     "statistics": "Staking İstatistikleri",
     "distribution": "Staking Dağılımı",
-    "communityStakers": "Topluluk Stake Edenler",
+    "communityStakers": "Unity Stake Edenler",
     "foundationReserve": "Vakıf Rezervi",
     "rewardInfo": "Staking ödülleri, her USDC aylık aboneliğindeki %5 platform komisyonundan elde edilir. Teşvikler, her ayın 27'sinde, önceki 30 günlük ortalama stake bakiyesine göre hesaplanır."
   },
@@ -732,7 +732,7 @@
     "back": "Geri",
     "badge": "İçerik Üreticileri İçin",
     "title": "Nasıl Kazanç Sağlarım?",
-    "subtitle": "Unverse AI ekosisteminde içerik üreterek ve topluluğunuzu büyüterek nasıl gelir elde edebileceğinizi keşfedin.",
+    "subtitle": "Unverse AI ekosisteminde içerik üreterek ve Unity ağınızı büyüterek nasıl gelir elde edebileceğinizi keşfedin.",
     "subsTitle": "Abonelikler",
     "subsRate": "%85 Sizin",
     "subsDesc": "Aylık USDC abonelik gelirlerinizin %85'i anında bakiyenize eklenir.",
@@ -837,19 +837,30 @@
     "joinProgramButton": "İlk 100'e Başvur"
   },
   "Community": {
-    "hero": "Bağlan. Büyü. Yönet.",
-    "heroDesc": "Unverse AI topluluğunun kalbine hoş geldiniz. Küresel ağlarımıza katılın, stratejik vizyonumuzu keşfedin ve yaratıcı ekonomisinin geleceğini şekillendirin.",
+    "hero": "Unity: Bağlan. Büyü. Yönet.",
+    "heroDesc": "Unverse AI Unity ağının kalbine hoş geldiniz. Küresel ağlarımıza katılın, stratejik vizyonumuzu keşfedin ve yaratıcı ekonomisinin geleceğini şekillendirin.",
     "investorDeck": "Yatırımcı Sunumu",
     "investorDesc": "1B sabit arz, M-Floor protokolü ve AI tabanlı deflasyonist motoru derinlemesine inceleyin.",
     "creatorDeck": "Yaratıcı Rehberi",
     "creatorDesc": "İlk 100 yaratıcının nasıl dinamik bonuslar kazandığını ve yüksek getirili gelir modellerini öğrenin.",
     "exploreInvestor": "YATIRIMCI SUNUMUNU KEŞFET",
     "viewCreator": "YARATICI SUNUMUNU GÖRÜNTÜLE",
-    "forum": "Topluluk Forumu",
+    "forum": "Unity Forumu",
     "forumDesc": "Tartışmaya katılın. Yazmak için cüzdan bağlantısı gereklidir.",
     "connectToPost": "Yazmak için Cüzdan Bağla",
     "topics": "Konular",
-    "replies": "Yanıtlar"
+    "replies": "Yanıtlar",
+    "roadmapTitle": "Mainnet Yol Haritası",
+    "whitepaperTitle": "White Paper",
+    "whitepaperDesc": "Unverse AI ekosisteminin teknik dökümanı. [ÇOK YAKINDA]",
+    "newTopic": "Yeni Başlık",
+    "postReply": "Cevapla",
+    "noTopics": "Henüz konu yok. Tartışmayı başlatan ilk kişi olun!",
+    "createTopicTitle": "Yeni Konu Oluştur",
+    "topicTitlePlaceholder": "Konu Başlığı",
+    "topicContentPlaceholder": "Neler düşünüyorsun?",
+    "submitTopic": "Konuyu Paylaş",
+    "viewRoadmap": "Yol Haritasını Keşfet"
   },
   "Upload": {
     "title": "İçerik Yükle",
@@ -914,7 +925,7 @@
   },
   "Moderation": {
     "accountFrozen": "HESAP ASKIYA ALINDI",
-    "frozenDesc": "Bu hesap topluluk kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
+    "frozenDesc": "Bu hesap Unity kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
     "backToDiscover": "Keşfet'e Dön",
     "supportCenter": "Destek Merkezi"
   },

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck, ArrowUpRight, Send, Lock } from 'lucide-react';
+import { Loader2, DollarSign, Wallet as WalletIcon, History, ExternalLink, Settings, ArrowRightLeft, ChevronLeft, Sparkles, ShieldCheck, ArrowUpRight, Send, Lock, Milestone, ArrowRight } from 'lucide-react';
 import { useAccount, useSwitchChain, useWriteContract, usePublicClient } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { parseUnits } from 'viem';
@@ -463,7 +463,15 @@ function WithdrawUlcCard() {
                     <Lock className="w-6 h-6 text-white/50 animate-pulse" />
                 </div>
                 <p className="text-xs font-black text-white/90 uppercase tracking-widest">{t('mainnetNotice')}</p>
-                <Badge variant="outline" className="mt-2 border-primary/40 text-primary text-[8px] uppercase font-black">Coming with Mainnet</Badge>
+                <Badge variant="outline" className="mt-2 border-primary/40 text-primary text-[8px] uppercase font-black mb-4">Coming with Mainnet</Badge>
+                <Link href="/community#roadmap" className="group/nav relative">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-full blur opacity-10 group-hover/nav:opacity-50 transition duration-1000"></div>
+                    <Button variant="outline" size="sm" className="relative h-8 rounded-full border-primary/30 text-white font-bold px-4 gap-2 bg-black hover:bg-zinc-900 text-[10px] transition-all">
+                        <Milestone className="w-3 h-3 text-primary" />
+                        VIEW ROADMAP
+                        <ArrowRight className="w-3 h-3 group-hover/nav:translate-x-0.5 transition-transform" />
+                    </Button>
+                </Link>
             </div>
             <CardHeader className="opacity-10 blur-[1px]">
                 <CardTitle className="flex items-center gap-2 text-lg">

@@ -4,7 +4,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Coins, Lock, Unlock, TrendingUp, ShieldCheck, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Coins, Lock, Unlock, TrendingUp, ShieldCheck, Sparkles, Loader2, ArrowRight, Milestone } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { handleStaking, handleUnstaking } from '@/lib/ledger';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 
 export default function StakingPage() {
   const t = useTranslations('Staking');
@@ -76,9 +77,17 @@ export default function StakingPage() {
           <h2 className="text-3xl md:text-5xl font-headline font-bold text-white max-w-2xl mb-8 leading-[1.1] tracking-tight">
               THIS FEATURE WILL BE ACTIVATED WITH THE MAINNET LAUNCH.
           </h2>
-          <div className="inline-flex items-center px-8 py-3 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold text-sm tracking-[0.2em] uppercase backdrop-blur-xl shadow-lg shadow-primary/10">
+          <div className="inline-flex items-center px-8 py-3 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold text-sm tracking-[0.2em] uppercase backdrop-blur-xl shadow-lg shadow-primary/10 mb-8">
               Coming with Mainnet
           </div>
+          <Link href="/community#roadmap" className="group/btn relative">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-full blur opacity-25 group-hover/btn:opacity-100 transition duration-1000 group-hover/btn:duration-200"></div>
+              <Button variant="outline" className="relative h-12 rounded-full border-primary/50 text-white font-bold px-8 gap-3 bg-black hover:bg-zinc-900 transition-all">
+                  <Milestone className="w-4 h-4 text-primary" />
+                  VIEW MAINNET ROADMAP
+                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+              </Button>
+          </Link>
       </div>
 
       <div className="opacity-20 pointer-events-none grayscale blur-sm">

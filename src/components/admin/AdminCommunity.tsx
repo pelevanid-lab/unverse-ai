@@ -88,7 +88,7 @@ export default function AdminCommunity() {
         setLoading('config');
         try {
             await setDoc(doc(db, 'config', 'community'), config);
-            toast({ title: "Community Settings Updated" });
+            toast({ title: "Unity Settings Updated" });
         } catch (e) {
             toast({ variant: 'destructive', title: "Save Failed" });
         } finally {
@@ -213,14 +213,16 @@ export default function AdminCommunity() {
                 <TabsContent value="socials">
                     <Card className="glass-card">
                         <CardHeader>
-                            <CardTitle>Community Configuration</CardTitle>
+                            <CardTitle>Unity Configuration</CardTitle>
                             <CardDescription>Social links and presentation entry points.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {['twitterUrl', 'telegramUrl', 'instagramUrl'].map(f => (
+                                {['twitterUrl', 'telegramUrl', 'instagramUrl', 'gitUrl'].map(f => (
                                     <div key={f} className="space-y-2">
-                                        <label className="text-xs opacity-50 uppercase font-bold">{f.replace('Url', '')}</label>
+                                        <label className="text-xs opacity-50 uppercase font-bold">
+                                            {f === 'twitterUrl' ? 'X / Twitter' : f === 'gitUrl' ? 'GitHub' : f.replace('Url', '')}
+                                        </label>
                                         <Input value={config?.[f]} onChange={(e) => setConfig({...config, [f]: e.target.value})} className="bg-white/5 border-white/10 h-12"/>
                                     </div>
                                 ))}

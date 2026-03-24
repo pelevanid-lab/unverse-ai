@@ -103,7 +103,7 @@
     "discover": "Undiscovered",
     "tokenomics": "Pre-Sale",
     "staking": "Staking",
-    "community": "Community",
+    "community": "Unity",
     "comingSoon": "Coming Soon"
   },
   "MyPage": {
@@ -681,7 +681,7 @@
     "unstakeButton": "Unstake ULC",
     "statistics": "Staking Statistics",
     "distribution": "Staking Distribution",
-    "communityStakers": "Community Stakers",
+    "communityStakers": "Unity Stakers",
     "foundationReserve": "Foundation Reserve",
     "rewardInfo": "Staking rewards are derived from the 5% platform commission on every USDC monthly subscription. Incentives are calculated on the 27th of each month, based on the average staked balance over the preceding 30 days."
   },
@@ -829,19 +829,30 @@
     "joinProgramButton": "Apply for First-100"
   },
   "Community": {
-    "hero": "Connect. Grow. Govern.",
-    "heroDesc": "Welcome to the heartbeat of Unverse AI. Join our global networks, explore our strategic vision, and shape the future of creator economy.",
+    "hero": "Unity: Connect. Grow. Govern.",
+    "heroDesc": "Welcome to the heartbeat of Unity. Join our global networks, explore our strategic vision, and shape the future of creator economy.",
     "investorDeck": "Investor Deck",
     "investorDesc": "Deep dive into the 1B fixed supply, M-Floor protocol, and AI-driven deflationary engine.",
     "creatorDeck": "Creator Guide",
     "creatorDesc": "Learn how the first 100 creators earn dynamic bonuses and unlock high-yield monetization.",
     "exploreInvestor": "EXPLORE INVESTOR PRESENTATION",
     "viewCreator": "VIEW CREATOR PRESENTATION",
-    "forum": "Community Forum",
+    "forum": "Unity Forum",
     "forumDesc": "Join the discussion. Wallet connection required for posting.",
     "connectToPost": "Connect Wallet to Post",
     "topics": "Topics",
-    "replies": "Replies"
+    "replies": "Replies",
+    "roadmapTitle": "Mainnet Roadmap",
+    "whitepaperTitle": "White Paper",
+    "whitepaperDesc": "The technical blueprint of the Unverse AI ecosystem. [COMING SOON]",
+    "newTopic": "New Topic",
+    "postReply": "Post Reply",
+    "noTopics": "No topics yet. Be the first to start a discussion!",
+    "createTopicTitle": "Create New Topic",
+    "topicTitlePlaceholder": "Topic Title",
+    "topicContentPlaceholder": "What's on your mind?",
+    "submitTopic": "Submit Topic",
+    "viewRoadmap": "Explore Roadmap"
   },
   "Upload": {
     "title": "Upload Content",
@@ -906,7 +917,7 @@
   },
   "Moderation": {
     "accountFrozen": "ACCOUNT SUSPENDED",
-    "frozenDesc": "This account and its content are currently inaccessible due to a violation of our community guidelines or account suspension.",
+    "frozenDesc": "This account and its content are currently inaccessible due to a violation of our Unity guidelines or account suspension.",
     "backToDiscover": "Back to Discover",
     "supportCenter": "Support Center"
   },

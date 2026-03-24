@@ -206,7 +206,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="vesting">Vesting</TabsTrigger>
           <TabsTrigger value="ledger">Ledger</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
-          <TabsTrigger value="community">Community</TabsTrigger>
+          <TabsTrigger value="community">Unity</TabsTrigger>
           <TabsTrigger value="setup">Setup</TabsTrigger>
         </TabsList>
         
