@@ -70,10 +70,10 @@ export default function CommunityPage() {
 
         // Mock Categories for navigation (UI structure)
         setCategories([
-            { id: 'general', title: 'General Discussion', desc: 'Talk about anything Unity.', topics: 12, posts: 45 },
-            { id: 'creators', title: 'Unity Creator Hub', desc: 'Tips, tricks and collaborations.', topics: 8, posts: 24 },
-            { id: 'investors', title: 'Unity Investor Lounge', desc: 'Tokenomics and roadmap talk.', topics: 5, posts: 18 },
-            { id: 'support', title: 'Technical Support', desc: 'Need help? Ask here.', topics: 15, posts: 60 },
+            { id: 'general', title: 'General Discussion', desc: 'Talk about anything Unity.' },
+            { id: 'creators', title: 'Unity Creator Hub', desc: 'Tips, tricks and collaborations.' },
+            { id: 'investors', title: 'Unity Investor Lounge', desc: 'Tokenomics and roadmap talk.' },
+            { id: 'support', title: 'Technical Support', desc: 'Need help? Ask here.' },
         ]);
 
         return () => unsubConfig();
@@ -360,19 +360,9 @@ export default function CommunityPage() {
                                                         <p className="text-sm text-white/40">{cat.desc}</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-10 text-center">
-                                                    <div>
-                                                        <p className="text-xl font-bold text-white">{cat.topics}</p>
-                                                        <p className="text-[10px] uppercase opacity-40 font-bold tracking-tighter">{t('topics')}</p>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-xl font-bold text-white">{cat.posts}</p>
-                                                        <p className="text-[10px] uppercase opacity-40 font-bold tracking-tighter">{t('replies')}</p>
-                                                    </div>
-                                                    <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <ArrowRight className="w-5 h-5"/>
-                                                    </Button>
-                                                </div>
+                                                <Button size="icon" variant="ghost" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <ArrowRight className="w-5 h-5"/>
+                                                </Button>
                                         </CardContent>
                                     </Card>
                                 ))}

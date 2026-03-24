@@ -152,25 +152,29 @@ export default function AdminCommunity() {
         const defaults: any = {
             investor: {
                 title: "Unverse AI",
-                subtitle: "The Future of Creator Economy",
+                subtitle: "The Future of Creator Economy (Base Ecosystem)",
                 slides: [
-                    { id: "inv-1", order: 1, title: "The Future of Creator Economy", slogan: "We combine creativity with financial freedom.", description: "Traditional platforms exploit creators. Unverse makes creators owners.", bullets: [] },
-                    { id: "inv-2", order: 2, title: "M-Floor Protocol", slogan: "Protocol Security", description: "Dynamic price floor targeting 15M USDC ecosystem value.", bullets: ["Burn reduces supply", "Floor increases automatically", "Treasury-backed stability"] },
-                    { id: "inv-3", order: 3, title: "Deflation Engine", slogan: "Token Scarcity", description: "Every action reduces supply.", bullets: ["AI generation burns tokens", "Unlocks burn tokens", "Perfect edits burn tokens"] },
-                    { id: "inv-4", order: 4, title: "Treasury & Buyback", slogan: "Value Growth", description: "33% of platform revenue goes to buyback pool.", bullets: ["Continuous support", "Revenue-backed economy"] },
-                    { id: "inv-5", order: 5, title: "Go-To-Market", slogan: "Global Expansion", description: "Strategic listing and launch roadmap.", bullets: ["3-phase presale", "Base network launch", "CEX listing strategy"] },
-                    { id: "inv-6", order: 6, title: "Seal & Token Security", slogan: "Immutable Economy", description: "Supply is permanently fixed.", bullets: ["No minting possible", "20-year vesting protection"] }
+                    { id: "inv-1", order: 1, title: "The Future of Creator Economy", slogan: "Powered by BASE", description: "Traditional platforms exploit creators. Unverse, built on the Base network, makes creators owners via smart-contracts.", bullets: ["Ethereum L2 Security", "Scalable Growth", "Coinbase Ecosystem Support"] },
+                    { id: "inv-2", order: 2, title: "The Base Advantage", slogan: "Network of Choice", description: "Why we chose Base for the Unverse Hub.", bullets: ["Ultra-low Transaction Costs", "Native USDC Integration", "Smart Wallet / Account Abstraction Ready"] },
+                    { id: "inv-3", order: 3, title: "M-Floor Protocol", slogan: "Secured by Base Liquidity", description: "Dynamic price floor targeting 15M USDC ecosystem value. Guaranteed by protocol-owned liquidity.", bullets: ["Burn reduces supply", "Floor increases automatically", "Treasury-backed stability"] },
+                    { id: "inv-4", order: 4, title: "Revenue Flywheel", slogan: "Sustained Demand", description: "1/3 of all platform USDC revenue (subscriptions, unlocks) is used for $ULC buyback & burn.", bullets: ["Continuous market pressure", "Real-world revenue support", "Transparency via Ledger"] },
+                    { id: "inv-5", order: 5, title: "AI-Powered Scalability", slogan: "Efficient Production", description: "AI reduces content production time by 90%, enabling creators to scale like never before.", bullets: ["100x faster generation", "Zero-skill requirement", "Massive output capacity"] },
+                    { id: "inv-6", order: 6, title: "Staking & Yield", slogan: "Post-Mainnet Rewards", description: "Long-term holders and stakers share the success of the platform revenues.", bullets: ["Real yield from subscriptions", "Liquidity sink effect", "Aligned long-term incentives"] },
+                    { id: "inv-7", order: 7, title: "Go-To-Market", slogan: "Global Expansion", description: "3-Phase strategy leading to the Base Mainnet launch.", bullets: ["Strategic pre-sale rounds", "Tier-1 exchange strategy", "Base ecosystem partnerships"] },
+                    { id: "inv-8", order: 8, title: "Security & Vesting", slogan: "Immutable Economy", description: "Permanently fixed supply with 20-year locking mechanism for the reserve pool.", bullets: ["No new minting possible", "Smart-contract protection", "20-year reserve lock"] }
                 ]
             },
             creator: {
                 title: "Create. Monetize. Scale.",
-                subtitle: "AI Powered Creator Economy",
+                subtitle: "AI Powered Creator Economy (Base)",
                 slides: [
-                    { id: "cre-1", order: 1, title: "Elite Creator Program", slogan: "Join the Elite", description: "Only first 100 creators join the elite club.", bullets: ["milestone rewards", "exclusive benefits", "early advantage"] },
-                    { id: "cre-2", order: 2, title: "AI Studio", slogan: "Limitless Creation", description: "No skills required. Just imagine.", bullets: ["instant content generation", "premium-ready visuals"] },
-                    { id: "cre-3", order: 3, title: "85/15 Revenue Model", slogan: "Fair Earnings", description: "You earn instantly.", bullets: ["85% creator share", "no delays", "direct earnings"] },
-                    { id: "cre-4", order: 4, title: "Unverse Copilot", slogan: "AI Premium", description: "Your AI manager.", bullets: ["content optimization", "trend analysis", "smart editing"] },
-                    { id: "cre-5", order: 5, title: "Grow With the Platform", slogan: "Shared Success", description: "Your tokens grow as ecosystem grows.", bullets: ["vesting benefits", "long-term value"] }
+                    { id: "cre-1", order: 1, title: "Elite Creator Program", slogan: "Exclusive First 100", description: "Be among the first 100 elite creators to launch on Unverse via the Base network.", bullets: ["Milestone rewards", "Early-stage advantage", "Exclusive governance rights"] },
+                    { id: "cre-2", order: 2, title: "AI Studio & Variations", slogan: "Limitless Versatility", description: "Generate premium content and create endless variations using AI-powered editing and style transfer.", bullets: ["Instant visual generation", "Object removal & variation", "Studio-quality output"] },
+                    { id: "cre-3", order: 3, title: "Container System", slogan: "Strategic Publishing", description: "Stock your content, manage your buffers, and schedule releases for maximum strategic impact.", bullets: ["Content stocking & buffering", "Publication scheduling", "Quality control hub"] },
+                    { id: "cre-4", order: 4, title: "85/15 Revenue Model", slogan: "Fair & Instant Payouts", description: "You keep 85% of everything you earn. No hidden fees. Powered by Base USDC.", bullets: ["Native USDC payouts", "No payment delays", "Protocol-level transparency"] },
+                    { id: "cre-5", order: 5, title: "Global Monetization", slogan: "Subscription Economy", description: "Unlock recurring revenue via platform-wide subscriptions and unique content unlocks.", bullets: ["Recurring USDC income", "Direct fan support", "Scalable earnings"] },
+                    { id: "cre-6", order: 6, title: "Unverse Copilot Pro", slogan: "Premium AI Manager", description: "Your virtual manager helps you optimize content, analyze trends, and maximize revenue with advanced Pro features.", bullets: ["Advanced trend analysis", "Smart optimization & titles", "Revenue growth strategies"] },
+                    { id: "cre-7", order: 7, title: "Shared Growth", slogan: "Value Alignment", description: "As the Unverse ecosystem grows, your tokens and status grow with it via the 20-year vision.", bullets: ["Vesting benefits", "Long-term incentive alignment", "Community-led future"] }
                 ]
             }
         };
