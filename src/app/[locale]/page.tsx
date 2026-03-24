@@ -86,14 +86,12 @@ export default function DiscoverPage() {
         <div className="space-y-2">
             <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-[0.3em] text-[10px]">
                 <Sparkles className="w-3 h-3" /> {t('title')}
-                {t('updateName') && (
-                    <div className="flex items-center gap-1.5 ml-1">
-                        <div className="w-1 h-1 bg-primary rounded-full animate-pulse" />
-                        <span className="px-2 py-0.5 bg-primary/10 rounded-full text-[7px] border border-primary/20">
-                            {t('updateName')}
-                        </span>
-                    </div>
-                )}
+                <div className="flex items-center gap-1.5 ml-1">
+                    <div className="w-1 h-1 bg-primary rounded-full animate-pulse" />
+                    <span className="px-2 py-0.5 bg-primary/10 rounded-full text-[7px] border border-primary/20">
+                        Genesis Era
+                    </span>
+                </div>
             </div>
             <h1 className="text-6xl font-black font-headline tracking-tighter leading-none">{t('feed')}</h1>
             <p className="text-muted-foreground font-medium max-w-md">{t('description')}</p>

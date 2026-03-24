@@ -94,13 +94,13 @@
     "rate": "Floor Price",
     "noContent": "No public content available yet.",
     "syncing": "Syncing Sovereign Feed...",
-    "updateName": "THE EVOLUTION",
-    "title": "Undiscovered Unverse"
+    "updateName": "Genesis Era",
+    "title": "Unverse"
   },
   "Navbar": {
     "connect": "Connect Wallet",
     "mypage": "My Page",
-    "discover": "Undiscovered",
+    "discover": "Discover",
     "tokenomics": "Pre-Sale",
     "staking": "Staking",
     "community": "Unity",

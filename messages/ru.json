@@ -94,13 +94,13 @@
     "rate": "Минимальная цена",
     "noContent": "Публичных публикаций пока нет. Будьте первым, кто опубликует!",
     "syncing": "Синхронизация Вселенной...",
-    "updateName": "ЭВОЛЮЦИЯ",
-    "title": "Undiscovered Unverse"
+    "updateName": "Genesis Era",
+    "title": "Unverse"
   },
   "Navbar": {
     "connect": "Подключить",
     "mypage": "Моя Страница",
-    "discover": "Undiscovered",
+    "discover": "Обзор",
     "tokenomics": "Предпродажа",
     "staking": "Стейкинг",
     "community": "Unity",

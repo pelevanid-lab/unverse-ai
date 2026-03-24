@@ -94,13 +94,13 @@
     "rate": "Taban Fiyat",
     "noContent": "Henüz açık içerik mevcut değil.",
     "syncing": "Kozmik Akış Senkronize Ediliyor...",
-    "updateName": "EVRİM",
-    "title": "Undiscovered Unverse"
+    "updateName": "Genesis Era",
+    "title": "Unverse"
   },
   "Navbar": {
     "connect": "Cüzdan Bağla",
     "mypage": "Sayfam",
-    "discover": "Undiscovered",
+    "discover": "Keşfet",
     "tokenomics": "Ön Satış",
     "staking": "Staking",
     "community": "Unity",
