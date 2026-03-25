@@ -103,6 +103,15 @@ export default function StakingPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold font-headline">{stakedBalance.toLocaleString()} ULC</div>
+              <div className="mt-2 flex flex-col gap-1">
+                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                  <span>Projected USDC Yield</span>
+                  <span className="text-green-400 font-black">~${((stakedBalance / (config?.totalStakedULC || 1)) * (config?.totalBuybackStakingUSDC || 0)).toFixed(2)} / mo</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden mt-1">
+                   <div className="h-full bg-green-400 animate-pulse" style={{ width: '60%' }}></div>
+                </div>
+              </div>
             </CardContent>
           </Card>
           <Card className="glass-card border-white/10">

@@ -207,7 +207,7 @@ export function AIStudio() {
 
             if (enhancedPrompt) {
                 setPrompt(enhancedPrompt);
-                toast({ title: t('enhanceSuccess') || "Copilot: Metin Zenginleştirildi", description: "Yapay zeka hayal gücünüzü profesyonel bir prompta çevirdi! ✨" });
+                toast({ title: t('enhanceSuccess') || "Uniq: Metin Zenginleştirildi", description: "Yapay zeka hayal gücünüzü profesyonel bir prompta çevirdi! ✨" });
             }
         } catch (error: any) {
             console.error("Enhance prompt error:", error);
@@ -414,11 +414,11 @@ export function AIStudio() {
         setComposition('solo');
     };
 
-    const styles: { id: PromptStyle, label: string }[] = [
+    const styles: { id: PromptStyle, label: string, trending?: boolean }[] = [
         { id: 'none', label: t('natural') },
-        { id: 'cool', label: t('cool') },
+        { id: 'cool', label: t('cool'), trending: true },
         { id: 'flirty', label: t('flirty') },
-        { id: 'premium', label: t('stylePremium') },
+        { id: 'premium', label: t('stylePremium'), trending: true },
         { id: 'moody', label: t('moody') },
     ];
 
@@ -436,7 +436,7 @@ export function AIStudio() {
                         </div>
                         <div>
                             <h4 className="text-sm font-bold text-primary flex items-center gap-2">
-                                Copilot {user.aiLearningState?.mode === 'adaptive' ? <Badge className="bg-primary text-white text-[8px] h-4">ADAPTIVE</Badge> : <Badge variant="outline" className="text-[8px] h-4">LEARNING</Badge>}
+                                Uniq {user.aiLearningState?.mode === 'adaptive' ? <Badge className="bg-primary text-white text-[8px] h-4">ADAPTIVE</Badge> : <Badge variant="outline" className="text-[8px] h-4">LEARNING</Badge>}
                                 <span className="text-[10px] text-muted-foreground font-normal ml-2">İlerleme: {user.onboardingState?.completedSteps?.length || 0}/4</span>
                             </h4>
                             <p className="text-xs text-muted-foreground max-w-md">
@@ -720,11 +720,17 @@ export function AIStudio() {
                                                         size="sm"
                                                         onClick={() => setSelectedStyle(style.id)}
                                                         className={cn(
-                                                            "rounded-full text-[10px] font-bold px-4 h-8 transition-all",
+                                                            "rounded-full text-[10px] font-bold px-4 h-8 transition-all flex items-center gap-2",
                                                             selectedStyle === style.id ? "bg-primary text-white" : "border-white/10 hover:bg-white/5"
                                                         )}
                                                     >
                                                         {style.label}
+                                                        {style.trending && (
+                                                            <span className={cn(
+                                                                "text-[8px] px-1.5 py-0.5 rounded-sm font-black tracking-tighter animate-pulse",
+                                                                selectedStyle === style.id ? "bg-white/20 text-white" : "bg-primary/20 text-primary"
+                                                            )}>HOT</span>
+                                                        )}
                                                     </Button>
                                                 ))}
                                             </div>
@@ -757,9 +763,9 @@ export function AIStudio() {
                                                     {isEnhancingPrompt ? <Loader2 size={14} className="text-primary animate-spin" /> : <Sparkles size={14} className="text-primary" />}
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-bold text-primary">Copilot: Smart Flow</p>
+                                                    <p className="text-xs font-bold text-primary">Uniq: Smart Flow</p>
                                                     <p className="text-[10px] text-muted-foreground">
-                                                        {isEnhancingPrompt ? "Metin zenginleştiriliyor..." : (prompt.length > 0 ? "Görseliniz otomatik zenginleştirilecek ✨" : "Yazmaya başladığınızda Copilot devreye girecek.")}
+                                                        {isEnhancingPrompt ? "Metin zenginleştiriliyor..." : (prompt.length > 0 ? "Görseliniz otomatik zenginleştirilecek ✨" : "Yazmaya başladığınızda Uniq devreye girecek.")}
                                                     </p>
                                                 </div>
                                             </div>
@@ -921,12 +927,12 @@ export function AIStudio() {
                                         {/* Copilot V2: Monetization Intelligence */}
                                         {monetizationSuggestion && (
                                             <div id="studio-preview-area" className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in transition-all">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Sparkles className="text-primary w-4 h-4" />
-                                                        <span className="text-xs font-bold uppercase text-primary">Copilot V2 Değerlendirmesi</span>
+                                                <div className="flex flex-col gap-1 w-full">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold uppercase text-primary">Uniq V2 Değerlendirmesi</span>
+                                                        <Badge variant="outline" className="text-[8px] bg-primary/5 text-primary border-primary/20 tracking-widest">{monetizationSuggestion.score * 10}% POTENTIAL</Badge>
                                                     </div>
-                                                    <Badge className="bg-primary text-white text-[10px]">Skor: {monetizationSuggestion.score}/100</Badge>
+                                                    <p className="text-[10px] leading-relaxed text-muted-foreground">{monetizationSuggestion.recommendation}</p>
                                                 </div>
 
                                                 <div className="p-3 bg-black/40 rounded-xl border border-white/5">

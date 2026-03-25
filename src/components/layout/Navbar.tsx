@@ -77,17 +77,23 @@ export function Navbar() {
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
             {navLinks.map((link) => {
               const isTokenomics = link.href === '/tokenomics';
+              const isStaking = link.href === '/staking';
               return (
                 <Link 
                   key={link.name} 
                   href={link.href} 
-                  className={`flex items-center gap-1.5 ${
+                  className={`flex items-center gap-1.5 relative ${
                     isTokenomics 
                       ? 'text-yellow-400 hover:text-yellow-300 font-bold' 
                       : (pathname === link.href ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors')
                   }`}
                 >
                   {link.name}
+                  {isStaking && (
+                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 border-orange-500/20 px-1.5 py-0 text-[10px] font-bold animate-pulse hover:bg-orange-500/30 transition-colors pointer-events-none">
+                      EARN 🔥
+                    </Badge>
+                  )}
                 </Link>
               );
             })}
@@ -136,6 +142,7 @@ export function Navbar() {
           <div className="p-6 flex flex-col gap-6 font-headline font-bold text-lg">
             {navLinks.map((link) => {
               const isTokenomics = link.href === '/tokenomics';
+              const isStaking = link.href === '/staking';
               return (
                 <Link 
                   key={link.name} 
@@ -145,6 +152,11 @@ export function Navbar() {
                 >
                   <span className="flex items-center gap-2">
                     {link.name}
+                    {isStaking && (
+                      <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 border-orange-500/20 px-1.5 py-0 text-[10px] font-bold animate-pulse">
+                        EARN 🔥
+                      </Badge>
+                    )}
                   </span>
                 </Link>
               );

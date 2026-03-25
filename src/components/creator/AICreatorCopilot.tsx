@@ -31,14 +31,14 @@ export function AICreatorCopilot({ contentType, creatorName, onApply }: AICreato
                         <div className="bg-primary p-1.5 rounded-lg">
                             <Sparkles className="w-4 h-4 text-white fill-current" />
                         </div>
-                        <span className="font-headline font-black text-sm uppercase tracking-widest">Creator Copilot</span>
+                        <span className="font-headline font-black text-sm uppercase tracking-widest">Creator Uniq</span>
                     </div>
                 </div>
 
                 {!result ? (
                     <div className="space-y-3">
                         <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                            Need help with a caption? Copilot can generate one based on your content type.
+                            Need help with a caption? Uniq can generate one based on your content type.
                         </p>
                         <Button onClick={handleGenerate} className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 font-bold text-xs gap-2">
                             <Wand2 className="w-4 h-4" />

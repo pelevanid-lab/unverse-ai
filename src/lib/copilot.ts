@@ -381,7 +381,7 @@ Output ONLY the caption text.`;
             case 'welcome':
                 return { action: 'goal_selection', message: "Welcome! Ready to turn your imagination into revenue?", cta: "Seçim Yap" };
             case 'goal_selection':
-                return { action: 'first_generate', message: "Step 1: Create your first AI visual using Copilot's smart flow.", cta: "Hayal Et" };
+                return { action: 'first_generate', message: "Step 1: Create your first AI visual using Uniq's smart flow.", cta: "Hayal Et" };
             case 'first_generate':
                 return { action: 'first_monetization', message: "Step 2: Our AI evaluated your content. Let's set a smart price.", cta: "Fiyatlandır" };
             case 'first_monetization':

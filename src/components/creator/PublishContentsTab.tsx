@@ -7,10 +7,11 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { ContentPost, LedgerEntry } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lock, Clock } from 'lucide-react';
+import { Loader2, Lock, Clock, TrendingUp, Coins, Zap } from 'lucide-react';
 import { ViewPostModal } from './ViewPostModal';
 import { useTranslations } from 'next-intl';
 import { VideoPreview } from '../ui/VideoPreview';
+import { Badge } from '@/components/ui/badge';
 
 export function PublishContentsTab() {
   const t = useTranslations('Published');
@@ -18,6 +19,11 @@ export function PublishContentsTab() {
   const [posts, setPosts] = useState<ContentPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<ContentPost | null>(null);
+
+  // Growth Stats Calculation (Mocked for engagement/motivation)
+  const totalRevenue = (posts as any[]).reduce((sum, p) => sum + (p.revenue || 0), 0);
+  const totalUnlocks = (posts as any[]).reduce((sum, p) => sum + (p.unlockCount || 0), 0);
+  const growthVelocity = totalUnlocks > 0 ? Math.min(99, (totalUnlocks * 12.5)) : 0;
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -71,11 +77,45 @@ export function PublishContentsTab() {
     return () => unsubscribe();
   }, [user?.uid]);
 
+
   return (
     <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-primary/5 border border-primary/20 p-4 rounded-[2rem] flex items-center gap-4 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-125 transition-transform">
+             <TrendingUp className="w-16 h-16 text-primary" />
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/20">
+             <TrendingUp className="text-primary" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Growth Potential</p>
+            <h3 className="text-xl font-bold font-headline">+{growthVelocity.toFixed(1)}% Velocity</h3>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Scale phase: Unlock more style presets to increase engagement.</p>
+          </div>
+        </div>
+        
+        <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-[2rem] flex items-center gap-4 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:rotate-12 transition-transform">
+             <Zap className="w-16 h-16 text-amber-500" />
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/20">
+             <Zap className="text-amber-500" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Monetization Score</p>
+            <h3 className="text-xl font-bold font-headline">{totalRevenue.toFixed(2)} USDC Earned</h3>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Success! Your content is generating consistent protocol yield.</p>
+          </div>
+        </div>
+      </div>
+
       <Card className="glass-card border-white/10">
         <CardHeader>
-          <CardTitle>{t('title')}</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+             <span>{t('title')}</span>
+             <Badge variant="outline" className="text-[9px] font-bold border-primary/20 text-primary uppercase">{posts.length} Items</Badge>
+          </CardTitle>
           <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </CardHeader>
         <CardContent>
