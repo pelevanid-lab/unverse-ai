@@ -10,6 +10,7 @@ import { db } from '@/lib/firebase';
 import { Badge } from '@/components/ui/badge';
 import { PromoCarousel } from '@/components/discover/PromoCarousel';
 import { VideoPreview } from '@/components/ui/VideoPreview';
+import { useTranslations } from 'next-intl';
 
 interface PostGridProps {
   postsToShow: ContentPost[];
@@ -70,6 +71,8 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
   const firstBatch = validPosts.slice(0, splitIndex);
   const secondBatch = validPosts.slice(splitIndex);
 
+  // Badges Layer
+  const tPost = useTranslations('Post');
   const renderPost = (post: ContentPost) => {
     const isOwner = user?.uid === post.creatorId;
     const isUnlocked = unlockedPostIds.includes(post.id);
@@ -114,12 +117,12 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
           <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
               {post.contentType === 'limited' && (
                   <Badge className="bg-yellow-400 text-black border-none font-black text-[10px] tracking-tighter px-2 py-0.5 rounded-lg shadow-xl">
-                      LIMITED {isSoldOut && '• SOLD OUT'}
+                      {tPost('limited')} {isSoldOut && `• ${tPost('soldOut')}`}
                   </Badge>
               )}
               {post.contentType === 'premium' && (
                   <Badge className="bg-primary text-white border-none font-black text-[10px] tracking-tighter px-2 py-0.5 rounded-lg shadow-xl">
-                      PREMIUM
+                      {tPost('premium')}
                   </Badge>
               )}
           </div>

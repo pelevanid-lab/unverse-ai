@@ -9,31 +9,31 @@ This major release marks the transition to a fully autonomous and revenue-backed
 - **Mission Control**: Strategic Buyback & Burn dashboard for ecosystem sustainability.
 - **Smart Copilot 2.0**: Character-consistent vision-to-caption and adaptive learning memory.
 
-Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDT** (TON/TRON) for subscriptions.
+Unverse is a next-generation social network and creator economy platform that bridges the gap between AI influencers (Muses) and human creators. Built with a sophisticated, ledger-based token economy, it utilizes the **$ULC** (Unlock Currency) token for content and **USDC** (Base Network) for subscriptions.
 
 ## 🌌 The UN- Philosophy
 We believe that traditional social media cannot carry us into the future. The current social landscape is a cluttered universe that needs a foundational shift. Through the command **Un Universe > Unverse**, we distill the complexity of today into an autonomous, decentralized tomorrow. This is why our core products carry the **UN-** prefix, representing our transition to the **Undiscovered** and the **Unseen** potential of the creator economy.
 
 ## 🚀 Key Features
 
-- **Multi-Chain Payments**: Support for USDT payments on both **TON** and **TRON (TRC20)** networks as primary payment gateways.
-- **Identity Layer**: Integrated with **Wagmi (EVM)** for a seamless Web3 login experience (MetaMask, Binance Wallet, Trust Wallet).
+- **Multi-Chain Payments**: Support for **USDC** payments on the **Base** (Ethereum L2) network as the primary payment gateway.
+- **Identity Layer**: Integrated with **Wagmi (EVM)** and **Coinbase Smart Wallet** with **Passkey** support for a seamless Web3 login experience.
 - **Post-Presale Launch**: $ULC will be natively launched on the **Base** (Ethereum L2) network.
 - **Staking Protocol**: Stake $ULC on the **Base** network to earn platform yield. Rewards are calculated every **27th of the month**.
 - **Multi-Tier Content**: Creators can publish **Public**, **Premium (Subscription-based)**, and **Limited (One-time Unlock)** content.
 - **AI Studio 2.0**: A professional production suite with **Standard**, **Digital Twin** (image-to-character), and **AI Edit** (in-painting) modes.
 - **Smart Copilot**: Mode-aware AI prompt engine with specialized pose inference and identity preservation logic.
 - **Subscriber Messaging**: Direct communication channel between creators and their active subscribers with real-time chat.
-- **Presale Dashboard**: Direct $ULC purchase via USDT with automated price calculation and ledger-backed delivery.
+- **Presale Dashboard**: Direct $ULC purchase via **USDC (Base)** with automated price calculation and ledger-backed delivery.
 
 ## 🛠 Technical Stack
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript.
 - **Web3 Ecosystem**: 
-  - **Identity**: Wagmi (EVM standard for Base/Polygon/Ethereum).
-  - **Payments**: TonConnect (TON), TonCenter (TON), TronWeb (TRON).
+  - **Identity**: Wagmi & Coinbase Smart Wallet (Base/EVM) with Passkey support.
+  - **Payments**: Base Native USDC & CDP Paymaster (Gas-less).
   - **Mainnet Launch**: **Base** network (Ethereum Layer 2).
-- **Internationalization**: `next-intl` (English, Turkish, Russian).
+- **Internationalization**: `next-intl` (English, Turkish, Russian, Arabic - RTL support).
 - **Styling**: Vanilla CSS + Tailwind, ShadCN UI, Framer Motion (Glassmorphism design).
 - **Backend**: Firebase Firestore (NoSQL), Authentication, and Cloud Functions.
 - **AI Engine**: Google Genkit + Gemini 2.5 Flash (Text/Logic) and Imagen (Media).
@@ -51,8 +51,8 @@ The ecosystem is powered by 16 strictly defined internal system wallets managing
 4. **presale_vesting_pool**: Holds tokens for presale buyers under vesting.
 5. **promo_pool**: Used for welcome bonuses and airdrops.
 6. **treasury_wallet**: Platform revenue and operating funds.
-7. **treasury_usdt_ledger**: Tracks internal USDT balances for creator claims.
-8. **amm_reserve_pool_usdt**: Reserve for market maker liquidity.
+7. **treasury_usdc_ledger**: Tracks internal USDC balances for creator claims.
+8. **amm_reserve_pool_usdc**: Reserve for market maker liquidity.
 9. **creator_incentive_pool**: Rewards for top-performing creators.
 10. **creator_vesting_pool**: Rewards held under linear vesting.
 11. **team_vesting_wallet**: Direct team allocation.
@@ -71,7 +71,11 @@ The ecosystem is powered by 16 strictly defined internal system wallets managing
    - **Standard Mode (5 ULC)**: 3.5 ULC to Treasury, 1.5 ULC Burned.
    - **Digital Twin (20 ULC)**: 14 ULC to Treasury, 6 ULC Burned.
    - **AI Edit (3 ULC)**: 2.1 ULC to Treasury, 0.9 ULC Burned.
-5. **Content Unlocks (Burn)**: All premium content unlocks include a **5% burn** mechanism from the platform's 15% share.
+5. **Presale Tiers**:
+   - **Genesis Round**: $0.009
+   - **Growth Round**: $0.012
+   - **Launch Round**: $0.014
+6. **Content Unlocks (Burn)**: All premium content unlocks include a **5% burn** mechanism from the platform's 15% share.
 
 ## 🎨 AI Studio 2.0: Professional Production Suite
 

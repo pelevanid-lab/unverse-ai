@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Lock, Loader2, X, Clock, Sparkles, Wallet } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Link } from '@/i18n/routing';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { useTranslations } from 'next-intl';
 
 interface PostViewerModalProps {
   post: ContentPost;
@@ -30,6 +31,10 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   const { user: currentUser, isConnected } = useWallet();
   const { toast } = useToast();
   const router = useRouter();
+  const params = useParams();
+  const locale = (params?.locale as string) || 'en';
+  const t = useTranslations('Post');
+  const tWallet = useTranslations('Wallet');
   const [unlocking, setUnlocking] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [secureMediaUrl, setSecureMediaUrl] = useState<string | null>(null);
@@ -47,7 +52,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   const isImage = post.mediaType === 'image' || (!post.mediaType && mediaUrl && (mediaUrl.includes('.webp') || mediaUrl.includes('.png') || mediaUrl.includes('.jpg') || mediaUrl.includes('.jpeg') || mediaUrl.includes('image')));
   
   const isSoldOut = post.contentType === 'limited' && post.limited && post.limited.soldCount >= post.limited.totalSupply;
-  const currentPrice = post.contentType === 'limited' ? post.limited?.price : post.unlockPrice;
+  const currentPrice = (post.contentType === 'limited' ? post.limited?.price : post.unlockPrice) || 0;
 
   // Handle explicit video playback when source is loaded
   useEffect(() => {
@@ -100,24 +105,24 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
 
   const handleUnlockPost = async () => {
     if (!currentUser || !isConnected) {
-      toast({ title: "Connect Wallet", description: "Please connect your wallet to unlock content." });
+      toast({ title: tWallet('connectToContinue'), description: tWallet('authRequiredDesc') });
       return;
     }
     if (isSoldOut) {
-        toast({ title: "Sold Out", description: "This limited edition content is no longer available.", variant: "destructive" });
+        toast({ title: t('soldOut'), description: t('exclusiveDesc'), variant: "destructive" });
         return;
     }
 
     setUnlocking(true);
     try {
       await handleUnlock(currentUser, post);
-      toast({ title: "Content Unlocked!", description: "You now have permanent access to this content." });
+      toast({ title: tWallet('purchaseSuccess'), description: tWallet('purchaseSuccessDesc', { ulc: currentPrice }) });
       onPostUnlocked(post.id);
     } catch (error: any) {
       if (error.message === "INSUFFICIENT_BALANCE") {
         toast({ 
-            title: "Load ULC", 
-            description: "You don't have enough ULC. Redirecting to wallet...", 
+            title: tWallet('errorTitle'), 
+            description: tWallet('profileNotLoaded'), 
             variant: "destructive" 
         });
         setTimeout(() => {
@@ -125,7 +130,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
             router.push('/wallet');
         }, 2000);
       } else {
-        toast({ title: "Unlock Failed", description: error.message || "An error occurred.", variant: "destructive" });
+        toast({ title: tWallet('purchaseFailed'), description: error.message || tWallet('defaultError'), variant: "destructive" });
       }
     } finally {
       setUnlocking(false);
@@ -157,17 +162,17 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                     </div>
                     
                     <h2 className="text-4xl font-bold font-headline mb-3 tracking-tight">
-                        {post.contentType === 'limited' ? 'Limited Edition' : 'Premium Content'}
+                        {post.contentType === 'limited' ? t('limitedEdition') : t('premiumContent')}
                     </h2>
                     <p className="text-muted-foreground mb-8 max-w-sm text-lg italic">
                         {post.contentType === 'limited' 
-                            ? 'Exclusive restricted supply. Don\'t miss out!' 
-                            : 'Individually priced premium content.'}
+                            ? t('exclusiveDesc') 
+                            : t('individualPriceDesc')}
                     </p>
                     
                     {isSoldOut ? (
                         <Button disabled size="lg" className="w-full max-w-xs h-16 rounded-2xl font-bold text-xl bg-muted text-muted-foreground uppercase tracking-widest">
-                            Sold Out
+                            {t('soldOut')}
                         </Button>
                     ) : (
                         <Button 
@@ -177,18 +182,18 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                             className="w-full max-w-xs h-16 rounded-2xl gap-3 font-bold text-xl shadow-2xl shadow-primary/40 hover:scale-105 transition-transform"
                         >
                             {unlocking ? <Loader2 className="animate-spin w-6 h-6" /> : <Wallet className="w-6 h-6" />} 
-                            Unlock for {currentPrice} ULC
+                            {t('unlockFor', { price: currentPrice })}
                         </Button>
                     )}
                     
                     {post.contentType === 'limited' && post.limited && (
                          <div className="mt-4 flex flex-col items-center gap-2">
                             <p className="text-xs font-black uppercase tracking-[0.2em] text-yellow-500/60 bg-yellow-500/5 px-4 py-1 rounded-full border border-yellow-500/10">
-                                Availability: {post.limited.totalSupply - post.limited.soldCount} left
+                                {t('availability', { count: post.limited.totalSupply - post.limited.soldCount })}
                             </p>
                             {serialNumber && (
                                 <p className="text-sm font-bold text-yellow-500 animate-pulse">
-                                    YOUR SERIAL NO: #{serialNumber} / {post.limited.totalSupply}
+                                    {t('yourSerialNo', { serial: serialNumber, total: post.limited.totalSupply })}
                                 </p>
                             )}
                          </div>
@@ -197,7 +202,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
             ) : (loadingMedia ? (
                 <div className="flex flex-col items-center gap-4 text-white/50">
                     <Loader2 className="animate-spin w-12 h-12" />
-                    <p className="text-sm font-medium animate-pulse">Securing Media Connection...</p>
+                    <p className="text-sm font-medium animate-pulse">{t('securingMedia')}</p>
                 </div>
             ) : mediaUrl && (
                 isImage ? (
@@ -234,10 +239,10 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                   <div>
                     <h3 className="font-bold text-white text-lg group-hover:text-primary transition-colors flex items-center gap-2">
                         {creator.username}
-                        {post.contentType === 'limited' && <Badge className="bg-yellow-400 text-black text-[10px] font-black h-5 px-2 leading-none uppercase rounded-md">LIMITED</Badge>}
+                        {post.contentType === 'limited' && <Badge className="bg-yellow-400 text-black text-[10px] font-black h-5 px-2 leading-none uppercase rounded-md">{t('limited')}</Badge>}
                         {serialNumber && <Badge variant="outline" className="border-yellow-500/50 text-yellow-500 text-[10px] font-bold">#{serialNumber}</Badge>}
                     </h3>
-                    <p className="text-xs text-white/50 font-mono">{new Date(post.createdAt).toLocaleString('tr-TR')}</p>
+                    <p className="text-xs text-white/50 font-mono">{new Date(post.createdAt).toLocaleString(locale === 'ar' ? 'ar-SA' : locale)}</p>
                   </div>
                 </div>
               </Link>

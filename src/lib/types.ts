@@ -128,8 +128,7 @@ export interface Creator {
     creatorStatus?: 'active' | 'inactive';
     visibility?: 'public' | 'private';
     collectionWallets?: {
-        TRON?: NetworkWallet | null;
-        TON?: NetworkWallet | null;
+        Base?: NetworkWallet | null;
     };
     defaultClaimNetwork?: 'Base';
 }
