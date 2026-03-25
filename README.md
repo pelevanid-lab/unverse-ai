@@ -1,5 +1,5 @@
 
-genesisv1.0.8
+genesisv1.1.3
 # Unverse: AI-Powered SocialFi Ecosystem
 
 **Update Summary:**
