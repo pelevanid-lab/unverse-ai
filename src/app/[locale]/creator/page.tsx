@@ -160,8 +160,8 @@ export default function CreatorPanel() {
                         <div className='flex items-center gap-4'>
                             <div className="p-3 bg-fuchsia-500/10 rounded-xl group-hover:bg-fuchsia-500/20 transition-colors"><Wand2 className="w-6 h-6 text-fuchsia-400" /></div>
                             <div>
-                                <p className="font-bold">{t('copilotStudioTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('copilotStudioDesc')}</p>
+                                <p className="font-bold">{t('aiStudioTab')}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('aiStudioDesc')}</p>
                             </div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-fuchsia-400 transition-colors" />

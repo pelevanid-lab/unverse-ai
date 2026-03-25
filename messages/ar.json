@@ -254,7 +254,8 @@
     "title": "المجمع",
     "subtitle": "إدارة إنتاجاتك ومسوداتك.",
     "yourMedia": "وسائطك",
-    "aiDrafts": "مسودات الذكاء الاصطناعي",
+    "aiDrafts": "مسودات يونيك AI",
+    "aiDraftsSubtitle": "محتوى تلقائي تم إنشاؤه لك",
     "emptyStateTitle": "المجمع فارغ",
     "emptyStateDesc": "المحتوى الذي تنتجه أو تحمله سيظهر هنا.",
     "errorTitle": "خطأ",
@@ -316,11 +317,11 @@
     "noActive": "لا توجد محادثات نشطة بعد.",
     "typeMessage": "اكتب رسالتك...",
     "selectCreator": "اختر مبدعاً",
-    "selectCreatorDesc": "اختر محادثة للدردشة مع مبدع تدعمه."
+    "selectCreatorDesc": "اختر محادثة للدردشة مع مبدع تدعمها."
   },
   "EditMedia": {
-    "captionGenerated": "تم توليد التعليق",
-    "captionGeneratedDesc": "قام المحرك بتوليد قالب لك.",
+    "captionGenerated": "يونيك: الوصف جاهز",
+    "captionGeneratedDesc": "تم إنشاء أفضل وصف لصورتك بواسطة الذكاء الاصطناعي.",
     "authError": "خطأ في المصادقة",
     "authErrorDesc": "يرجى التأكد من ربط محفظتك.",
     "publishSuccess": "تم نشر المنشور!",

@@ -77,7 +77,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
 
       if (generatedCaption) {
         setCaption(generatedCaption);
-        toast({ title: t('captionGenerated') || "Copilot: Açıklama Hazır", description: t('captionGeneratedDesc') || "Görseliniz için en iyi açıklama oluşturuldu." });
+        toast({ title: t('captionGenerated'), description: t('captionGeneratedDesc') });
       }
     } catch (error: any) {
       console.error("Caption generation error:", error);
@@ -230,7 +230,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                     className="h-7 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-full disabled:opacity-30"
                   >
                     {isGeneratingCaption ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                    {caption ? "Açıklamayı İyileştir" : "Açıklama Oluştur"}
+                    {caption ? t('improveCaption') : t('generateCaptionBtn')}
                   </Button>
                 </div>
                 <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t('captionPlaceholder')} className="bg-input/50 resize-none h-24" maxLength={280} />
@@ -242,7 +242,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sparkles className="text-primary w-4 h-4" />
-                      <span className="text-xs font-bold uppercase text-primary tracking-widest">Copilot V2 Değerlendirmesi</span>
+                      <span className="text-xs font-bold uppercase text-primary tracking-widest">{t('uniqEvaluation')}</span>
                     </div>
                     <Badge variant="secondary" className="bg-primary text-white text-[10px]">Skor: {monetizationSuggestion.score}/100</Badge>
                   </div>
@@ -331,9 +331,9 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                 <div className="space-y-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="flex items-center gap-2">
                     <Video className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-bold uppercase text-primary tracking-widest">Görseli Hareketlendir</span>
+                    <span className="text-xs font-bold uppercase text-primary tracking-widest">{t('animateImage')}</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">Bu görseli Kling AI ile profesyonel bir videoya dönüştürün.</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">{t('animateDesc')}</p>
                   <Button 
                     variant="secondary" 
                     className="w-full h-11 rounded-xl font-bold gap-2 shadow-lg hover:bg-primary hover:text-white transition-all"
@@ -342,7 +342,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                     }}
                   >
                     <Sparkles className="w-4 h-4" />
-                    Hareketlendir (60 ULC)
+                    {t('animateBtn')}
                   </Button>
                 </div>
               )}

@@ -115,8 +115,8 @@ export function ContainerTab() {
                     <Loader2 className="h-4 w-4 text-primary animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider">Copilot Taslakları</h3>
-                    <p className="text-[10px] text-muted-foreground">AI Tarafından Sizin İçin Üretilen Otomatik İçerikler</p>
+                    <h3 className="text-sm font-bold uppercase tracking-wider">{t('aiDrafts')}</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('aiDraftsSubtitle')}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
