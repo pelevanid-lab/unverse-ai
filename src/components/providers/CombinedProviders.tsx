@@ -3,14 +3,11 @@
 
 import { ReactNode } from 'react';
 import { Web3ModalProvider } from '@/lib/web3modal';
-import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 export function CombinedProviders({ children }: { children: ReactNode }) {
     return (
         <Web3ModalProvider>
-            <TonConnectUIProvider manifestUrl="https://unverse.me/api/tonconnect-manifest">
-                {children}
-            </TonConnectUIProvider>
+            {children}
         </Web3ModalProvider>
     );
 }
