@@ -21,6 +21,24 @@
       "active": "نشط",
       "upcoming": "قادم"
     },
+    "heroBadge": "مركز الوحدة الرسمي",
+    "roadmapBadge": "الرؤية الاستراتيجية",
+    "roadmapDescLong": "استكشف رحلتنا المكونة من ٤ مراحل نحو إطلاق الشبكة الرئيسية لـ Base ونضج النظام البيئي.",
+    "phase0_short": "المرحلة ٠: التأسيس",
+    "phase1_short": "المرحلة ١: عصر التكوين",
+    "phase2_short": "المرحلة ٢: التوسع والنمو",
+    "viewDetailedRoadmap": "عرض خارطة الطريق المفصلة",
+    "whitepaperBadge": "وثيقة تقنية",
+    "coreArchitecture": "البنية التحتية الأساسية",
+    "economicFlywheel": "المحرك الاقتصادي",
+    "vestingSchedule": "جدول الاستحقاق",
+    "investorBadge": "عرض المستثمر",
+    "creatorBadgeShort": "دليل المبدع",
+    "backToForums": "العودة إلى المنتديات",
+    "backToTopics": "العودة إلى الموضووعات",
+    "writeReplyPlaceholder": "اكتب ردك هنا...",
+    "cancel": "إلغاء",
+    "footerTag": "منصة Unverse Unity // إصدار بيتا ١.٠",
     "forum": "المنتدى المباشر",
     "forumDesc": "انضم إلى المناقشة وبناء المستقبل معنا.",
     "readWhitepaper": "قراءة الورقة البيضاء",
@@ -262,5 +280,21 @@
     "slide": "شريحة",
     "strategicAsset": "أصول استراتيجية لـ Unverse",
     "verificationActive": "التحقق من مستوى البروتوكول نشط"
+  },
+  "Moderation": {
+    "accountFrozen": "حساب معلق",
+    "frozenDesc": "لا يمكن الوصول إلى هذا الحساب ومحتواه حالياً بسبب انتهاك إرشادات الوحدة الخاصة بنا أو تعليق الحساب.",
+    "backToDiscover": "العودة إلى الاكتشاف",
+    "supportCenter": "مركز الدعم"
+  },
+  "SupportChat": {
+    "initialAiMessage": "مرحباً! أنا دعم Unverse AI Premium. يمكنك أن تسألني عن أي شيء يتعلق بالمنصة أو الاشتراكات أو ميزات Copilot Premium.",
+    "systemPrompt": "أنت شريك الدعم الرسمي لمنصة Unverse AI. Unverse AI هي منصة Web3 حيث ينتج المبدعون المحتوى باستخدام الذكاء الاصطناعي ويشاركونه ويربحون باستخدام رموز ULC. يجب أن تكون لغتك الأساسية هي {locale} (ولكن أجب بلغة المستخدم إذا كتب بلغة أخرى). استخدم نبرة مهذبة ومفيدة وتقنية. معلومات أساسية: Copilot Premium هو 10 ULC شهرياً، ULC هي العملة الأساسية، التخزين يوفر دخلاً سلبياً، البيع المسبق مستمر، حد الحاوية 60 وسائط.",
+    "errorMsg": "عذراً، لا يمكنني الاتصال الآن. يرجى المحاولة مرة أخرى لاحقاً.",
+    "inputPlaceholder": "كيف يمكنني مساعدتك؟",
+    "thinking": "يفكر...",
+    "botName": "بوت Unverse",
+    "userName": "مبدع",
+    "statusOnline": "Neural Premium متصل"
   }
 }

@@ -143,7 +143,7 @@ export default function CommunityPage() {
                 topicId: selectedTopic.id,
                 content: newReplyContent,
                 authorId: walletAddress,
-                authorName: 'User ' + walletAddress.slice(0, 6)
+                authorName: walletAddress.slice(0, 6)
             });
             setNewReplyContent('');
         } catch (e) {
@@ -172,7 +172,7 @@ export default function CommunityPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="inline-block px-4 py-1.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-500 text-[10px] uppercase font-bold tracking-widest mb-4"
                 >
-                    Official Unity Hub
+                    {t('heroBadge')}
                 </motion.div>
                 <motion.h1 
                     initial={{ opacity: 0, y: 20 }}
@@ -222,23 +222,23 @@ export default function CommunityPage() {
                             <Milestone className="w-32 h-32 text-blue-400" />
                         </div>
                         <CardHeader className="pb-2">
-                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-400 border-none px-3 py-1 text-[10px] tracking-widest uppercase">Strategic Vision</Badge>
+                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-400 border-none px-3 py-1 text-[10px] tracking-widest uppercase">{t('roadmapBadge')}</Badge>
                             <CardTitle className="text-3xl font-headline font-bold">{t('roadmapTitle')}</CardTitle>
                             <CardDescription className="text-white/40 leading-relaxed text-sm">
-                                Explore our 4-phase journey to the Base Mainnet launch and ecosystem maturity.
+                                {t('roadmapDescLong')}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="pt-4 space-y-4">
                             <div className="space-y-2 opacity-60">
-                                <div className="flex items-center gap-2 text-xs font-bold text-blue-400"><Check className="w-3 h-3"/> PHASE 0: FOUNDATIONS</div>
-                                <div className="flex items-center gap-2 text-xs font-bold text-white"><Play className="w-3 h-3 text-yellow-400 animate-pulse"/> PHASE 1: GENESIS ERA</div>
-                                <div className="flex items-center gap-2 text-xs font-bold opacity-40">PHASE 2: EXPANSION & GROWTH</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-blue-400"><Check className="w-3 h-3"/> {t('phase0_short')}</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><Play className="w-3 h-3 text-yellow-400 animate-pulse"/> {t('phase1_short')}</div>
+                                <div className="flex items-center gap-2 text-xs font-bold opacity-40">{t('phase2_short')}</div>
                             </div>
                             <Button 
                                 onClick={() => setShowRoadmap(true)}
                                 className="w-full h-14 bg-blue-600 hover:bg-blue-700 font-bold gap-3 group"
                             >
-                                <FileText className="w-4 h-4"/> VIEW DETAILED ROADMAP
+                                <FileText className="w-4 h-4"/> {t('viewDetailedRoadmap')}
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
                             </Button>
                         </CardContent>
@@ -254,7 +254,7 @@ export default function CommunityPage() {
                             <FileText className="w-32 h-32 text-yellow-400" />
                         </div>
                         <CardHeader className="pb-2">
-                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[10px] tracking-widest uppercase">Technical Document</Badge>
+                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[10px] tracking-widest uppercase">{t('whitepaperBadge')}</Badge>
                             <CardTitle className="text-3xl font-headline font-bold">{t('whitepaperTitle')}</CardTitle>
                             <CardDescription className="text-white/40 leading-relaxed text-sm">
                                 {t('whitepaperDesc')}
@@ -262,9 +262,9 @@ export default function CommunityPage() {
                         </CardHeader>
                         <CardContent className="pt-4 space-y-4">
                             <div className="space-y-2 opacity-60">
-                                <div className="flex items-center gap-2 text-xs font-bold text-white"><ShieldCheck className="w-3 h-3 text-emerald-400"/> CORE ARCHITECTURE</div>
-                                <div className="flex items-center gap-2 text-xs font-bold text-white"><TrendingUp className="w-3 h-3 text-primary"/> ECONOMIC FLYWHEEL</div>
-                                <div className="flex items-center gap-2 text-xs font-bold text-white"><Lock className="w-3 h-3 text-blue-400"/> VESTING SCHEDULE</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><ShieldCheck className="w-3 h-3 text-emerald-400"/> {t('coreArchitecture')}</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><TrendingUp className="w-3 h-3 text-primary"/> {t('economicFlywheel')}</div>
+                                <div className="flex items-center gap-2 text-xs font-bold text-white"><Lock className="w-3 h-3 text-blue-400"/> {t('vestingSchedule')}</div>
                             </div>
                             <Button className="w-full h-14 bg-yellow-400 text-black font-bold gap-3 group">
                                 <FileText className="w-4 h-4"/> {t('readWhitepaper')}
@@ -286,7 +286,7 @@ export default function CommunityPage() {
                             <ShieldCheck className="w-24 h-24 text-blue-400" />
                         </div>
                         <CardHeader className="pb-2">
-                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">Investor Deck</Badge>
+                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">{t('investorBadge')}</Badge>
                             <CardTitle className="text-2xl font-headline font-bold">{t('investorTitle')}</CardTitle>
                             <CardDescription className="text-white/40 leading-relaxed text-xs">
                                 {t('investorDesc')}
@@ -310,7 +310,7 @@ export default function CommunityPage() {
                             <UsersIcon className="w-24 h-24 text-yellow-400" />
                         </div>
                         <CardHeader className="pb-2">
-                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">Creator Guide</Badge>
+                            <Badge className="w-fit mb-2 bg-yellow-400/20 text-yellow-400 border-none px-3 py-1 text-[8px] tracking-widest uppercase font-bold">{t('creatorBadgeShort')}</Badge>
                             <CardTitle className="text-2xl font-headline font-bold">{t('creatorTitle')}</CardTitle>
                             <CardDescription className="text-white/40 leading-relaxed text-xs">
                                 {t('creatorDesc')}
@@ -378,7 +378,7 @@ export default function CommunityPage() {
                         >
                             <div className="flex items-center justify-between">
                                 <Button variant="ghost" className="gap-2 text-white/50 hover:text-white" onClick={() => setSelectedCategory(null)}>
-                                    <ChevronLeft className="w-4 h-4"/> Back to Forums
+                                    <ChevronLeft className="w-4 h-4"/> {t('backToForums')}
                                 </Button>
                                 <Button 
                                     onClick={() => isConnected ? setIsCreatingTopic(true) : alert(t('connectToPost'))}
@@ -426,7 +426,7 @@ export default function CommunityPage() {
                             className="space-y-6"
                         >
                             <Button variant="ghost" className="gap-2 text-white/50 hover:text-white" onClick={() => setSelectedTopic(null)}>
-                                <ChevronLeft className="w-4 h-4"/> Back to Topics
+                                <ChevronLeft className="w-4 h-4"/> {t('backToTopics')}
                             </Button>
 
                             <Card className="glass-card p-6 border-yellow-400/20">
@@ -457,7 +457,7 @@ export default function CommunityPage() {
                                         <textarea 
                                             value={newReplyContent}
                                             onChange={(e) => setNewReplyContent(e.target.value)}
-                                            placeholder="Write your reply..."
+                                            placeholder={t('writeReplyPlaceholder')}
                                             className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm h-32 focus:ring-1 focus:ring-yellow-400 focus:outline-none transition-all"
                                         />
                                         <Button 
@@ -516,7 +516,7 @@ export default function CommunityPage() {
                                         variant="ghost" 
                                         className="h-14 flex-1 font-bold"
                                     >
-                                        Cancel
+                                        {t('cancel')}
                                     </Button>
                                     <Button 
                                         onClick={handleCreateTopic}
@@ -549,7 +549,7 @@ export default function CommunityPage() {
 
             {/* Footer Tag */}
             <div className="text-center pt-10">
-                <p className="text-[10px] uppercase tracking-[0.4em] opacity-20 font-bold">Unverse Unity Platform // Beta v1.0</p>
+                <p className="text-[10px] uppercase tracking-[0.4em] opacity-20 font-bold">{t('footerTag')}</p>
             </div>
         </div>
     );
