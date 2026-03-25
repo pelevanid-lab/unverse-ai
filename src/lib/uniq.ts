@@ -342,7 +342,8 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
         });
 
         if (!response.ok) {
-            throw new Error("Uniq couldn't enhance the prompt.");
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || "Uniq couldn't enhance the prompt.");
         }
 
         const data = await response.json();
