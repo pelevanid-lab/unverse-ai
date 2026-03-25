@@ -189,6 +189,27 @@ export async function POST(req: Request) {
         };
     }
 
+    // HELPER: Autonomous Translation Fail-safe
+    const autoTranslateToEnglish = async (text: string) => {
+        try {
+            const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+            if (!apiKey) return text;
+
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const body = {
+                contents: [{ parts: [{ text: `Translate this text to natural, cinematic English for an AI image prompt. Output ONLY the raw translation: "${text}"` }] }],
+                generationConfig: { temperature: 0.2 }
+            };
+            const response = await fetch(geminiUrl, { method: 'POST', body: JSON.stringify(body) });
+            if (!response.ok) return text;
+            const data = await response.json();
+            return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || text;
+        } catch (e) {
+            console.warn("Autonomous translation failed:", e);
+            return text;
+        }
+    };
+
     // 4. LINGUISTIC FIREWALL & VALIDATION (User Instruction 4)
     const containsTurkish = (text: string) => {
         const trChars = /[ğüşıöçĞÜŞİÖÇ]/;
@@ -196,8 +217,17 @@ export async function POST(req: Request) {
     };
 
     if (containsTurkish(finalPromptForAI)) {
-        console.error("Linguistic Firewall Triggered: Turkish remnants detected.", finalPromptForAI);
-        throw new Error("Linguistic Firewall: Non-English characters detected in final prompt. Please try again.");
+        console.warn("Linguistic Firewall: Turkish detected. Attempting autonomous translation...", finalPromptForAI);
+        const selfHealedPrompt = await autoTranslateToEnglish(finalPromptForAI);
+        
+        // Final check after healing
+        if (containsTurkish(selfHealedPrompt)) {
+             console.error("Linguistic Firewall: Self-healing failed. Turkish remnants still present.", selfHealedPrompt);
+             throw new Error("Linguistic Firewall: Non-English characters detected. Please provide your prompt in English or try a simpler Turkish description.");
+        }
+        
+        console.log("Linguistic Firewall: Self-healing successful.", selfHealedPrompt);
+        finalPromptForAI = selfHealedPrompt;
     }
 
     // SHARED LOGGING HELPER
