@@ -1,8 +1,8 @@
 
-version.thev.1.6.4 (The Evolution)
+genesisv1.0.6
 # Unverse: AI-Powered SocialFi Ecosystem
 
-**thev Update Summary:**
+**Update Summary:**
 This major release marks the transition to a fully autonomous and revenue-backed creator economy. 
 - **AI Creator Mode**: Direct monetization of AI-generated content with automated daily drafts.
 - **Economic Maturity**: Tier-based pricing for $ULC Presale and 0-month cliff for the Reserve Pool.
