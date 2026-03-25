@@ -111,7 +111,9 @@
     "sideRecumbent": "Side Recumbent",
     "leaningSilhouette": "Leaning Silhouette",
     "recliningPose": "Reclining",
-    "proActive": "Uniq Pro Active"
+    "proActive": "Uniq Pro Active",
+    "setProfilePhoto": "Set as profile photo",
+    "profilePhotoSuccess": "Profile photo updated!"
   },
   "Discover": {
     "featuredCreators": "Featured Creators",

@@ -111,7 +111,9 @@
     "sideRecumbent": "Лежа на боку",
     "leaningSilhouette": "Силуэт у стены",
     "recliningPose": "Откинувшись назад",
-    "proActive": "Uniq Pro Активен"
+    "proActive": "Uniq Pro Активен",
+    "setProfilePhoto": "Сделать фото профиля",
+    "profilePhotoSuccess": "Фото профиля обновлено!"
   },
   "Discover": {
     "featuredCreators": "Избранные Авторы",

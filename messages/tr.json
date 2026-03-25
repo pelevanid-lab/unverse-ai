@@ -111,7 +111,9 @@
     "sideRecumbent": "Yan Yatan",
     "leaningSilhouette": "Gölge Silüet",
     "recliningPose": "Arkaya Yaslanan",
-    "proActive": "Uniq Pro Aktif"
+    "proActive": "Uniq Pro Aktif",
+    "setProfilePhoto": "Profil fotoğrafım yap",
+    "profilePhotoSuccess": "Profil fotoğrafı güncellendi!"
   },
   "Discover": {
     "featuredCreators": "Öne Çıkan Yaratıcılar",

@@ -606,7 +606,7 @@ export default function AIMusePage() {
                     </Button>
                     <div>
                         <h1 className="text-4xl font-headline font-bold flex items-center gap-3">
-                            AI Muse <Badge className="bg-primary text-white">{t("fixedBadge")}</Badge>
+                            Uniq Muse <Badge className="bg-primary text-white">{t("fixedBadge")}</Badge>
                         </h1>
                         <p className="text-muted-foreground text-sm font-medium">{t("characterFixed")}</p>
                     </div>
@@ -661,9 +661,35 @@ export default function AIMusePage() {
                     </Card>
 
                     <Card className="bg-black/20 border-white/10 rounded-3xl p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Lock className="text-primary w-5 h-5" />
-                            <h4 className="font-bold">{t("uniqIntegration")}</h4>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <Lock className="text-primary w-5 h-5" />
+                                <h4 className="font-bold">{t("uniqIntegration")}</h4>
+                            </div>
+                            {user?.savedCharacter?.referenceImageUrl && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 rounded-xl text-[10px] font-bold border-primary/20 hover:bg-primary/10 gap-2"
+                                    onClick={async () => {
+                                        if (!user?.uid || !user?.savedCharacter?.referenceImageUrl) return;
+                                        setSaving(true);
+                                        try {
+                                            await updateDoc(doc(db, 'users', user.uid), {
+                                                avatar: user.savedCharacter.referenceImageUrl
+                                            });
+                                            toast({ title: t("profilePhotoSuccess"), description: tCommon("updateSuccess") });
+                                        } catch (e) {
+                                            toast({ variant: 'destructive', title: t("errorTitle"), description: tCommon("updateFailed") });
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                    disabled={saving}
+                                >
+                                    <User size={12} /> {t("setProfilePhoto")}
+                                </Button>
+                            )}
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                             {t("uniqIntegrationDesc")}

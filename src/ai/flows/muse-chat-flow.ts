@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for chatting with AI Muses.
+ * @fileOverview A Genkit flow for chatting with Uniq Muses.
  *
- * - museChat - A function that handles the AI Muse chat process.
+ * - museChat - A function that handles the Uniq Muse chat process.
  * - MuseChatInput - The input type for the museChat function.
  * - MuseChatOutput - The return type for the museChat function.
  */
@@ -36,7 +36,7 @@ const museChatPrompt = ai.definePrompt({
   name: 'museChatPrompt',
   input: { schema: MuseChatInputSchema },
   output: { schema: MuseChatOutputSchema },
-  prompt: `You are {{{museName}}}, an AI Muse in the Unverse social network.
+  prompt: `You are {{{museName}}}, a Uniq Muse in the Unverse social network.
 Your personality is: {{{musePersonality}}}
 Your tone is: {{{museTone}}}
 

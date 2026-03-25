@@ -1,8 +1,8 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for generating AI Muse avatar or post images.
+ * @fileOverview A Genkit flow for generating Uniq Muse avatar or post images.
  *
- * - generateMuseImage - A function that generates an image for an AI Muse.
+ * - generateMuseImage - A function that generates an image for a Uniq Muse.
  */
 
 import { ai } from '@/ai/genkit';

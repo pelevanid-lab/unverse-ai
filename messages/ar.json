@@ -111,7 +111,9 @@
     "sideRecumbent": "مستلقية على الجانب",
     "leaningSilhouette": "ظلال متكئة",
     "recliningPose": "وضعية الاستلقاء",
-    "proActive": "Uniq Pro نشط"
+    "proActive": "Uniq Pro نشط",
+    "setProfilePhoto": "تعيين كصورة للملف الشخصي",
+    "profilePhotoSuccess": "تم تحديث صورة الملف الشخصي!"
   },
   "Discover": {
     "featuredCreators": "المبدعون المميزون",
