@@ -20,6 +20,7 @@ import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useDisconnect } from 'wagmi';
 import { UserProfile } from '@/lib/types';
 import { getSystemConfig, recordTransaction, grantWelcomeBonus } from '@/lib/ledger';
+import { getSafeDefaultAvatar } from '@/lib/constants';
 
 let isUserCreationInProgress = false;
 
@@ -105,7 +106,7 @@ export function useWallet() {
             walletAddress: address,
             username: `Explorer_${address.slice(2, 8)}`,
             bio: "New citizen of the Unverse.",
-            avatar: `https://i.pravatar.cc/150?u=${address}`,
+            avatar: getSafeDefaultAvatar(address),
             ulcBalance: { available: 0, locked: 0, staked: 0, claimable: 0 },
             totalEarnings: 0,
             totalSpent: 0,

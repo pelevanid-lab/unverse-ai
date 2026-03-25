@@ -1,10 +1,10 @@
 {
   "Navbar": {
     "connect": "ربط المحفظة",
-    "mypage": "صفحتي",
-    "discover": "استكشاف",
+    "mypage": "يونيت",
+    "discover": "انفولد",
     "tokenomics": "اقتصاديات الرمز",
-    "staking": "الستيكينغ",
+    "staking": "انستيك",
     "community": "يونيتي",
     "comingSoon": "قريباً"
   },
@@ -298,7 +298,7 @@
     "statusOnline": "Neural Premium متصل"
   },
   "Discover": {
-    "title": "استكشاف",
+    "title": "انفولد",
     "feed": "خلاصة اليونيفيرس",
     "description": "اكتشف المبدعين المفضلين لديك ومحتواهم الحصري.",
     "rate": "سعر الصرف المباشر",
@@ -370,7 +370,7 @@
   "MyPage": {
     "dashboard": "لوحة التحكم",
     "dashboardDesc": "قم بربط محفظتك لإدارة ملفك الشخصي وأرباحك.",
-    "connectNow": "ربط المحفظة الآن",
+    "connectNow": "يونيت الآن",
     "disconnect": "قطع الاتصال",
     "creatorPanel": "لوحة المبدع",
     "becomeCreator": "كن مبدعاً",
@@ -408,7 +408,7 @@
     "settings": "الإعدادات",
     "containerTab": "الحاوية",
     "containerDesc": "إدارة الصور التي تم إنشاؤها والمسودات",
-    "copilotStudioTab": "استوديو كوبايلوت",
+    "copilotStudioTab": "يونيك ستوديو",
     "copilotStudioDesc": "مركز إنشاء وإدارة المحتوى",
     "publishedTab": "المحتوى المنشور",
     "publishedDesc": "إدارة منشوراتك العامة والمميزة",

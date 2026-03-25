@@ -13,7 +13,7 @@ import { db } from '@/lib/firebase';
 import { LedgerEntry } from '@/lib/types';
 import { useTranslations } from 'next-intl';
 
-const NON_GENDER_AVATAR = 'https://firebasestorage.googleapis.com/v0/b/unlonely-alpha.appspot.com/o/defaults%2Favatar_nongender.png?alt=media&token=e2587329-3733-4dc3-8ab3-71b04510b503';
+import { getSafeDefaultAvatar } from '@/lib/constants';
 
 export default function MyPage() {
   const t = useTranslations('MyPage');
@@ -56,7 +56,7 @@ export default function MyPage() {
   }
 
   const displayName = user.username;
-  const avatar = user.avatar || NON_GENDER_AVATAR;
+  const avatar = user.avatar || getSafeDefaultAvatar(user.uid || 'fallback');
   const bio = user.bio;
   const availableULC = user.ulcBalance?.available || 0;
 
