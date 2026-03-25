@@ -9,7 +9,11 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && (
+        request.auth.uid == userId || 
+        (resource != null && resource.data.authUid == request.auth.uid) ||
+        (request.resource != null && request.resource.data.authUid == request.auth.uid)
+      );
     }
 
     function isAdmin() {
