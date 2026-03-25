@@ -96,7 +96,10 @@ export const optimizeMedia = onObjectFinalized({ timeoutSeconds: 540, memory: "1
         const optimizedFilePath = path.join(path.dirname(filePath), newFileName);
         await storageBucket.upload(optimizedTempPath, {
             destination: optimizedFilePath,
-            metadata: { contentType: newContentType },
+            metadata: { 
+                contentType: newContentType,
+                cacheControl: 'public, max-age=86400' 
+            },
         });
 
         // Use publicUrl or simple formatting to avoid getSignedUrl crash if possible
@@ -210,7 +213,7 @@ export const getPostMedia = onCall({ memory: "256MiB" }, async (request) => {
 
         const [url] = await bucket.file(storagePath).getSignedUrl({
             action: 'read',
-            expires: Date.now() + 60 * 60 * 1000, 
+            expires: Date.now() + 24 * 60 * 60 * 1000, // Extend to 24 hours
         });
 
         return { url };
@@ -222,6 +225,80 @@ export const getPostMedia = onCall({ memory: "256MiB" }, async (request) => {
         });
         throw new HttpsError("internal", `Secure URL generation failed. Role needed: 'Service Account Token Creator' for the current service account. Error: ${err.message}`);
     }
+});
+
+/**
+ * BATCH SECURE MEDIA ACCESS: Generates signed URLs for multiple posts.
+ */
+export const getPostsMedia = onCall({ memory: "512MiB" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+    const { postIds } = request.data;
+    if (!postIds || !Array.isArray(postIds)) throw new HttpsError("invalid-argument", "postIds array is required.");
+
+    const userId = request.auth.uid;
+    const userDocResult = await getUserDoc(db, userId);
+    const userWallet = userDocResult?.data?.walletAddress || userDocResult?.ref?.id;
+
+    const results: { [postId: string]: string } = {};
+    const bucket = admin.storage().bucket();
+
+    // Process in batches to avoid overwhelming Firestore or Storage
+    for (const postId of postIds) {
+        try {
+            const postSnap = await db.collection("posts").doc(postId).get();
+            if (!postSnap.exists) continue;
+
+            const postData = postSnap.data() as any;
+            const creatorId = postData.creatorId;
+
+            let hasAccess = userId === creatorId || userWallet?.toLowerCase() === creatorId?.toLowerCase(); 
+            
+            if (!hasAccess) {
+                const creatorDocResult = await getUserDoc(db, creatorId);
+                const creatorUid = creatorDocResult?.data?.uid || creatorId;
+                const creatorWallet = creatorDocResult?.data?.walletAddress || creatorId;
+
+                const subSnap = await db.collection("subscriptions")
+                    .where("userId", "==", userId)
+                    .where("creatorId", "in", [creatorUid, creatorWallet])
+                    .where("status", "==", "active")
+                    .limit(1).get();
+                
+                if (!subSnap.empty) hasAccess = true;
+                
+                if (!hasAccess) {
+                    const unlockSnap = await db.collection("ledger")
+                        .where("fromUserId", "==", userId)
+                        .where("type", "==", "premium_unlock")
+                        .where("referenceId", "==", postId)
+                        .limit(1).get();
+                    if (!unlockSnap.empty) hasAccess = true;
+                }
+            }
+
+            if (hasAccess) {
+                let storagePath = postData.mediaUrl;
+                if (storagePath.startsWith("http")) {
+                    const decoded = decodeURIComponent(storagePath);
+                    if (decoded.includes("/o/")) {
+                        storagePath = decoded.split("/o/")[1].split("?")[0];
+                    } else if (decoded.includes(bucket.name)) {
+                        storagePath = decoded.split(bucket.name + "/")[1]?.split("?")[0] || storagePath;
+                    }
+                }
+
+                const [url] = await bucket.file(storagePath).getSignedUrl({
+                    action: 'read',
+                    expires: Date.now() + 24 * 60 * 60 * 1000, 
+                });
+                results[postId] = url;
+            }
+        } catch (e) {
+            logger.error(`Batch signing failed for post ${postId}:`, e);
+        }
+    }
+
+    return results;
 });
 
 export const createVestingSchedule_v2 = onCall({ memory: "256MiB" }, async (request) => {

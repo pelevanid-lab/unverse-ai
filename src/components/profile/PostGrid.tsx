@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { PromoCarousel } from '@/components/discover/PromoCarousel';
 import { VideoPreview } from '@/components/ui/VideoPreview';
 import { useTranslations } from 'next-intl';
+import { getPostsMediaAction } from '@/lib/ledger';
+
 
 interface PostGridProps {
   postsToShow: ContentPost[];
@@ -25,6 +27,33 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
   const [postCreator, setPostCreator] = useState<UserProfile | null>(null);
   const { user } = useWallet();
   const [columns, setColumns] = useState(4);
+  const [signedUrls, setSignedUrls] = useState<{ [postId: string]: string }>({});
+
+  useEffect(() => {
+    async function preSignUrls() {
+        if (!user || postsToShow.length === 0) return;
+        
+        // Only pre-sign posts the user has access to and that are not public (public ones use direct URLs)
+        const postsToSign = postsToShow.filter(post => {
+            const isOwner = user?.uid === post.creatorId;
+            const isUnlocked = unlockedPostIds.includes(post.id);
+            const isSubscribed = subscribedToCreatorIds.includes(post.creatorId || '');
+            const hasAccess = isOwner || isUnlocked || isSubscribed;
+            return hasAccess && post.contentType !== 'public' && !signedUrls[post.id];
+        }).map(p => p.id);
+
+        if (postsToSign.length === 0) return;
+
+        try {
+            const urls = await getPostsMediaAction(postsToSign);
+            setSignedUrls(prev => ({ ...prev, ...urls }));
+        } catch (error) {
+            console.error("Pre-signing failed:", error);
+        }
+    }
+
+    preSignUrls();
+  }, [postsToShow, user, unlockedPostIds, subscribedToCreatorIds]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -87,15 +116,26 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
       >
           {/* Media Layer */}
           <div className="absolute inset-0 bg-muted/30">
-              {post.mediaUrl && canViewContent ? (
-                  post.mediaType === 'image' || !post.mediaType ? (
-                      <img src={post.mediaUrl} alt="post" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" />
-                  ) : (
-                    <VideoPreview 
-                        src={post.mediaUrl} 
-                        className="transition-all duration-700 group-hover:scale-110" 
-                    />
-                  )
+              {post.mediaUrl && (canViewContent || post.contentType === 'public') ? (
+                  (() => {
+                      const displayUrl = signedUrls[post.id] || (post.contentType === 'public' ? post.mediaUrl : null);
+                      if (!displayUrl && post.contentType !== 'public') {
+                          return (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <img src={post.mediaUrl} className="w-full h-full object-cover blur-2xl opacity-40" alt="loading preview" />
+                                <Sparkles className="w-6 h-6 text-primary/40 animate-pulse" />
+                            </div>
+                          );
+                      }
+                      return (post.mediaType === 'image' || !post.mediaType) ? (
+                          <img src={displayUrl || post.mediaUrl} alt="post" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 opacity-100" />
+                      ) : (
+                        <VideoPreview 
+                            src={displayUrl || post.mediaUrl} 
+                            className="transition-all duration-700 group-hover:scale-110" 
+                        />
+                      );
+                  })()
               ) : (
                   // Placeholder for locked content - No mediaUrl in src for security
                   <div className="w-full h-full bg-gradient-to-br from-primary/5 via-primary/10 to-transparent flex items-center justify-center">
@@ -176,6 +216,7 @@ export function PostGrid({ postsToShow, subscribedToCreatorIds = [], unlockedPos
           unlockedPostIds={unlockedPostIds}
           onClose={handleCloseModal}
           onPostUnlocked={onPostUnlocked}
+          initialSecureUrl={signedUrls[selectedPost.id]}
         />
       )}
     </>

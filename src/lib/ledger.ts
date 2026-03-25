@@ -343,6 +343,17 @@ export async function getPostMediaAction(postId: string): Promise<{ url: string 
     return result.data as { url: string };
 }
 
+/**
+ * Retrieves secure 24-hour signed URLs for multiple posts in a batch
+ */
+export async function getPostsMediaAction(postIds: string[]): Promise<{ [postId: string]: string }> {
+    if (!postIds || postIds.length === 0) return {};
+    const getMediaFunc = httpsCallable(functions, 'getPostsMedia');
+    const result = await getMediaFunc({ postIds });
+    return result.data as { [postId: string]: string };
+}
+
+
 export async function syncSystemConfigAction() {
     const configRef = doc(db, 'config', 'system');
     

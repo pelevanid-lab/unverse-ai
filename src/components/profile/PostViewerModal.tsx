@@ -25,9 +25,10 @@ interface PostViewerModalProps {
   unlockedPostIds: string[];
   onClose: () => void;
   onPostUnlocked: (postId: string) => void;
+  initialSecureUrl?: string;
 }
 
-export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, onClose, onPostUnlocked }: PostViewerModalProps) {
+export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, onClose, onPostUnlocked, initialSecureUrl }: PostViewerModalProps) {
   const { user: currentUser, isConnected } = useWallet();
   const { toast } = useToast();
   const router = useRouter();
@@ -37,7 +38,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
   const tWallet = useTranslations('Wallet');
   const [unlocking, setUnlocking] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
-  const [secureMediaUrl, setSecureMediaUrl] = useState<string | null>(null);
+  const [secureMediaUrl, setSecureMediaUrl] = useState<string | null>(initialSecureUrl || null);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [serialNumber, setSerialNumber] = useState<number | null>(null);
   const overlayTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -67,9 +68,12 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
     async function fetchSecureMedia() {
         if (!canViewMedia || !post.id || !currentUser) return;
         
+        // If we already have a secure URL, don't fetch it again
+        if (secureMediaUrl) return;
+
         setLoadingMedia(true);
         try {
-            // 1. Fetch Secure 30-min URL
+            // 1. Fetch Secure 24-hour URL
             const { url } = await getPostMediaAction(post.id);
             setSecureMediaUrl(url);
 
@@ -200,9 +204,20 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                     )}
                 </div>
             ) : (loadingMedia ? (
-                <div className="flex flex-col items-center gap-4 text-white/50">
-                    <Loader2 className="animate-spin w-12 h-12" />
-                    <p className="text-sm font-medium animate-pulse">{t('securingMedia')}</p>
+                <div className="relative flex flex-col items-center justify-center w-full h-full">
+                    {post.mediaUrl && (
+                        <div className="absolute inset-0 z-0 opacity-40">
+                            <img 
+                                src={post.mediaUrl} 
+                                className="w-full h-full object-contain blur-[40px] animate-pulse" 
+                                alt="Loading..." 
+                            />
+                        </div>
+                    )}
+                    <div className="relative z-10 flex flex-col items-center gap-4 text-white/80">
+                        <div className="w-16 h-16 rounded-full border-t-2 border-primary animate-spin" />
+                        <p className="text-sm font-bold tracking-widest uppercase animate-pulse">{t('securingMedia')}</p>
+                    </div>
                 </div>
             ) : mediaUrl && (
                 isImage ? (
@@ -221,11 +236,12 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
                 )
             ))}
             
-            {!canViewMedia && mediaUrl && (
+            {(!canViewMedia || loadingMedia) && mediaUrl && (
                 <div className="absolute inset-0 -z-10 opacity-40">
                     <img src={mediaUrl} className="w-full h-full object-cover blur-[100px]" alt="preview" />
                 </div>
             )}
+
           </div>
 
           <div className={`absolute inset-0 z-20 transition-opacity duration-300 pointer-events-none ${isOverlayVisible ? 'opacity-100' : 'opacity-0'}`}>
