@@ -317,6 +317,7 @@ export interface ContentPost {
     isAI?: boolean;
     aiPrompt?: string;
     aiEnhancedPrompt?: string;
+    isAdvanced?: boolean;
 }
 
 export interface CreatorMedia {
@@ -340,6 +341,7 @@ export interface CreatorMedia {
     aiPrompt?: string;
     aiEnhancedPrompt?: string;
     source?: 'ai_auto' | 'user';
+    isAdvanced?: boolean;
 }
 
 export interface GroupedLedgerEntry {

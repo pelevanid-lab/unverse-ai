@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   try {
     const json = await req.json();
-    const { prompt, enhancedPrompt, translation, originalEnhancedPrompt, negativePrompt, userId, image, mask, character, outfit, imageUrls, isMasterPreview, seed, isFreeArt, sceneLock, sceneType } = json;
+    const { prompt, enhancedPrompt, translation, originalEnhancedPrompt, negativePrompt, userId, image, mask, character, outfit, imageUrls, isMasterPreview, seed, isFreeArt, sceneLock, sceneType, isAdvanced } = json;
     cost = json.cost || 5; 
 
     // 1. IDENTITY ANCHORS (Digital Twin 3.0)
@@ -247,10 +247,11 @@ export async function POST(req: Request) {
           idMode: isIdentityLocked ? (isFreeArt ? 'free-art-lock' : 'pulid-character') : 'none',
           idWeight: isIdentityLocked ? id_weight : 0,
           shotType: shotType,
-          guidanceScale: isIdentityLocked ? 7.0 : (isFreeArt ? 2.5 : 7.5),
-          isReferenceActive: !!imageToUseForTwin
-        };
-        return await addDoc(collection(db, 'ai_generation_logs'), logData);
+           guidanceScale: isIdentityLocked ? 7.0 : (isFreeArt ? 2.5 : 7.5),
+           isReferenceActive: !!imageToUseForTwin,
+           isAdvanced: !!isAdvanced
+         };
+         return await addDoc(collection(db, 'ai_generation_logs'), logData);
     };
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY UNIQ ENGINE
@@ -273,11 +274,11 @@ export async function POST(req: Request) {
         body: JSON.stringify({
             prompt: finalPromptForAI,
             reference_image_url: imageToUseForTwin, // Use primary image as as as main reference
-            num_inference_steps: 40,
-            guidance_scale: 7.0, // Optimized for for cinematic richness with with with Uniq Engine
             id_weight: id_weight, // 🚀 ADAPTIVE STRENGTH
             seed: finalSeed,
-            negative_prompt: userNegativePrompt
+            negative_prompt: userNegativePrompt,
+            num_inference_steps: isAdvanced ? 50 : 40, // 🚀 UNIQ PRO: More steps for extreme detail
+            guidance_scale: isAdvanced ? 8.0 : 7.0     // 🚀 UNIQ PRO: Slightly higher guidance
         })
       });
 

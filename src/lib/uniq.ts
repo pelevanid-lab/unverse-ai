@@ -199,7 +199,11 @@ export class Uniq {
                 sitting: "relaxed seated pose",
                 turning: "body slightly turning",
                 looking_away: "gaze away from camera",
-                interaction: "interacting with object (glass, hair, or clothing)"
+                interaction: "interacting with object (glass, hair, or clothing)",
+                // 🌟 UNIQ PRO ADVANCED MAPPINGS
+                changeOutfit: "change to a different stylish outfit that complements the setting",
+                semiNude: "semi-nude aesthetic, extremely skimpy and provocative lingerie, seductive pose, revealing attire, exotic vibe",
+                wetLook: "wet look, glistening wet skin, damp hair, water droplets on body, high-gloss skin texture"
             },
             lighting: {
                 golden_hour: "warm golden hour lighting",
@@ -230,10 +234,18 @@ export class Uniq {
         // Layer C: Strict Photoshoot Reinforcement (The Fix)
         
         const sceneLock = params.sceneLock;
-        const outfitAnchor = sceneLock?.outfitSummary ? `OUTFIT: ${sceneLock.outfitSummary}` : "identical clothing";
+        const isAdvanced = !!(params.presets as any).isAdvanced;
+        
+        // 🧬 CLOTHING LOCK BYPASS: If advanced mode is requesting an outfit change or semi-nudity
+        const bypassClothingLock = isAdvanced && (params.presets.action === 'changeOutfit' || params.presets.action === 'semiNude' || params.presets.action === 'wetLook');
+        
+        const outfitAnchor = bypassClothingLock 
+            ? "OUTFIT: modified based on directive" 
+            : (sceneLock?.outfitSummary ? `OUTFIT: ${sceneLock.outfitSummary}` : "identical clothing");
+            
         const envAnchor = sceneLock?.environmentSummary ? `LOCATION: ${sceneLock.environmentSummary}` : "identical surroundings";
         
-        const finalPrompt = `${variationMod}. Same photoshoot, ${outfitAnchor}, ${envAnchor}, same lighting, same location: ${params.originalPrompt}. STRICT RULE: do not change environment, outfit, lighting setup or character identity.`;
+        const finalPrompt = `${variationMod}. Same photoshoot, ${outfitAnchor}, ${envAnchor}, same lighting, same location: ${params.originalPrompt}. STRICT RULE: do not change environment ${bypassClothingLock ? '' : 'or outfit'}, lighting setup or character identity.`;
 
         return { enhancedPrompt: finalPrompt };
     }

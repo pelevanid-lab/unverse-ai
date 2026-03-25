@@ -62,6 +62,8 @@ export default function AIMusePage() {
     const [isVariationMode, setIsVariationMode] = useState(false)
     const [currentSceneLock, setCurrentSceneLock] = useState<SceneLock | null>(null)
     const [detectedSceneType, setDetectedSceneType] = useState<string | null>(null)
+    const [isAdvancedMode, setIsAdvancedMode] = useState(false)
+    const [lastResultIsAdvanced, setLastResultIsAdvanced] = useState(false)
 
     useEffect(() => {
         if (user?.savedCharacter) {
@@ -299,7 +301,7 @@ export default function AIMusePage() {
             const lock = SceneRuleEngine.generateSceneLock(data.finalAuditPrompt || enhancedPrompt, sceneType, dna);
             setCurrentSceneLock(lock);
             setDetectedSceneType(sceneType);
-
+            setLastResultIsAdvanced(false); // Initial generation is standard
             setLastResult(data.mediaUrl)
             setLogId(data.logId)
             setLastSeed(data.seed)
@@ -349,6 +351,7 @@ export default function AIMusePage() {
                     character: user.savedCharacter,
                     sceneLock: currentSceneLock,
                     sceneType: detectedSceneType,
+                    isAdvanced: isAdvancedMode,
                     cost: 5 // Variations are 5 ULC
                 })
             })
@@ -357,6 +360,7 @@ export default function AIMusePage() {
             const data = await response.json()
             
             setLastResult(data.mediaUrl)
+            setLastResultIsAdvanced(isAdvancedMode)
             setLogId(data.logId)
             setLastSeed(data.seed)
             setLastEnhancedPrompt(data.finalAuditPrompt)
@@ -379,6 +383,7 @@ export default function AIMusePage() {
                 mediaUrl: lastResult,
                 mediaType: 'image',
                 category: 'ai_muse',
+                isAdvanced: lastResultIsAdvanced,
                 createdAt: Date.now(),
                 status: 'draft'
             })
@@ -894,6 +899,78 @@ export default function AIMusePage() {
                                     </Button>
                                 ))}
                             </div>
+                        </div>
+
+                        {/* 🌟 UNIQ PRO / ADVANCED MODE (YELLOW TRIGGER) */}
+                        <div className="md:col-span-2 mt-4 space-y-4 border-t border-white/10 pt-6">
+                            <div className="flex items-center justify-between bg-yellow-500/5 border border-yellow-500/20 p-4 rounded-2xl">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500",
+                                        isAdvancedMode ? "bg-yellow-500 shadow-lg shadow-yellow-500/40 rotate-12" : "bg-yellow-500/20"
+                                    )}>
+                                        <Star className={cn("w-5 h-5", isAdvancedMode ? "text-black fill-current" : "text-yellow-500")} />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <h4 className="text-sm font-bold text-yellow-500 uppercase tracking-widest leading-none mb-1">Uniq Pro Engine</h4>
+                                        <p className="text-[10px] text-muted-foreground">{t("unlockProDesc")}</p>
+                                    </div>
+                                </div>
+                                <Button 
+                                    variant={isAdvancedMode ? 'default' : 'outline'}
+                                    className={cn(
+                                        "h-10 rounded-xl px-4 font-bold transition-all",
+                                        isAdvancedMode ? "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500" : "border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
+                                    )}
+                                    onClick={() => setIsAdvancedMode(!isAdvancedMode)}
+                                >
+                                    {isAdvancedMode ? t("proActive") : t("unlockPro")}
+                                </Button>
+                            </div>
+
+                            {isAdvancedMode && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-500">
+                                    {/* CLOTHING FLEXIBILITY */}
+                                    <div className="space-y-3 p-4 bg-black/40 border border-white/5 rounded-2xl">
+                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <Layers className="w-3 h-3" /> {t("clothingFlex")}
+                                        </Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['changeOutfit', 'semiNude', 'wetLook'].map(key => (
+                                                <Button
+                                                    key={key}
+                                                    variant={selectedPresets.action === key ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    className={cn("h-9 rounded-lg text-[9px] font-bold uppercase", selectedPresets.action === key ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/40" : "hover:bg-white/5")}
+                                                    onClick={() => setSelectedPresets(prev => ({ ...prev, action: prev.action === key ? undefined : key }))}
+                                                >
+                                                    {t(key)}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* EXOTIC POSES */}
+                                    <div className="space-y-3 p-4 bg-black/40 border border-white/5 rounded-2xl">
+                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                            <Heart className="w-3 h-3" /> {t("eroticPoses")}
+                                        </Label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['seductive', 'mysterious', 'confident'].map(key => (
+                                                <Button
+                                                    key={key}
+                                                    variant={selectedPresets.mood === key ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    className={cn("h-9 rounded-lg text-[9px] font-bold uppercase", selectedPresets.mood === key ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/40" : "hover:bg-white/5")}
+                                                    onClick={() => setSelectedPresets(prev => ({ ...prev, mood: prev.mood === key ? undefined : key }))}
+                                                >
+                                                    {t(`dir_${key}`)}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

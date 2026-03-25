@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles, Video } from 'lucide-react';
+import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles, Video, Star } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -58,6 +58,11 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
         // Get suggestion for this media (V2)
         const suggestion = uniq.getMonetizationSuggestion(media.prompt || media.aiPrompt || "", !!media.isAI);
         setMonetizationSuggestion(suggestion);
+
+        // 🛡️ ADVANCED CONTENT PROTECTION: Force Premium/Limited if tagged
+        if (media.isAdvanced && contentType === 'public') {
+          setContentType('premium');
+        }
       });
     }
   }, [user?.uid, media.id]);
@@ -276,16 +281,26 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
               <div className="space-y-3">
                 <Label className='text-sm font-bold uppercase tracking-wider text-muted-foreground'>{t('contentType')}</Label>
                 <RadioGroup value={contentType} onValueChange={(v) => setContentType(v as PostContentType)} className="grid grid-cols-1 gap-2">
-                  <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-                    <RadioGroupItem value="public" id="public" />
-                    <Label htmlFor="public" className="flex-1 cursor-pointer flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-green-400" />
-                      <div className="flex flex-col">
-                        <span className="font-bold">{t('public')}</span>
-                        <span className="text-[10px] opacity-60">{t('publicDesc')}</span>
-                      </div>
-                    </Label>
-                  </div>
+                  {!media.isAdvanced && (
+                    <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
+                      <RadioGroupItem value="public" id="public" />
+                      <Label htmlFor="public" className="flex-1 cursor-pointer flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-green-400" />
+                        <div className="flex flex-col">
+                          <span className="font-bold">{t('public')}</span>
+                          <span className="text-[10px] opacity-60">{t('publicDesc')}</span>
+                        </div>
+                      </Label>
+                    </div>
+                  )}
+                  {media.isAdvanced && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl mb-1">
+                      <p className="text-[10px] font-bold text-yellow-500 uppercase flex items-center gap-2">
+                        <Star className="w-3 h-3 fill-current" /> {t('proContentRestriction') || "Uniq Pro İçerik Kısıtlaması"}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground mt-1">Bu içerik sadece Premium veya Limited olarak yayınlanabilir.</p>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2 bg-white/5 p-3 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                     <RadioGroupItem value="premium" id="premium" />
                     <Label htmlFor="premium" className="flex-1 cursor-pointer flex items-center gap-2">
