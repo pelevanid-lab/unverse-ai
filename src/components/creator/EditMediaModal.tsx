@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useTranslations, useLocale } from 'next-intl';
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 import { useEffect } from 'react';
 
 interface EditMediaModalProps {
@@ -49,14 +49,14 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
 
-  const copilot = new Copilot(user?.uid || '');
+  const uniq = new Uniq(user?.uid || '');
 
   // 🚀 Smart Flow: Auto-check for monetization suggestions (Images only)
   useEffect(() => {
     if (user?.uid) {
-      copilot.init().then(() => {
+      uniq.init().then(() => {
         // Get suggestion for this media (V2)
-        const suggestion = copilot.getMonetizationSuggestion(media.prompt || media.aiPrompt || "", !!media.isAI);
+        const suggestion = uniq.getMonetizationSuggestion(media.prompt || media.aiPrompt || "", !!media.isAI);
         setMonetizationSuggestion(suggestion);
       });
     }
@@ -66,9 +66,9 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
     if (!media.mediaUrl || media.mediaType !== 'image') return;
     setIsGeneratingCaption(true);
     try {
-      await copilot.init();
+      await uniq.init();
       const promptToUse = media.prompt || media.aiPrompt || "";
-      const generatedCaption = await copilot.generateContainerCopy({
+      const generatedCaption = await uniq.generateContainerCopy({
         imageUrl: media.mediaUrl,
         contentType,
         originalPrompt: promptToUse,
@@ -236,7 +236,7 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                 <Textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} placeholder={t('captionPlaceholder')} className="bg-input/50 resize-none h-24" maxLength={280} />
               </div>
 
-              {/* Copilot V2: Monetization Intelligence */}
+              {/* Uniq V2: Monetization Intelligence */}
               {monetizationSuggestion && (
                 <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in transition-all">
                   <div className="flex items-center justify-between">

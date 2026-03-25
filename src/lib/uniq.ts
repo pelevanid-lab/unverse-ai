@@ -17,7 +17,7 @@ import { UserProfile, AIGenerationLog, CharacterProfile, AIPreference, Onboardin
 import { processAiCreatorActivation, processAiCreatorGeneration } from './ledger';
 import { SceneRuleEngine } from './scene-engine';
 
-export class Copilot {
+export class Uniq {
     private userId: string;
     private user: UserProfile | null = null;
 
@@ -26,7 +26,7 @@ export class Copilot {
     }
 
     /**
-     * Initializes the Copilot by fetching user profile and current learning state.
+     * Initializes the Uniq engine by fetching user profile and current learning state.
      */
     async init() {
         const userRef = doc(db, 'users', this.userId);
@@ -305,7 +305,7 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
         });
 
         if (!response.ok) {
-            throw new Error("Copilot couldn't enhance the prompt.");
+            throw new Error("Uniq couldn't enhance the prompt.");
         }
 
         const data = await response.json();
@@ -596,7 +596,7 @@ Output ONLY the caption text.`;
     async generateDailyDraft(options?: { baseUrl?: string }): Promise<string> {
         const now = Date.now();
         if (!this.user?.aiCreatorModeExpiresAt || this.user.aiCreatorModeExpiresAt < now) {
-            throw new Error("AI Copilot subscription is inactive or expired.");
+            throw new Error("Uniq Premium subscription is inactive or expired.");
         }
         
         // 🎯 RELAXED LOCK: 8:00 AM Reset Milestone

@@ -3,28 +3,28 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-const CreatorCopilotInputSchema = z.object({
+const CreatorUniqInputSchema = z.object({
   idea: z.string().describe('The short idea or context provided by the creator.'),
   contentType: z.enum(['public', 'premium', 'limited']).describe('The type of content being created.'),
   creatorName: z.string().optional().describe('The name of the creator for personalization.'),
 });
 
-const CreatorCopilotOutputSchema = z.object({
+const CreatorUniqOutputSchema = z.object({
   caption: z.string().describe('A catchy social media caption based on the idea.'),
   teaser: z.string().describe('A short, intriguing teaser specifically for gated content.'),
   suggestedPriceULC: z.number().describe('A suggested price in ULC based on the idea and content type.'),
   explanation: z.string().describe('A brief explanation of why this price was suggested.'),
 });
 
-export const creatorCopilotFlow = ai.defineFlow(
+export const creatorUniqFlow = ai.defineFlow(
   {
-    name: 'creatorCopilotFlow',
-    inputSchema: CreatorCopilotInputSchema,
-    outputSchema: CreatorCopilotOutputSchema,
+    name: 'creatorUniqFlow',
+    inputSchema: CreatorUniqInputSchema,
+    outputSchema: CreatorUniqOutputSchema,
   },
   async (input) => {
     const prompt = `
-      You are an AI Creator Copilot for Unverse, a SocialFi platform.
+      You are Uniq Engine for Unverse, a SocialFi platform.
       Your goal is to help creators craft high-performing content descriptions and pricing strategies.
 
       Creator Name: ${input.creatorName || 'A talented creator'}

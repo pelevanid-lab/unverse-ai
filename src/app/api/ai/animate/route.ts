@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         throw payErr;
     }
 
-    // 4. Fal.ai Animation (Kling Video)
+    // 4. Uniq Engine Animation (Powered by Orchestrator)
     const falKey = process.env.FAL_API_KEY;
     if (!falKey) {
         throw new Error("FAL_API_KEY is missing on server.");
@@ -58,14 +58,14 @@ export async function POST(req: Request) {
 
     if (!response.ok) {
         const errData = await response.json();
-        throw new Error(`Fal.ai Animate Error: ${errData.detail || response.statusText}`);
+        throw new Error(`Uniq Engine Animate Error: ${errData.detail || response.statusText}`);
     }
 
     const result = await response.json();
-    const videoUrl = result.video?.url || result.images?.[0]?.url; // Fal sometimes wraps differently
+    const videoUrl = result.video?.url || result.images?.[0]?.url; // Engine sometimes wraps differently
 
     if (!videoUrl) {
-        throw new Error("Fal.ai returned no video URL.");
+        throw new Error("Uniq Engine returned no video URL.");
     }
 
     // 5. Download & Store to Firebase (MP4)
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
         mediaType: 'video',
         paymentReference: ledgerId,
         timestamp: serverTimestamp(),
-        tags: ["animation", "kling"]
+        tags: ["animation", "uniq-animate"]
     });
 
     return NextResponse.json({ 

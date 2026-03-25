@@ -122,7 +122,7 @@ const creator_v3 = {
     {
       id: "cre-4",
       order: 4,
-      title: "Unverse Copilot",
+      title: "Unverse Uniq",
       description: "Your AI manager.",
       bullets: [
         "content optimization",

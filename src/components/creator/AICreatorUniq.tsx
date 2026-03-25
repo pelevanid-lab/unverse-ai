@@ -6,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Wand2, Lightbulb, Coins, RotateCcw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { generateCaption } from '@/lib/CopilotEngine';
+import { generateCaption } from '@/lib/UniqEngine';
 
-interface AICreatorCopilotProps {
+interface AICreatorUniqProps {
     contentType: 'public' | 'premium' | 'limited';
     creatorName: string;
     onApply: (data: { caption: string; price?: number }) => void;
 }
 
-export function AICreatorCopilot({ contentType, creatorName, onApply }: AICreatorCopilotProps) {
+export function AICreatorUniq({ contentType, creatorName, onApply }: AICreatorUniqProps) {
     const [result, setResult] = useState<string | null>(null);
 
     const handleGenerate = () => {

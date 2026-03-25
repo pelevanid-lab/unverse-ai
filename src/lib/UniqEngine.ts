@@ -1,7 +1,7 @@
 import { CharacterProfile } from "./types";
 
 /**
- * CopilotEngine.ts
+ * UniqEngine.ts
  * Simplified to ensure user prompt is the absolute primary instruction.
  */
 
@@ -101,7 +101,7 @@ export function buildPrompt(
         .filter(s => s.length > 0)
         .join(", ");
 
-    console.log("--- AI STUDIO 2.0 (COPILOT ENGINE) ---");
+    console.log("--- AI STUDIO 2.0 (UNIQ ENGINE) ---");
     console.log("INPUT:", userInput);
     if (lockedOutfit) console.log("OUTFIT LOCK:", lockedOutfit);
     console.log("FINAL:", finalPrompt);

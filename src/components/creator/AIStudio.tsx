@@ -15,14 +15,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { buildPrompt, PromptStyle, CompositionMode } from '@/lib/CopilotEngine';
+import { buildPrompt, PromptStyle, CompositionMode } from '@/lib/UniqEngine';
 import { CharacterProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslations, useLocale } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 import { cn } from '@/lib/utils';
 
 type StudioMode = 'standard' | 'digitalTwin' | 'aiEdit';
@@ -108,18 +108,18 @@ export function AIStudio() {
     const [enhancedPromptUsed, setEnhancedPromptUsed] = useState<string | null>(null);
     const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
     const [smartMode, setSmartMode] = useState(true);
-    const [copilotRecommendation, setCopilotRecommendation] = useState<{ action: string, message: string, cta: string } | null>(null);
+    const [uniqRecommendation, setUniqRecommendation] = useState<{ action: string, message: string, cta: string } | null>(null);
     const [monetizationSuggestion, setMonetizationSuggestion] = useState<{ premiumPrice: number, limitedPrice: number, limitedSupply: number, score: number, recommendation: string } | null>(null);
     const [lastNegativePrompt, setLastNegativePrompt] = useState<string | null>(null);
     const [lastTranslation, setLastTranslation] = useState<string | null>(null);
     const [isDailyDraftLoading, setIsDailyDraftLoading] = useState(false);
 
-    const copilot = new Copilot(user?.uid || '');
+    const uniq = new Uniq(user?.uid || '');
 
     useEffect(() => {
         if (user?.uid) {
-            copilot.init().then(() => {
-                setCopilotRecommendation(copilot.getNextActionRecommendation());
+            uniq.init().then(() => {
+                setUniqRecommendation(uniq.getNextActionRecommendation());
             });
         }
     }, [user?.uid]);
@@ -128,8 +128,8 @@ export function AIStudio() {
         if (!logId) return;
         setSatisfactionScore(score);
         try {
-            await copilot.init();
-            await copilot.logInteraction({
+            await uniq.init();
+            await uniq.logInteraction({
                 id: logId,
                 satisfactionScore: score
             });
@@ -197,8 +197,8 @@ export function AIStudio() {
         if (!prompt.trim() || !user) return;
         setIsEnhancingPrompt(true);
         try {
-            await copilot.init();
-            const { enhancedPrompt } = await copilot.generateImagePrompt({
+            await uniq.init();
+            const { enhancedPrompt } = await uniq.generateImagePrompt({
                 userInput: prompt,
                 style: selectedStyle,
                 composition,
@@ -259,7 +259,7 @@ export function AIStudio() {
         const maskToUse = activeTab === 'aiEdit' ? imageToUseFinal : undefined;
 
         try {
-            await copilot.init();
+            await uniq.init();
 
             // 2. Process Payment
             const ledgerId = await processAiGenerationPayment(user.uid, baseCost, isRegen);
@@ -273,14 +273,14 @@ export function AIStudio() {
             // 🚀 STAGE 1: FULL TRANSLATION (English Pivot)
             if (prompt && prompt.length > 0) {
                 setIsEnhancingPrompt(true);
-                translatedInput = await copilot.translatePrompt(prompt);
+                translatedInput = await uniq.translatePrompt(prompt);
                 setLastTranslation(translatedInput);
                 console.log("Stage 1: Translated to English ->", translatedInput);
             }
 
             if (smartMode || prompt.length < 50) {
                 setIsEnhancingPrompt(true);
-                const result = await copilot.generateImagePrompt({
+                const result = await uniq.generateImagePrompt({
                     userInput: translatedInput, // Using translated input as as base
                     style: selectedStyle,
                     composition,
@@ -331,11 +331,11 @@ export function AIStudio() {
             setLogId(newLogId);
 
             // Generate monetization suggestion (V2 Engine)
-            const suggestion = copilot.getMonetizationSuggestion(finalPromptForGeneration, activeTab === 'aiEdit');
+            const suggestion = uniq.getMonetizationSuggestion(finalPromptForGeneration, activeTab === 'aiEdit');
             setMonetizationSuggestion(suggestion);
 
             // Log extended data (Score/Negative Prompt)
-            await copilot.logInteraction({
+            await uniq.logInteraction({
                 id: newLogId,
                 contentScore: suggestion.score,
                 negativePrompt: lastNegativePrompt || undefined
@@ -348,7 +348,7 @@ export function AIStudio() {
                     'onboardingState.step': 'first_monetization',
                     'onboardingState.completedSteps': [...(user.onboardingState.completedSteps || []), 'first_generate']
                 });
-                setCopilotRecommendation(copilot.getNextActionRecommendation());
+                setUniqRecommendation(uniq.getNextActionRecommendation());
             }
 
         } catch (error: any) {
@@ -365,8 +365,8 @@ export function AIStudio() {
         if (!imageUrl || !user?.uid || publishing) return;
         setPublishing(true);
         try {
-            await copilot.init();
-            const tags = await copilot.generateTags(prompt, locale); // 🚀 Auto-tagging
+            await uniq.init();
+            const tags = await uniq.generateTags(prompt, locale); // 🚀 Auto-tagging
 
             // "Havuza Kaydet" now creates the draft manually
             const mediaDocRef = await addDoc(collection(db, 'creator_media'), {
@@ -385,7 +385,7 @@ export function AIStudio() {
 
             // Also update the log
             if (logId) {
-                await copilot.logInteraction({
+                await uniq.logInteraction({
                     id: logId,
                     savedToContainer: true,
                     tags: tags // Mirror tags in log for learning
@@ -426,7 +426,7 @@ export function AIStudio() {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Copilot Presence & Onboarding Guidance */}
+            {/* Uniq Presence & Onboarding Guidance */}
             {user && (
                 <div className="bg-primary/10 border border-primary/20 rounded-[2rem] p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-4">
                     <div className="flex items-center gap-4">
@@ -440,7 +440,7 @@ export function AIStudio() {
                                 <span className="text-[10px] text-muted-foreground font-normal ml-2">İlerleme: {user.onboardingState?.completedSteps?.length || 0}/4</span>
                             </h4>
                             <p className="text-xs text-muted-foreground max-w-md">
-                                {copilotRecommendation?.message || "Sizin için en iyi görseli üretmeye hazırım. Sadece hayal edin."}
+                                {uniqRecommendation?.message || "Sizin için en iyi görseli üretmeye hazırım. Sadece hayal edin."}
                             </p>
                         </div>
                     </div>
@@ -448,15 +448,15 @@ export function AIStudio() {
                     <div className="flex flex-col md:flex-row items-center gap-4">
                         {/* Action-based Onboarding Buttons (V2 CTA Driven) */}
                         <div className="flex gap-2">
-                        {copilotRecommendation?.cta && (
+                        {uniqRecommendation?.cta && (
                             <Button 
                                 size="sm" 
                                 className="rounded-full bg-primary text-white font-bold animate-bounce shadow-lg shadow-primary/20"
                                 onClick={() => {
                                     const elementId = 
-                                        copilotRecommendation.action === 'first_generate' ? 'studio-prompt-area' :
-                                        copilotRecommendation.action === 'first_monetization' ? 'studio-preview-area' :
-                                        copilotRecommendation.action === 'first_container' ? 'studio-preview-area' : 'studio-prompt-area';
+                                        uniqRecommendation.action === 'first_generate' ? 'studio-prompt-area' :
+                                        uniqRecommendation.action === 'first_monetization' ? 'studio-preview-area' :
+                                        uniqRecommendation.action === 'first_container' ? 'studio-preview-area' : 'studio-prompt-area';
                                     
                                     const element = document.getElementById(elementId);
                                     if (element) {
@@ -464,7 +464,7 @@ export function AIStudio() {
                                     }
                                 }}
                             >
-                                {copilotRecommendation.cta}
+                                {uniqRecommendation.cta}
                             </Button>
                         )}
                     </div>
@@ -924,7 +924,7 @@ export function AIStudio() {
                                     </div>
 
                                     <CardContent className="p-6 space-y-4">
-                                        {/* Copilot V2: Monetization Intelligence */}
+                                        {/* Uniq V2: Monetization Intelligence */}
                                         {monetizationSuggestion && (
                                             <div id="studio-preview-area" className="bg-primary/5 border border-primary/20 rounded-2xl p-4 space-y-3 animate-in fade-in transition-all">
                                                 <div className="flex flex-col gap-1 w-full">

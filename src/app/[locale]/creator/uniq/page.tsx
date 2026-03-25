@@ -19,8 +19,8 @@ import { processAiCreatorActivation, getSystemConfig } from '@/lib/ledger';
 import { Link } from '@/i18n/routing';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { getDailyStrategySuggestions } from '@/lib/CopilotEngine';
-import { Copilot } from '@/lib/copilot';
+import { getDailyStrategySuggestions } from '@/lib/UniqEngine';
+import { Uniq } from '@/lib/uniq';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from '@/components/ui/CountdownTimer';
 import { SupportChatAi } from '@/components/creator/SupportChatAi';
@@ -42,7 +42,7 @@ const defaultConfig: AIpersonaConfig = {
     vibe: ''
 };
 
-export default function CopilotPage() {
+export default function UniqPage() {
     const t = useTranslations('AIStudio');
     const locale = useLocale();
     const { user, isConnected } = useWallet();
@@ -170,15 +170,15 @@ export default function CopilotPage() {
     const handleTriggerDraft = async () => {
         if (!user || isGenerating) return;
         setIsGenerating(true);
-        const copilot = new Copilot(user.uid);
+        const uniq = new Uniq(user.uid);
         try {
-            await copilot.init();
-            const mediaId = await copilot.generateDailyDraft();
+            await uniq.init();
+            const mediaId = await uniq.generateDailyDraft();
             // Update last run time
             await updateDoc(doc(db, 'users', user.uid), {
                 aiCreatorModeLastRunAt: Date.now()
             });
-            toast({ title: "Copilot Premium Mission Executed", description: "A new draft has been prepared for your persona." });
+            toast({ title: "Uniq Premium Mission Executed", description: "A new draft has been prepared for your persona." });
             
             // Re-fetch last drop
             const q = query(
@@ -194,7 +194,7 @@ export default function CopilotPage() {
             }
         } catch (err: any) {
             console.error("Auto-draft failed:", err);
-            // toast({ variant: "destructive", title: "Copilot Warning", description: err.message });
+            // toast({ variant: "destructive", title: "Uniq Warning", description: err.message });
         } finally {
             setIsGenerating(false);
         }
@@ -221,7 +221,7 @@ export default function CopilotPage() {
         setLoading(true);
         try {
             await processAiCreatorActivation(user.uid);
-            toast({ title: "Copilot Premium Online!", description: "Your 30-day autonomous mission has successfully launched." });
+            toast({ title: "Uniq Premium Online!", description: "Your 30-day autonomous mission has successfully launched." });
         } catch (err: any) {
             toast({ variant: "destructive", title: "Launch Aborted", description: err.message });
         } finally {
@@ -270,8 +270,8 @@ export default function CopilotPage() {
         if (mediaPool.length === 0) return;
         setIsScheduling(true);
         try {
-            const copilot = new Copilot(user.uid);
-            await copilot.init();
+            const uniq = new Uniq(user.uid);
+            await uniq.init();
 
             // 0. Clear existing 'planned' items (The current draft plan)
             const qExisting = query(
@@ -380,7 +380,7 @@ export default function CopilotPage() {
                     else if (p.includes("medium") || p.includes("upper")) shotWeight = 1.5;
                     else if (p.includes("wide") || p.includes("full body") || p.includes("lifestyle")) shotWeight = -1;
                     
-                    return { media: m, weight: shotWeight + (copilot.evaluateContentScore({ prompt: p }) / 30) };
+                    return { media: m, weight: shotWeight + (uniq.evaluateContentScore({ prompt: p }) / 30) };
                 }).sort((a, b) => b.weight - a.weight);
 
                 // Assign slots: 0 -> Limited, 1 -> Premium, 2 -> Public
@@ -489,12 +489,11 @@ export default function CopilotPage() {
                         <div>
                             <div className="flex items-center gap-3 mb-1">
                                 <h1 className="text-4xl font-headline font-black tracking-tighter uppercase italic">
-                                    {user?.savedCharacter?.name || "Copilot Premium"} <span className="text-primary">Command</span>
+                                    Uniq <span className="text-primary">Premium</span>
                                 </h1>
-                                <Badge className="bg-primary/20 text-primary border-primary/20 font-black text-[10px] px-2">V2.0 ALPHA</Badge>
                             </div>
                             <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-[0.3em] flex items-center gap-2">
-                                <Monitor size={12} className="text-primary" /> Autonomous Neural Network & Strategy Engine
+                                <Monitor size={12} className="text-primary" /> Content & Strategy Engine
                             </p>
                         </div>
                     </div>

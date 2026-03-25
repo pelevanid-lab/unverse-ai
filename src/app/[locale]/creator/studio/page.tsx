@@ -7,16 +7,16 @@ import { Link } from "@/i18n/routing"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 
-export default function CopilotStudioPage() {
+export default function UniqStudioPage() {
     const router = useRouter();
     const t = useTranslations('AIStudio');
 
     const tools = [
         {
-            title: t("tabCopilotAsistan"),
-            desc: t("copilotAsistanDesc"),
+            title: t("tabUniqAsistan"),
+            desc: t("uniqAsistanDesc"),
             icon: <MessageSquare className="w-6 h-6 text-primary" />,
-            href: "/creator/copilot",
+            href: "/creator/uniq",
             color: "bg-primary/10",
             hover: "hover:border-primary/40"
         },

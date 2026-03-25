@@ -682,7 +682,7 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
 
         // Ensure active
         if (!userData.aiCreatorModeExpiresAt || userData.aiCreatorModeExpiresAt < now) {
-            throw new Error("COPILOT_MODE_EXPIRED");
+            throw new Error("UNIQ_MODE_EXPIRED");
         }
 
         const finalCost = cost;

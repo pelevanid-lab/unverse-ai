@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 
 export async function POST(req: Request) {
   try {
@@ -14,8 +14,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    const copilot = new Copilot(userId);
-    await copilot.init(); // Fetch user profile first
+    const uniq = new Uniq(userId);
+    await uniq.init(); // Fetch user profile first
 
     // Pass the base URL to help with server-side relative fetches
     const protocol = req.headers.get('x-forwarded-proto') || 'http';
@@ -23,12 +23,12 @@ export async function POST(req: Request) {
     const baseUrl = `${protocol}://${host}`;
     
     // We might need to pass this baseUrl if generateDailyDraft uses it
-    // For now, let's assume we might need to modify copilot.ts to accept it
-    const result = await copilot.generateDailyDraft({ baseUrl });
+    // For now, let's assume we might need to modify uniq.ts to accept it
+    const result = await uniq.generateDailyDraft({ baseUrl });
 
     return NextResponse.json({ success: true, result });
   } catch (error: any) {
-    console.error('Auto-Copilot Cron Error:', error);
+    console.error('Uniq Engine Cron Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

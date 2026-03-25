@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers, Video, Maximize, Heart, Zap, Sun } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { Copilot } from '@/lib/copilot'
+import { Uniq } from '@/lib/uniq'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -87,9 +87,9 @@ export default function AIMusePage() {
         if (!logId || !user?.uid) return;
         setSatisfactionScore(score);
         try {
-            const copilot = new Copilot(user.uid);
-            await copilot.init();
-            await copilot.logInteraction({
+            const uniq = new Uniq(user.uid);
+            await uniq.init();
+            await uniq.logInteraction({
                 id: logId,
                 satisfactionScore: score
             });
@@ -264,10 +264,10 @@ export default function AIMusePage() {
                 }
             }
 
-            const copilot = new Copilot(user.uid)
-            await copilot.init()
+            const uniq = new Uniq(user.uid)
+            await uniq.init()
 
-            const { enhancedPrompt, translation, sceneLock: dna } = await copilot.generateImagePrompt({
+            const { enhancedPrompt, translation, sceneLock: dna } = await uniq.generateImagePrompt({
                 userInput: genPrompt,
                 style: 'cinematic',
                 character: user.savedCharacter || undefined,
@@ -320,15 +320,15 @@ export default function AIMusePage() {
         setGenerating(true)
         setShowVariationPresets(false)
         try {
-            const copilot = new Copilot(user.uid)
-            await copilot.init()
+            const uniq = new Uniq(user.uid)
+            await uniq.init()
 
             // 🗑️ Cleanup previous unsaved result (the one we just saved to pool, so it's fine to delete the storage preview)
             // But wait, it's safer to just set lastResult to null later.
             
             // 1. Generate transformed prompt
             // 🎬 DIRECTOR MODE: Call the new granular prompt generator
-            const { enhancedPrompt } = await copilot.generateDirectorPrompt({
+            const { enhancedPrompt } = await uniq.generateDirectorPrompt({
                 originalPrompt: masterEnhancedPrompt!,
                 presets: selectedPresets,
                 character: user.savedCharacter!,
@@ -658,10 +658,10 @@ export default function AIMusePage() {
                     <Card className="bg-black/20 border-white/10 rounded-3xl p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <Lock className="text-primary w-5 h-5" />
-                            <h4 className="font-bold">{t("copilotIntegration")}</h4>
+                            <h4 className="font-bold">{t("uniqIntegration")}</h4>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                            {t("copilotIntegrationDesc")}
+                            {t("uniqIntegrationDesc")}
                         </p>
                     </Card>
                 </div>

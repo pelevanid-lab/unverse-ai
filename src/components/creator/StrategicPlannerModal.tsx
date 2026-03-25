@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 import { cn } from '@/lib/utils';
 
 interface DayPlannerProps {
@@ -51,7 +51,7 @@ interface DayPlannerProps {
         limited: { caption: '', price: 50, supply: 5 }
     });
 
-    const copilot = new Copilot(userId);
+    const uniq = new Uniq(userId);
 
     useEffect(() => {
         if (isOpen) {
@@ -131,10 +131,10 @@ interface DayPlannerProps {
             return;
         }
 
-        await copilot.init();
+        await uniq.init();
         const scoredMedia = containerMedia.map(m => ({
             media: m,
-            suggestion: copilot.getMonetizationSuggestion(m.prompt || m.aiPrompt || "", !!m.isAI)
+            suggestion: uniq.getMonetizationSuggestion(m.prompt || m.aiPrompt || "", !!m.isAI)
         }));
 
         // Sort by score descending

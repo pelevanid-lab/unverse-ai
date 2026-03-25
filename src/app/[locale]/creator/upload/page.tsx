@@ -34,7 +34,7 @@ import { db, storage } from "@/lib/firebase"
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 import { getSystemConfig, recordTransaction } from '@/lib/ledger'
 import { ref, uploadString, getDownloadURL, deleteObject } from "firebase/storage"
-import { Copilot } from "@/lib/copilot"
+import { Uniq } from "@/lib/uniq"
 
 export default function ContentUploadPage() {
     const t = useTranslations('Upload')
@@ -328,9 +328,9 @@ export default function ContentUploadPage() {
             }
 
             // 1. Translate / Enhance prompt (Digital Pivot)
-            const copilot = new Copilot(user.uid)
-            await copilot.init()
-            const enhancedPrompt = await copilot.translatePrompt(aiPrompt)
+            const uniq = new Uniq(user.uid)
+            await uniq.init()
+            const enhancedPrompt = await uniq.translatePrompt(aiPrompt)
 
             // 2. Extract Mask (Always required by Fal in-painting)
             let maskDataUrl = ""
@@ -787,7 +787,7 @@ export default function ContentUploadPage() {
                                                             {isSegmenting ? (
                                                                 <>
                                                                     <Loader2 size={24} className="text-primary animate-spin" />
-                                                                    <span className="text-[10px] font-black uppercase text-primary tracking-tighter">{t('copilotCutting')}</span>
+                                                                    <span className="text-[10px] font-black uppercase text-primary tracking-tighter">{t('uniqCutting')}</span>
                                                                 </>
                                                             ) : (
                                                                 <>

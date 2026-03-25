@@ -12,7 +12,7 @@ import { Loader2, Wand2, Sparkles, Save, RefreshCcw, AlertCircle, Download } fro
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations, useLocale } from 'next-intl';
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 import { SceneLock } from '@/lib/types';
 import { SceneRuleEngine } from '@/lib/scene-engine';
 import { cn } from '@/lib/utils';
@@ -54,9 +54,9 @@ export function FreeArtGenerator() {
         // 🚀 AUTO-SAVE: If this is a variation, save the PREVIOUS image to pool first
         if (isVariation && imageUrl) {
             try {
-                const copilot = new Copilot(user.uid);
-                await copilot.init();
-                const tags = await copilot.generateTags(prompt, locale);
+                const uniq = new Uniq(user.uid);
+                await uniq.init();
+                const tags = await uniq.generateTags(prompt, locale);
 
                 await addDoc(collection(db, 'creator_media'), {
                     creatorId: user.uid,
@@ -84,8 +84,8 @@ export function FreeArtGenerator() {
         }
 
         try {
-            const copilot = new Copilot(user.uid);
-            await copilot.init();
+            const uniq = new Uniq(user.uid);
+            await uniq.init();
 
             let enhancedPrompt = lastEnhancedPrompt || "";
             let dna: any = currentSceneLock;
@@ -93,7 +93,7 @@ export function FreeArtGenerator() {
             if (!isVariation && !isRegen) {
                 // 1. Initial DNA Extraction
                 setIsTranslating(true);
-                const expansion = await copilot.generateImagePrompt({
+                const expansion = await uniq.generateImagePrompt({
                     userInput: prompt,
                     style: 'cinematic',
                     outfit: undefined
@@ -156,9 +156,9 @@ export function FreeArtGenerator() {
         if (!imageUrl || !user?.uid || publishing) return;
         setPublishing(true);
         try {
-            const copilot = new Copilot(user.uid);
-            await copilot.init();
-            const tags = await copilot.generateTags(prompt, locale);
+            const uniq = new Uniq(user.uid);
+            await uniq.init();
+            const tags = await uniq.generateTags(prompt, locale);
 
             await addDoc(collection(db, 'creator_media'), {
                 creatorId: user.uid,
@@ -303,7 +303,7 @@ export function FreeArtGenerator() {
                                 {generating ? (
                                     <div className="space-y-3">
                                         <Loader2 className="animate-spin mx-auto w-8 h-8 text-primary" />
-                                        <p className="font-bold text-white not-italic">Flux is painting your imagination...</p>
+                                        <p className="font-bold text-white not-italic">Uniq is painting your imagination...</p>
                                         <p className="text-xs">Estimate: 5-8 seconds</p>
                                     </div>
                                 ) : (

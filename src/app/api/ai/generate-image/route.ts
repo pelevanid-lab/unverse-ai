@@ -223,7 +223,7 @@ export async function POST(req: Request) {
         return await addDoc(collection(db, 'ai_generation_logs'), logData);
     };
 
-    // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY FAL.AI
+    // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY UNIQ ENGINE
     const imageToUseForTwin = image || character?.referenceImageUrl;
     if (isIdentityLocked && imageToUseForTwin) {
       const falKey = process.env.FAL_API_KEY;
@@ -232,7 +232,7 @@ export async function POST(req: Request) {
       }
 
       // 🚀 Use finalSeed defined above
-      console.log(`FAL.AI PULID: Shot=${shotType}, Weight=${id_weight}, Seed=${finalSeed}`);
+      console.log(`UNIQ PULID: Shot=${shotType}, Weight=${id_weight}, Seed=${finalSeed}`);
 
       const response = await fetch("https://fal.run/fal-ai/flux-pulid", {
         method: "POST",
@@ -244,7 +244,7 @@ export async function POST(req: Request) {
             prompt: finalPromptForAI,
             reference_image_url: imageToUseForTwin, // Use primary image as as as main reference
             num_inference_steps: 40,
-            guidance_scale: 7.0, // Optimized for for cinematic richness with with with pulid
+            guidance_scale: 7.0, // Optimized for for cinematic richness with with with Uniq Engine
             id_weight: id_weight, // 🚀 ADAPTIVE STRENGTH
             seed: finalSeed,
             negative_prompt: userNegativePrompt
@@ -253,14 +253,14 @@ export async function POST(req: Request) {
 
       if (!response.ok) {
           const errData = await response.json();
-          throw new Error(`Fal.ai Error: ${errData.detail || response.statusText}`);
+          throw new Error(`Uniq Engine Error: ${errData.detail || response.statusText}`);
       }
 
       const result = await response.json();
       const imageUrl = result.images?.[0]?.url;
 
       if (!imageUrl) {
-          throw new Error("Fal.ai returned no image URL.");
+          throw new Error("Uniq Engine returned no image URL.");
       }
 
       // 3. Storage & DB persistence
@@ -282,7 +282,7 @@ export async function POST(req: Request) {
           mediaBase64: `data:image/png;base64,${imageBase64}`, 
           finalAuditPrompt: finalPromptForAI 
       });
-    // AI Edit / In-painting specialized model - NOW POWERED BY FAL.AI
+    // AI Edit / In-painting specialized model - NOW POWERED BY UNIQ ENGINE
     } else if ((cost === 8 || cost === 4) && image) {
       const falKey = process.env.FAL_API_KEY;
       if (!falKey) throw new Error("FAL_API_KEY missing.");
@@ -314,7 +314,7 @@ export async function POST(req: Request) {
           const errorMsg = typeof errData.detail === 'string' 
             ? errData.detail 
             : JSON.stringify(errData.detail || errData);
-          throw new Error(`Fal.ai Edit Error: ${errorMsg}`);
+          throw new Error(`Uniq Engine Edit Error: ${errorMsg}`);
       }
 
       const result = await response.json();
@@ -398,7 +398,7 @@ export async function POST(req: Request) {
     
     if (error.status === 401 || error.message?.includes('401') || error.message?.includes('Unauthenticated')) {
         return NextResponse.json({ 
-            error: `AI Provider Authentication Failed (check API keys). Details: ${error.message}` 
+            error: `Uniq Engine Authentication Failed (check API keys). Details: ${error.message}` 
         }, { status: 401 });
     }
 

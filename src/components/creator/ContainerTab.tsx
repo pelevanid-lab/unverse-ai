@@ -75,7 +75,7 @@ export function ContainerTab() {
         </div>
         <div className="flex items-center gap-2">
             {[
-                { id: 'copilot', icon: MessageSquare, color: 'bg-fuchsia-500/10 text-fuchsia-400 hover:bg-fuchsia-500/20 border-fuchsia-500/20', href: '/creator/studio?tab=standard' },
+                { id: 'uniq', icon: MessageSquare, color: 'bg-fuchsia-500/10 text-fuchsia-400 hover:bg-fuchsia-500/20 border-fuchsia-500/20', href: '/creator/studio?tab=standard' },
                 { id: 'edit', icon: Upload, color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20', href: '/creator/studio?tab=aiEdit' },
                 { id: 'muse', icon: Wand2, color: 'bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 border-pink-500/20', href: '/creator/muse' },
                 { id: 'animate', icon: Video, color: 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border-yellow-500/20', href: '/creator/animate' },

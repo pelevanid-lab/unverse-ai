@@ -153,7 +153,7 @@ export default function CreatorPanel() {
                 </Card>
             </Link>
 
-            {/* 2. Copilot Studio (Renamed from AI Studio) */}
+            {/* 2. Uniq Studio */}
             <Link href="/creator/studio" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-fuchsia-500/40 transition-all h-full bg-white/[0.02]">
                     <CardContent className="p-6 flex items-center justify-between">

@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { Copilot } from '@/lib/copilot';
+import { Uniq } from '@/lib/uniq';
 
 export async function POST(req: Request) {
     try {
@@ -10,10 +10,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "userId is required" }, { status: 400 });
         }
 
-        const copilot = new Copilot(userId);
-        await copilot.init();
+        const uniq = new Uniq(userId);
+        await uniq.init();
         
-        const draftId = await copilot.generateDailyDraft();
+        const draftId = await uniq.generateDailyDraft();
 
         return NextResponse.json({ 
             success: true, 
