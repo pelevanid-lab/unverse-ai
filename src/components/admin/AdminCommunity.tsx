@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { db, storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, Plus, Trash2, ExternalLink, Award, TrendingUp, Users, Flame, DollarSign, Image as ImageIcon, Video, RotateCcw, GripVertical } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, ExternalLink, Award, TrendingUp, Users, Flame, DollarSign, Image as ImageIcon, Video, RotateCcw, GripVertical, UploadCloud, X as XIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserProfile } from '@/lib/types';
 
@@ -23,6 +24,41 @@ export default function AdminCommunity() {
         investor: { title: "", subtitle: "", slides: [] }, 
         creator: { title: "", subtitle: "", slides: [] } 
     });
+    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+    const [dragOver, setDragOver] = useState<string | null>(null);
+
+    const uploadSlideMedia = useCallback(async (file: File, type: string, idx: number) => {
+        const key = `${type}-${idx}`;
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+            toast({ variant: 'destructive', title: 'Unsupported file type', description: 'Please upload an image or video.' });
+            return;
+        }
+        const ext = file.name.split('.').pop();
+        const path = `presentations/slides/${type}_${idx}_${Date.now()}.${ext}`;
+        const storageRef = ref(storage, path);
+        const task = uploadBytesResumable(storageRef, file);
+
+        setUploadProgress(prev => ({ ...prev, [key]: 0 }));
+
+        task.on('state_changed',
+            (snap) => {
+                const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+                setUploadProgress(prev => ({ ...prev, [key]: pct }));
+            },
+            (err) => {
+                toast({ variant: 'destructive', title: 'Upload Failed', description: err.message });
+                setUploadProgress(prev => { const n = {...prev}; delete n[key]; return n; });
+            },
+            async () => {
+                const url = await getDownloadURL(task.snapshot.ref);
+                const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+                updateSlide(type as any, idx, 'mediaUrl', url);
+                updateSlide(type as any, idx, 'mediaType', mediaType);
+                setUploadProgress(prev => { const n = {...prev}; delete n[key]; return n; });
+                toast({ title: '✅ Media Uploaded', description: 'URL saved to slide.' });
+            }
+        );
+    }, [presentations]);
     const [creators, setCreators] = useState<UserProfile[]>([]);
     const [stats, setStats] = useState({
         totalUnlocks: 0,
@@ -306,33 +342,71 @@ export default function AdminCommunity() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Media Section */}
-                                                        <div className="space-y-4 bg-white/5 p-4 rounded-xl border border-white/5">
-                                                            <div className="flex items-center justify-between">
-                                                                <label className="text-[8px] uppercase font-bold opacity-40">Visual Content</label>
-                                                                <Select value={slide.mediaType} onValueChange={(val) => updateSlide(type, idx, 'mediaType', val)}>
-                                                                    <SelectTrigger className="w-[100px] h-6 text-[10px] bg-white/5 border-white/10">
-                                                                        <SelectValue placeholder="Type"/>
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                                                        <SelectItem value="image">Image</SelectItem>
-                                                                        <SelectItem value="video">Video</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="relative aspect-video rounded-lg overflow-hidden bg-black flex items-center justify-center border border-white/10 group/media">
-                                                                {slide.mediaUrl ? (
-                                                                    slide.mediaType === 'video' ? 
-                                                                    <video src={slide.mediaUrl} className="w-full h-full object-cover" /> :
-                                                                    <img src={slide.mediaUrl} className="w-full h-full object-cover" />
+                                                        {/* Media Section — Drag & Drop Upload */}
+                                                        <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                                                            <label className="text-[8px] uppercase font-bold opacity-40">Visual Content</label>
+
+                                                            {/* Drop Zone */}
+                                                            <div
+                                                                className={`relative aspect-video rounded-xl overflow-hidden border-2 border-dashed transition-all cursor-pointer flex items-center justify-center ${
+                                                                    dragOver === `${type}-${idx}`
+                                                                        ? 'border-yellow-500 bg-yellow-500/10'
+                                                                        : 'border-white/10 bg-black hover:border-white/30'
+                                                                }`}
+                                                                onDragOver={(e) => { e.preventDefault(); setDragOver(`${type}-${idx}`); }}
+                                                                onDragLeave={() => setDragOver(null)}
+                                                                onDrop={(e) => {
+                                                                    e.preventDefault();
+                                                                    setDragOver(null);
+                                                                    const file = e.dataTransfer.files[0];
+                                                                    if (file) uploadSlideMedia(file, type, idx);
+                                                                }}
+                                                                onClick={() => {
+                                                                    const input = document.createElement('input');
+                                                                    input.type = 'file';
+                                                                    input.accept = 'image/*,video/*';
+                                                                    input.onchange = (e: any) => {
+                                                                        const file = e.target.files[0];
+                                                                        if (file) uploadSlideMedia(file, type, idx);
+                                                                    };
+                                                                    input.click();
+                                                                }}
+                                                            >
+                                                                {uploadProgress[`${type}-${idx}`] !== undefined ? (
+                                                                    <div className="flex flex-col items-center gap-2">
+                                                                        <Loader2 className="w-8 h-8 animate-spin text-yellow-500"/>
+                                                                        <span className="text-xs font-bold text-yellow-500">{uploadProgress[`${type}-${idx}`]}%</span>
+                                                                    </div>
+                                                                ) : slide.mediaUrl ? (
+                                                                    <>
+                                                                        {slide.mediaType === 'video'
+                                                                            ? <video src={slide.mediaUrl} className="w-full h-full object-cover" />
+                                                                            : <img src={slide.mediaUrl} className="w-full h-full object-cover" alt={slide.title} />
+                                                                        }
+                                                                        {/* Clear button */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); updateSlide(type as any, idx, 'mediaUrl', ''); }}
+                                                                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 border border-white/20 flex items-center justify-center hover:bg-red-500/80 transition-colors"
+                                                                        >
+                                                                            <XIcon className="w-3 h-3"/>
+                                                                        </button>
+                                                                    </>
                                                                 ) : (
-                                                                    <div className="text-center">
-                                                                        {slide.mediaType === 'video' ? <Video className="w-6 h-6 mx-auto opacity-20 mb-2"/> : <ImageIcon className="w-6 h-6 mx-auto opacity-20 mb-2"/>}
-                                                                        <span className="text-[8px] opacity-20 uppercase">No Media Loaded</span>
+                                                                    <div className="text-center pointer-events-none">
+                                                                        <UploadCloud className="w-8 h-8 mx-auto opacity-20 mb-2"/>
+                                                                        <span className="text-[9px] opacity-30 uppercase font-bold block">Drop or Click to Upload</span>
+                                                                        <span className="text-[8px] opacity-20 uppercase">Image or Video</span>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <Input value={slide.mediaUrl} onChange={(e) => updateSlide(type, idx, 'mediaUrl', e.target.value)} placeholder="Media URL (HTTPS)..." className="h-8 text-[10px] bg-white/10 border-white/10 p-2"/>
+
+                                                            {/* Fallback manual URL input */}
+                                                            <Input
+                                                                value={slide.mediaUrl}
+                                                                onChange={(e) => updateSlide(type as any, idx, 'mediaUrl', e.target.value)}
+                                                                placeholder="…or paste Media URL (HTTPS)"
+                                                                className="h-7 text-[9px] bg-white/5 border-white/10 p-2 opacity-50 focus:opacity-100 transition-opacity"
+                                                            />
                                                         </div>
                                                     </div>
 
