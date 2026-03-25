@@ -688,7 +688,7 @@
     "publicTab": "Public",
     "premiumTab": "Premium",
     "limitedTab": "Limited",
-    "backToDiscover": "Back to Undiscovered",
+    "backToDiscover": "Back to Unfold",
     "message": "Message"
   },
   "Staking": {
@@ -1023,7 +1023,7 @@
   "Moderation": {
     "accountFrozen": "ACCOUNT SUSPENDED",
     "frozenDesc": "This account and its content are currently inaccessible due to a violation of our Unity guidelines or account suspension.",
-    "backToDiscover": "Back to Discover",
+    "backToDiscover": "Back to Unfold",
     "supportCenter": "Support Center"
   },
   "Presentation": {

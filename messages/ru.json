@@ -48,9 +48,8 @@
     "actionPromptPlaceholder": "например, Прогулка в лесу на закате, в спортивной одежде...",
     "descriptionPlaceholder": "Цвет волос, цвет глаз, общий стиль...",
     "fixedBadge": "ЗАКРЕПЛЕН",
-    "saveAndVariations": "Сохранить и Вариации Сцены",
     "variationOptions": "Опции Вариации Сцены",
-    "directorModeDesc": "Управляйте композицией, углом обзора, настроением и освещением для идеального снимка.",
+    "directorModeDesc": "Управляйте композицией, ракурсом, настроением и освещением для идеального кадра.",
     "composition": "Композиция / Кадрирование",
     "viewAngle": "Угол обзора",
     "moodEmotion": "Настроение / Эмоция",
@@ -84,7 +83,35 @@
     "dir_dramatic": "Драматичный",
     "dir_neon": "Неон",
     "dir_daylight": "Дневной свет",
-    "variationCost": "5 ULC за вариацию"
+    "variationCost": "5 ULC за вариацию",
+    "directorMode": "Режим Режиссера",
+    "unlockPro": "Разблокировать Uniq Pro",
+    "unlockProDesc": "Включить эротические и экзотические творческие элементы управления.",
+    "clothingFlex": "Гибкость в одежде",
+    "sheerLingerie": "Прозрачное белье",
+    "satinSilks": "Атлас и шелк",
+    "wetShirt": "Мокрая рубашка",
+    "provocativeLace": "Провокационное кружево",
+    "highLegBodysuit": "Боди с высоким вырезом",
+    "strategicCoverage": "Стратегическое прикрытие",
+    "sultryBoudoir": "Страстный будуар",
+    "exoticBeachwear": "Экзотическая пляжная одежда",
+    "distressedDenim": "Поношенный деним",
+    "leatherLace": "Кожа и кружево",
+    "deepPlunge": "Глубокое декольте",
+    "ultraHighCut": "Экстра-высокий вырез",
+    "openFront": "Открытый перед",
+    "monokiniExotic": "Экзотическое монокини",
+    "eroticPoses": "Продвинутые позы",
+    "backReveal": "Вид со спины",
+    "strategicCover": "Художественное прикрытие",
+    "silkProne": "Лежа на шелке",
+    "sultryArch": "Страстный изгиб",
+    "kneelingSeduction": "На коленях",
+    "sideRecumbent": "Лежа на боку",
+    "leaningSilhouette": "Силуэт у стены",
+    "recliningPose": "Откинувшись назад",
+    "proActive": "Uniq Pro Активен"
   },
   "Discover": {
     "featuredCreators": "Избранные Авторы",
@@ -111,12 +138,12 @@
     "dashboardDesc": "Подключите кошелек для управления доступом, отслеживания доходов и просмотра активных подписок.",
     "connectNow": "Подключить",
     "disconnect": "Отключить",
-    "creatorPanel": "Панель Автора",
-    "becomeCreator": "Стать Автором",
+    "creatorPanel": "Панель Создателя",
+    "becomeCreator": "Стать Создателем",
     "myWallet": "Мой Кошелек",
     "availableBalance": "Доступный Баланс",
     "unlockCurrencyInfo": "Unlock Currency (ULC)",
-    "totalEarnings": "Всего Заработано",
+    "totalEarnings": "Общий Заработок",
     "lifetimeEarningsInfo": "За все время USDC & ULC",
     "totalSpent": "Всего Потрачено",
     "unlocksSubsInfo": "Доступы и Подписки",
@@ -342,7 +369,8 @@
     "deleteAlertTitle": "Удалить из контейнера?",
     "deleteAlertDesc": "Медиафайл будет удален навсегда.",
     "cancel": "Отмена",
-    "delete": "Удалить"
+    "delete": "Удалить",
+    "proContentRestriction": "Ограничение контента Uniq Pro"
   },
   "AIStudio": {
     "errorTitle": "Ошибка",
@@ -636,7 +664,7 @@
     "publicTab": "Публичный",
     "premiumTab": "Премиум",
     "limitedTab": "Ограниченный",
-    "backToDiscover": "Вернуться в Undiscovered",
+    "backToDiscover": "Назад к Unfold",
     "message": "Сообщение"
   },
   "Staking": {
@@ -795,7 +823,6 @@
   "Community": {
     "hero": "Unity: Подключайся. Расти. Управляй.",
     "heroDesc": "Добро пожаловать в самое сердце сети Unity. Присоединяйтесь к нашим глобальным сетям, исследуйте наше стратегическое видение и формируйте будущее экономики создателей.",
-
     "forum": "Unity Forum",
     "forumDesc": "Присоединяйтесь к обсуждению. Для публикации сообщений требуется подключение кошелька.",
     "connectToPost": "Подключить кошелек для публикации",
@@ -949,7 +976,7 @@
   "Moderation": {
     "accountFrozen": "АККАУНТ ЗАБЛОКИРОВАН",
     "frozenDesc": "Этот аккаунт и и его контент в настоящее время недоступны из-за нарушения правил сообщества или блокировки аккаунта.",
-    "backToDiscover": "Вернуться в Ленту",
+    "backToDiscover": "Назад к Unfold",
     "supportCenter": "Центр поддержки"
   },
   "Presentation": {

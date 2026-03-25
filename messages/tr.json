@@ -666,7 +666,7 @@
     "publicTab": "Herkese Açık",
     "premiumTab": "Premium",
     "limitedTab": "Sınırlı",
-    "backToDiscover": "Undiscovered'a Dön",
+    "backToDiscover": "Unfold'a Dön",
     "message": "Mesaj Gönder"
   },
   "Staking": {
@@ -1011,7 +1011,7 @@
   "Moderation": {
     "accountFrozen": "HESAP ASKIYA ALINDI",
     "frozenDesc": "Bu hesap Unity kurallarımızı ihlal ettiği veya dondurulduğu için içeriği şu anda erişilebilir değil.",
-    "backToDiscover": "Keşfet'e Dön",
+    "backToDiscover": "Unfold'a Dön",
     "supportCenter": "Destek Merkezi"
   },
   "Presentation": {

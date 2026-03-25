@@ -48,9 +48,8 @@
     "actionPromptPlaceholder": "مثال: المشي في الغابة عند غروب الشمس، ترتدي ملابس رياضية...",
     "descriptionPlaceholder": "لون الشعر، لون العيون، النمط العام...",
     "fixedBadge": "مثبت",
-    "saveAndVariations": "حفظ وتنويعات المشهد",
     "variationOptions": "خيارات تنويع المشهد",
-    "directorModeDesc": "التحكم في التكوين، الزاوية، المزاج، والإضاءة للحصول على اللقطة المثالية.",
+    "directorModeDesc": "التحكم في التكوين والزاوية والمزاج والإضاءة للحصول على لقطة مثالية.",
     "composition": "التكوين / التأطير",
     "viewAngle": "زاوية العرض",
     "moodEmotion": "المزاج / العاطفة",
@@ -84,7 +83,35 @@
     "dir_dramatic": "درامي",
     "dir_neon": "نيون ليلي",
     "dir_daylight": "ضوء النهار",
-    "variationCost": "٥ ULC لكل تنويع"
+    "variationCost": "٥ ULC لكل تنويع",
+    "directorMode": "وضع المخرج",
+    "unlockPro": "فتح Uniq Pro",
+    "unlockProDesc": "تمكين الضوابط الإبداعية المثيرة والغريبة.",
+    "clothingFlex": "مرونة الملابس",
+    "sheerLingerie": "لانجري شفاف",
+    "satinSilks": "ساتان وحرير",
+    "wetShirt": "قميص مبلل",
+    "provocativeLace": "دانتيل مثير",
+    "highLegBodysuit": "بودي سوت عالي القطع",
+    "strategicCoverage": "تغطية استراتيجية",
+    "sultryBoudoir": "بودوار مثير",
+    "exoticBeachwear": "ملابس بحر غريبة",
+    "distressedDenim": "جينز ممزق",
+    "leatherLace": "جلد ودانتيل",
+    "deepPlunge": "فتحة صدر عميقة",
+    "ultraHighCut": "قطع عالٍ جداً",
+    "openFront": "تصميم مفتوح من الأمام",
+    "monokiniExotic": "مونوكيني غريب",
+    "eroticPoses": "وضعيات متقدمة",
+    "backReveal": "كشف الظهر",
+    "strategicCover": "تغطية فنية",
+    "silkProne": "مستلقية على الحرير",
+    "sultryArch": "تقوس مثير",
+    "kneelingSeduction": "وضعية الركوع",
+    "sideRecumbent": "مستلقية على الجانب",
+    "leaningSilhouette": "ظلال متكئة",
+    "recliningPose": "وضعية الاستلقاء",
+    "proActive": "Uniq Pro نشط"
   },
   "Discover": {
     "featuredCreators": "المبدعون المميزون",
@@ -100,7 +127,7 @@
   "Navbar": {
     "connect": "ربط المحفظة",
     "mypage": "يونيت",
-    "discover": "انفولد",
+    "discover": "Unfold",
     "tokenomics": "البيع المسبق",
     "staking": "انستيك",
     "community": "يونيتي",
@@ -118,7 +145,7 @@
     "unlockCurrencyInfo": "عملة الفتح (ULC)",
     "totalEarnings": "إجمالي الأرباح",
     "lifetimeEarningsInfo": "إجمالي USDC و ULC مدى الحياة",
-    "totalSpent": "إجمالي الإنفاق",
+    "totalSpent": "إجمالي المنفق",
     "unlocksSubsInfo": "الفتوحات والاشتراكات",
     "management": "إدارة الأصول",
     "premiumUnlocks": "الفتوحات المميزة",
@@ -358,7 +385,8 @@
     "deleteAlertTitle": "حذف من المجمع؟",
     "deleteAlertDesc": "سيؤدي هذا إلى إزالة ملف الوسائط نهائياً.",
     "cancel": "إلغاء",
-    "delete": "حذف"
+    "delete": "حذف",
+    "proContentRestriction": "قيود محتوى Uniq Pro"
   },
   "AIStudio": {
     "errorTitle": "خطأ",
@@ -653,7 +681,7 @@
     "publicTab": "عام",
     "premiumTab": "مميز",
     "limitedTab": "محدود",
-    "backToDiscover": "العودة إلى الاكتشاف",
+    "backToDiscover": "العودة إلى Unfold",
     "message": "رسالة"
   },
   "Staking": {
@@ -987,7 +1015,7 @@
   "Moderation": {
     "accountFrozen": "تم تجميد الحساب",
     "frozenDesc": "هذا الحساب ومحتواه غير متاح حالياً بسبب انتهاك إرشادات يونيتي الخاصة بنا أو تعليق الحساب.",
-    "backToDiscover": "العودة إلى انفولد",
+    "backToDiscover": "العودة إلى Unfold",
     "supportCenter": "مركز الدعم"
   },
   "Presentation": {
