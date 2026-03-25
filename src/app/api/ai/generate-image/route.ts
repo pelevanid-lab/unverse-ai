@@ -277,8 +277,10 @@ export async function POST(req: Request) {
             id_weight: id_weight, // 🚀 ADAPTIVE STRENGTH
             seed: finalSeed,
             negative_prompt: userNegativePrompt,
-            num_inference_steps: isAdvanced ? 50 : 40, // 🚀 UNIQ PRO: More steps for extreme detail
-            guidance_scale: isAdvanced ? 8.0 : 7.0     // 🚀 UNIQ PRO: Slightly higher guidance
+            num_inference_steps: isAdvanced ? 50 : 40, 
+            guidance_scale: isAdvanced ? 8.0 : 7.0,
+            enable_safety_checker: !isAdvanced, // 🛡️ UNIQ PRO: Disable safety filter for permissiveness
+            safety_tolerance: isAdvanced ? 5 : 2 // 🚀 UNIQ PRO: Maximum tolerance
         })
       });
 
@@ -291,7 +293,8 @@ export async function POST(req: Request) {
       const imageUrl = result.images?.[0]?.url;
 
       if (!imageUrl) {
-          throw new Error("Uniq Engine returned no image URL.");
+          console.error("Uniq Engine Error: No image URL in result", result);
+          throw new Error("Uniq Engine returned no image URL. Possible safety block despite bypass.");
       }
 
       // 3. Storage & DB persistence
