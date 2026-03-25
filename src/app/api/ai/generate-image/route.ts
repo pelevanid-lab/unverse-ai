@@ -155,6 +155,11 @@ export async function POST(req: Request) {
             negativeFils += ", woman, female";
         }
 
+        // 🛡️ UNIQ PRO: Relax nudity-related filters in negative prompt
+        if (isAdvanced) {
+            negativeFils = negativeFils.replace(/nsfw|nudity|naked|exposed/gi, "");
+        }
+
         const identityNegativeAnchor = isIdentityLocked ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
         userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
         
@@ -279,8 +284,13 @@ export async function POST(req: Request) {
             negative_prompt: userNegativePrompt,
             num_inference_steps: isAdvanced ? 50 : 40, 
             guidance_scale: isAdvanced ? 8.0 : 7.0,
-            enable_safety_checker: !isAdvanced, // 🛡️ UNIQ PRO: Disable safety filter for permissiveness
-            safety_tolerance: isAdvanced ? 5 : 2 // 🚀 UNIQ PRO: Maximum tolerance
+            enable_safety_checker: !isAdvanced, // 🛡️ UNIQ PRO: Disable safety filter
+            safety_tolerance: isAdvanced ? 5 : 2, // 🚀 UNIQ PRO: Maximum tolerance
+            // 🚀 Bypassing internal filters for Advanced Mode
+            ...(isAdvanced && {
+                safety_checker: "none",
+                disable_safety_filter: true
+            })
         })
       });
 

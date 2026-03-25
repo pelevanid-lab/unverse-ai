@@ -929,19 +929,28 @@ export default function AIMusePage() {
                             </div>
 
                             {isAdvancedMode && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-bottom-4 duration-500">
-                                    {/* CLOTHING FLEXIBILITY */}
-                                    <div className="space-y-3 p-4 bg-black/40 border border-white/5 rounded-2xl">
-                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                            <Layers className="w-3 h-3" /> {t("clothingFlex")}
+                                <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+                                    {/* CLOTHING FLEXIBILITY - 14 ADVANCED OPTIONS */}
+                                    <div className="space-y-4 p-5 bg-black/40 border border-yellow-500/10 rounded-2xl shadow-inner shadow-yellow-500/5">
+                                        <Label className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-yellow-500/70 flex items-center gap-2">
+                                            <Layers className="w-3.5 h-3.5" /> {t("clothingFlex")}
                                         </Label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {['changeOutfit', 'semiNude', 'wetLook'].map(key => (
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                            {[
+                                                'sheerLingerie', 'satinSilks', 'wetShirt', 'provocativeLace', 'highLegBodysuit',
+                                                'strategicCoverage', 'sultryBoudoir', 'exoticBeachwear', 'distressedDenim', 'leatherLace',
+                                                'deepPlunge', 'ultraHighCut', 'openFront', 'monokiniExotic'
+                                            ].map(key => (
                                                 <Button
                                                     key={key}
                                                     variant={selectedPresets.action === key ? 'default' : 'outline'}
                                                     size="sm"
-                                                    className={cn("h-9 rounded-lg text-[9px] font-bold uppercase", selectedPresets.action === key ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/40" : "hover:bg-white/5")}
+                                                    className={cn(
+                                                        "h-10 rounded-xl text-[9px] font-bold uppercase transition-all duration-300", 
+                                                        selectedPresets.action === key 
+                                                            ? "bg-yellow-500 text-black shadow-lg shadow-yellow-500/20 border-yellow-500" 
+                                                            : "hover:bg-yellow-500/10 border-white/10 text-muted-foreground hover:text-yellow-500"
+                                                    )}
                                                     onClick={() => setSelectedPresets(prev => ({ ...prev, action: prev.action === key ? undefined : key }))}
                                                 >
                                                     {t(key)}
@@ -950,21 +959,29 @@ export default function AIMusePage() {
                                         </div>
                                     </div>
 
-                                    {/* EXOTIC POSES */}
-                                    <div className="space-y-3 p-4 bg-black/40 border border-white/5 rounded-2xl">
-                                        <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                            <Heart className="w-3 h-3" /> {t("eroticPoses")}
+                                    {/* ADVANCED POSES - 8 OPTIONS */}
+                                    <div className="space-y-4 p-5 bg-black/40 border border-yellow-500/10 rounded-2xl shadow-inner shadow-yellow-500/5">
+                                        <Label className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-yellow-500/70 flex items-center gap-2">
+                                            <Camera className="w-3.5 h-3.5" /> {t("eroticPoses")}
                                         </Label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {['seductive', 'mysterious', 'confident'].map(key => (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                            {[
+                                                'backReveal', 'strategicCover', 'silkProne', 'sultryArch',
+                                                'kneelingSeduction', 'sideRecumbent', 'leaningSilhouette', 'recliningPose'
+                                            ].map(key => (
                                                 <Button
                                                     key={key}
                                                     variant={selectedPresets.mood === key ? 'default' : 'outline'}
                                                     size="sm"
-                                                    className={cn("h-9 rounded-lg text-[9px] font-bold uppercase", selectedPresets.mood === key ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/40" : "hover:bg-white/5")}
+                                                    className={cn(
+                                                        "h-10 rounded-xl text-[9px] font-bold uppercase transition-all duration-300", 
+                                                        selectedPresets.mood === key 
+                                                            ? "bg-yellow-500 text-black shadow-lg shadow-yellow-500/20 border-yellow-500" 
+                                                            : "hover:bg-yellow-500/10 border-white/10 text-muted-foreground hover:text-yellow-500"
+                                                    )}
                                                     onClick={() => setSelectedPresets(prev => ({ ...prev, mood: prev.mood === key ? undefined : key }))}
                                                 >
-                                                    {t(`dir_${key}`)}
+                                                    {t(key)}
                                                 </Button>
                                             ))}
                                         </div>

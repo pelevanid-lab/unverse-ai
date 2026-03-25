@@ -191,7 +191,16 @@ export class Uniq {
                 seductive: "soft eyes, inviting expression",
                 relaxed: "natural posture, calm expression",
                 playful: "light smile, energetic mood",
-                cold: "distant expression, minimal emotion"
+                cold: "distant expression, minimal emotion",
+                // 🌟 ADVANCED POSES (CLEVER BYPASS)
+                backReveal: "standing with back to camera, looking over the shoulder with a seductive gaze, topless from behind, emphasizing back curve",
+                strategicCover: "topless pose with arms strategically crossed over chest, modesty preserved through artistic positioning, elegant nude photography style",
+                silkProne: "lying prone on silk sheets, looking at camera with a sultry expression, back arched slightly, intimate atmosphere",
+                sultryArch: "kneeling with an arched back, emphasizing body curves, seductive silhouette, provocative and confident posture",
+                kneelingSeduction: "kneeling on a soft surface, hands running through hair, inviting expression, intimate and sultry vibe",
+                sideRecumbent: "lying on side, one leg drawn up, emphasizing hip and waist curves, relaxed yet seductive recumbent pose",
+                leaningSilhouette: "leaning against a wall, one hand behind head, shadowed lighting emphasizing silhouette, mysterious and seductive vibe",
+                recliningPose: "reclining back in a chair, legs slightly apart, confident and sultry posture, relaxed exotic vibe"
             },
             action: {
                 still: "standing still, stable pose",
@@ -200,10 +209,21 @@ export class Uniq {
                 turning: "body slightly turning",
                 looking_away: "gaze away from camera",
                 interaction: "interacting with object (glass, hair, or clothing)",
-                // 🌟 UNIQ PRO ADVANCED MAPPINGS
-                changeOutfit: "change to a different stylish outfit that complements the setting",
-                semiNude: "semi-nude aesthetic, extremely skimpy and provocative lingerie, seductive pose, revealing attire, exotic vibe",
-                wetLook: "wet look, glistening wet skin, damp hair, water droplets on body, high-gloss skin texture"
+                // 🌟 UNIQ PRO ADVANCED MAPPINGS (CLEVER EROTICA)
+                sheerLingerie: "wearing highly translucent and sheer lace lingerie, delicate see-through fabric, artistic revealing aesthetic",
+                satinSilks: "draped in lustrous satin and silk ribbons, smooth reflective fabric, minimal coverage, opulent boudoir style",
+                wetShirt: "wearing a thin white shirt, completely soaked and translucent, clinging to body, wet skin glistening underneath",
+                provocativeLace: "intricate provocative black lace bodysuit, open-back design, highly detailed embroidery, seductive silhouette",
+                highLegBodysuit: "ultra high-cut high-leg bodysuit, exposing hips and waist, tight fit, athletic yet seductive",
+                strategicCoverage: "artistic strategic coverage with hands or fabric, semi-nude aesthetic, high-fashion nude photography style, elegant revealingness",
+                sultryBoudoir: "sultry boudoir attire, stockings and suspenders, vintage lingerie, intimate bedroom atmosphere",
+                exoticBeachwear: "extremely minimal exotic beachwear, thin strings, sun-kissed skin, tropical vibe, highly revealing",
+                distressedDenim: "unbuttoned distressed denim jeans, topless with arms covering chest, raw and edgy aesthetic, outdoor natural light",
+                leatherLace: "confrontational leather and lace combination, tight bodice, rebellious and seductive vibe, dark studio lighting",
+                deepPlunge: "wearing a deep plunge neckline garment, extreme front cleavage, elegant yet highly revealing design, alluring aesthetic",
+                ultraHighCut: "wearing an ultra-high cut bodysuit, exposing the entire hip and waist line, high-leg silhouette, provocative fit",
+                openFront: "wearing an open-front luxury garment, exposing the torso, modesty preserved with artistic lighting, high-fashion provocative style",
+                monokiniExotic: "wearing an exotic monokini with extreme cut-outs, revealing waist and sides, minimal coverage, seductive beachwear vibe"
             },
             lighting: {
                 golden_hour: "warm golden hour lighting",
@@ -236,8 +256,13 @@ export class Uniq {
         const sceneLock = params.sceneLock;
         const isAdvanced = !!(params.presets as any).isAdvanced;
         
-        // 🧬 CLOTHING LOCK BYPASS: If advanced mode is requesting an outfit change or semi-nudity
-        const bypassClothingLock = isAdvanced && (params.presets.action === 'changeOutfit' || params.presets.action === 'semiNude' || params.presets.action === 'wetLook');
+        // 🧬 CLOTHING LOCK BYPASS: If advanced mode is requesting any specialized erotic attire
+        const advancedActions = [
+            'sheerLingerie', 'satinSilks', 'wetShirt', 'provocativeLace', 'highLegBodysuit',
+            'strategicCoverage', 'sultryBoudoir', 'exoticBeachwear', 'distressedDenim', 'leatherLace',
+            'deepPlunge', 'ultraHighCut', 'openFront', 'monokiniExotic'
+        ];
+        const bypassClothingLock = isAdvanced && advancedActions.includes(params.presets.action || "");
         
         const outfitAnchor = bypassClothingLock 
             ? "OUTFIT: modified based on directive" 
