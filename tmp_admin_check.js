@@ -3,34 +3,35 @@ const serviceAccount = require('./service-account.json');
 
 if (!admin.apps.length) {
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.cert(serviceAccount)
     });
 }
 
 const db = admin.firestore();
+const WALLET = "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
 
-async function check() {
-    const configSnap = await db.collection('config').doc('system').get();
-    const adminWallet = configSnap.data().admin_wallet_address;
-    console.log("Config admin_wallet_address:", adminWallet);
-
-    const usersSnap = await db.collection('users').where('walletAddress', '==', adminWallet).get();
-    usersSnap.forEach(doc => {
-        console.log("User doc ID:", doc.id);
-        console.log("User authUid:", doc.data().authUid);
-        console.log("User isAdmin:", doc.data().isAdmin);
-        console.log("User walletAddress:", doc.data().walletAddress);
-    });
-
-    const userByLower = await db.collection('users').get();
-    let found = false;
-    userByLower.forEach(doc => {
-        if (doc.data().walletAddress && doc.data().walletAddress.toLowerCase() === adminWallet?.toLowerCase()) {
-            console.log("Found by lower case:", doc.id);
-            found = true;
+async function checkAdmin() {
+    console.log(`Checking profile for wallet: ${WALLET}`);
+    
+    // 1. Direct check by ID
+    const docRef = db.collection('users').doc(WALLET);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+        console.log("✅ Document found by Wallet ID.");
+        console.log("Data:", JSON.stringify(docSnap.data(), null, 2));
+    } else {
+        console.log("❌ Document NOT found by Wallet ID.");
+        
+        // 2. Search by walletAddress field
+        const querySnap = await db.collection('users').where('walletAddress', '==', WALLET).get();
+        if (!querySnap.empty) {
+            console.log("✅ Document found by walletAddress field search.");
+            querySnap.forEach(d => console.log(`Doc ID: ${d.id}`, JSON.stringify(d.data(), null, 2)));
+        } else {
+            console.log("❌ Document NOT found by walletAddress field either.");
         }
-    });
-
+    }
 }
 
-check().catch(console.error).then(() => process.exit(0));
+checkAdmin().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

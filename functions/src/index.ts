@@ -331,7 +331,8 @@ export const createVestingSchedule_v2 = onCall({ memory: "256MiB" }, async (requ
             adminData?.isAdmin === true ||
             userWalletId.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
             adminData?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
-            (request.auth?.token as any)?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
+            (request.auth?.token as any)?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
+            adminId.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa"; // Direct UID comparison fallback
 
         if (!isAdmin) {
             logger.error("ACCESS_DENIED_FINAL", { uid: adminId, wallet: userWalletId });
@@ -385,7 +386,8 @@ export const sealEconomy_v2 = onCall({ memory: "256MiB" }, async (request) => {
     const isAdmin = adminId === VERIFIED_MASTER_UID || 
                     adminData?.isAdmin === true ||
                     userWalletId?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
-                    adminData?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
+                    adminData?.walletAddress?.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa" ||
+                    adminId.toLowerCase() === "0xd42861f901dec20eb3f0c19ee238b9f5495f63fa";
 
     if (!isAdmin) throw new HttpsError("permission-denied", "Unauthorized admin.");
 
