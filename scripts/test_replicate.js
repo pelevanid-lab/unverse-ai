@@ -1,10 +1,10 @@
-
 // Replicate Diagnostic Script for unverse-ai
 const Replicate = require("replicate");
 require("dotenv").config({ path: ".env.local" });
 
 const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
+    webhook: "https://unverse.me/api/replicate-webhook",
 });
 
 async function testModels() {

@@ -16,8 +16,8 @@ const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || 'a733f5f390c757fda
 const metadata = {
   name: 'Unverse',
   description: 'Unverse - AI-Powered Content Universe',
-  url: 'https://unverse-ai.vercel.app',
-  icons: ['https://unverse-ai.vercel.app/icon.png']
+  url: 'https://unverse.me',
+  icons: ['https://unverse.me/icon.png']
 }
 
 export const config = defaultWagmiConfig({

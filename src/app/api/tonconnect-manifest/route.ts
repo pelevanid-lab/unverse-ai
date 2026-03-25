@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   const manifest = {
-    url: "https://unverse-ai.vercel.app",
+    url: "https://unverse.me",
     name: "Unverse",
-    iconUrl: "https://unverse-ai.vercel.app/icon.png",
+    iconUrl: "https://unverse.me/icon.png",
   };
 
   return new NextResponse(JSON.stringify(manifest), {
