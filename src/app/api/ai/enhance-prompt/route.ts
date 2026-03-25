@@ -54,15 +54,20 @@ export async function POST(req: Request) {
 
     console.log("AI PROMPT ENHANCE INPUT:", finalSystemPrompt);
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    
+    const modelsToTry = [
+        'gemini-2.5-flash',
+        'gemini-2.5-pro',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash-latest'
+    ];
+
     const geminiRequestBody = {
       contents: [{
         parts: [{ text: finalSystemPrompt }]
       }],
       generationConfig: {
         temperature: 0.8,
-        maxOutputTokens: 600, // Increased for for safety
+        maxOutputTokens: 1500, // Increased for for better detail
       },
       safetySettings: [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -72,17 +77,40 @@ export async function POST(req: Request) {
       ]
     };
 
-    const geminiResponse = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiRequestBody)
-    });
+    let geminiResponse;
+    let successfulModel = '';
 
-    if (!geminiResponse.ok) {
+    for (const modelId of modelsToTry) {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+        console.log(`Trying Gemini model: ${modelId}`);
+
+        geminiResponse = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(geminiRequestBody)
+        });
+
+        if (geminiResponse.ok) {
+            successfulModel = modelId;
+            break;
+        }
+
+        if (geminiResponse.status === 404) {
+            console.warn(`Model ${modelId} not found (404), trying next...`);
+            continue;
+        }
+
+        // If it's not a 404 but another error (401, 429, etc.), stop and report it
         const errText = await geminiResponse.text();
-        console.error("Gemini Enhancement Error Details:", errText);
-        throw new Error(`Gemini Enhancement Failed: ${geminiResponse.statusText}`);
+        console.error(`Gemini Error (${modelId}):`, errText);
+        throw new Error(`Gemini Error (${geminiResponse.status}): ${geminiResponse.statusText}`);
     }
+
+    if (!geminiResponse || !geminiResponse.ok) {
+        throw new Error(`Gemini Enhancement Failed: All models returned 404 or failed.`);
+    }
+
+    console.log(`SUCCESS: Used Gemini model: ${successfulModel}`);
     const geminiData = await geminiResponse.json();
     let RawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
     
