@@ -727,3 +727,11 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
         return ledgerRef.id;
     });
 }
+
+export async function updateClaimRequestStatus(claimId: string, status: ClaimRequest['status'], adminId?: string, txHash?: string): Promise<void> {
+    const claimRef = doc(db, 'claim_requests', claimId);
+    const updateData: any = { status, updatedAt: Date.now() };
+    if (adminId) updateData.processedBy = adminId;
+    if (txHash) updateData.txHash = txHash;
+    await updateDoc(claimRef, updateData);
+}

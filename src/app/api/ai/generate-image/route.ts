@@ -1,10 +1,9 @@
 
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
-import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { processAiGenerationPayment, refundAiGenerationPayment } from '@/lib/ledger';
+import { processAiGenerationPaymentServer, refundAiGenerationPaymentServer } from '@/lib/ledger-server';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
 
 export async function POST(req: Request) {
   let ledgerId: string | null = null;
@@ -30,7 +29,7 @@ export async function POST(req: Request) {
 
     // 1. Process Payment (Deduct amount)
     try {
-        ledgerId = await processAiGenerationPayment(userId, cost);
+        ledgerId = await processAiGenerationPaymentServer(userId, cost);
     } catch (payErr: any) {
         if (payErr.message === 'INSUFFICIENT_ULC') {
             return NextResponse.json({ error: `Not enough ULC. This action costs ${cost} ULC.` }, { status: 402 });
@@ -245,18 +244,18 @@ export async function POST(req: Request) {
           finalAuditPrompt: finalPromptForAI,
           mediaUrl: imageUrl,
           paymentReference: ledgerId,
-          timestamp: serverTimestamp(),
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
           satisfactionScore: null,
           tags: ["standard", "english-pivot"],
           // 🚀 DEBUG FIELDS
           idMode: isIdentityLocked ? (isFreeArt ? 'free-art-lock' : 'pulid-character') : 'none',
           idWeight: isIdentityLocked ? id_weight : 0,
           shotType: shotType,
-           guidanceScale: isIdentityLocked ? 7.0 : (isFreeArt ? 2.5 : 7.5),
-           isReferenceActive: !!imageToUseForTwin,
-           isAdvanced: !!isAdvanced
-         };
-         return await addDoc(collection(db, 'ai_generation_logs'), logData);
+          guidanceScale: isIdentityLocked ? 7.0 : (isFreeArt ? 2.5 : 7.5),
+          isReferenceActive: !!imageToUseForTwin,
+          isAdvanced: !!isAdvanced
+        };
+        return await adminDb.collection('ai_generation_logs').add(logData);
     };
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY UNIQ ENGINE
@@ -314,9 +313,14 @@ export async function POST(req: Request) {
 
       const fileName = `ai_twin_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
       const imagePath = `creator-media/${userId}/${fileName}`;
-      const storageRef = ref(storage, imagePath);
-      await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
-      const finalUrl = await getDownloadURL(storageRef);
+      const bucket = adminStorage.bucket();
+      const file = bucket.file(imagePath);
+      await file.save(Buffer.from(imageBase64, 'base64'), {
+          metadata: { contentType: 'image/png' }
+      });
+      // Make public or get signed URL? User seems to use public URLs from client storage
+      // In Admin SDK, we can get a signed URL or use the standard public URL if the bucket is public
+      const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
 
       const logDocRef = await createAuditLog(finalUrl);
 
@@ -370,9 +374,12 @@ export async function POST(req: Request) {
 
       const fileName = `ai_edit_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
       const imagePath = `creator-media/${userId}/${fileName}`;
-      const storageRef = ref(storage, imagePath);
-      await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
-      const finalUrl = await getDownloadURL(storageRef);
+      const bucket = adminStorage.bucket();
+      const file = bucket.file(imagePath);
+      await file.save(Buffer.from(imageBase64, 'base64'), {
+          metadata: { contentType: 'image/png' }
+      });
+      const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
 
       const logDocRef = await createAuditLog(finalUrl);
 
@@ -412,9 +419,12 @@ export async function POST(req: Request) {
 
     const fileName = `ai_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
     const imagePath = `creator-media/${userId}/${fileName}`;
-    const storageRef = ref(storage, imagePath);
-    await uploadString(storageRef, imageBase64, 'base64', { contentType: 'image/png' });
-    const finalUrl = await getDownloadURL(storageRef);
+    const bucket = adminStorage.bucket();
+    const file = bucket.file(imagePath);
+    await file.save(Buffer.from(imageBase64, 'base64'), {
+        metadata: { contentType: 'image/png' }
+    });
+    const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
 
     // Save logic removed from here as per user request (no auto-save to pool)
     // The previous addDoc call to 'creator_media' has been removed.
@@ -437,7 +447,7 @@ export async function POST(req: Request) {
     // 4. Refund if something failed after payment
     if (ledgerId && userIdForRefund) {
         console.log("Refunding payment for failed generation:", ledgerId);
-        await refundAiGenerationPayment(userIdForRefund, ledgerId, cost);
+        await refundAiGenerationPaymentServer(userIdForRefund, ledgerId, cost);
     }
     
     if (error.status === 401 || error.message?.includes('401') || error.message?.includes('Unauthenticated')) {

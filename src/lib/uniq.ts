@@ -17,6 +17,12 @@ import { UserProfile, AIGenerationLog, CharacterProfile, AIPreference, Onboardin
 import { processAiCreatorActivation, processAiCreatorGeneration } from './ledger';
 import { SceneRuleEngine } from './scene-engine';
 
+// Server-only modules (initialized only when needed on server)
+let adminDb: any;
+let admin: any;
+let ledgerServer: any;
+// Logic moved to methods as needed to avoid bundler tracing
+
 export class Uniq {
     private userId: string;
     private user: UserProfile | null = null;
@@ -29,10 +35,18 @@ export class Uniq {
      * Initializes the Uniq engine by fetching user profile and current learning state.
      */
     async init() {
-        const userRef = doc(db, 'users', this.userId);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            this.user = userSnap.data() as UserProfile;
+        if (typeof window === 'undefined') {
+            if (!adminDb) adminDb = require('./firebase-admin').adminDb;
+            const userSnap = await adminDb.collection('users').doc(this.userId).get();
+            if (userSnap.exists) {
+                this.user = userSnap.data() as UserProfile;
+            }
+        } else {
+            const userRef = doc(db, 'users', this.userId);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                this.user = userSnap.data() as UserProfile;
+            }
         }
     }
 
@@ -566,24 +580,45 @@ Output ONLY the caption text.`;
     async logInteraction(logData: Partial<AIGenerationLog>) {
         try {
             const logId = logData.id;
-            if (logId) {
-                // Update existing
-                const logRef = doc(db, 'ai_generation_logs', logId);
-                await updateDoc(logRef, {
-                    ...logData,
-                    timestamp: serverTimestamp()
-                });
-            } else {
-                // Create new
-                await addDoc(collection(db, 'ai_generation_logs'), {
-                    ...logData,
-                    userId: this.userId,
-                    timestamp: serverTimestamp()
-                });
-            }
+            if (typeof window === 'undefined') {
+                // SERVER SIDE (Admin SDK)
+                if (!adminDb) {
+                    const adminMod = require('./firebase-admin');
+                    adminDb = adminMod.adminDb;
+                }
+                if (!admin) admin = require('firebase-admin');
 
-            // Check if we should upgrade learning mode
-            if (this.user?.aiLearningState?.mode !== 'adaptive') {
+                if (logId) {
+                    await adminDb.collection('ai_generation_logs').doc(logId).update({
+                        ...logData,
+                        timestamp: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                } else {
+                    await adminDb.collection('ai_generation_logs').add({
+                        ...logData,
+                        userId: this.userId,
+                        timestamp: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            } else {
+                // CLIENT SIDE (Firebase JS SDK)
+                if (logId) {
+                    const logRef = doc(db, 'ai_generation_logs', logId);
+                    await updateDoc(logRef, {
+                        ...logData,
+                        timestamp: serverTimestamp()
+                    });
+                } else {
+                    await addDoc(collection(db, 'ai_generation_logs'), {
+                        ...logData,
+                        userId: this.userId,
+                        timestamp: serverTimestamp()
+                    });
+                }
+            }
+ 
+            // Check if we should upgrade learning mode (Server side skip learning upgrade for for now to simplify)
+            if (typeof window !== 'undefined' && this.user?.aiLearningState?.mode !== 'adaptive') {
                 const isReady = await this.checkAdaptiveLearningThreshold();
                 if (isReady) {
                     const userRef = doc(db, 'users', this.userId);
@@ -652,7 +687,12 @@ Output ONLY the caption text.`;
         }
 
         // 1. Charge fee (1 ULC per content/draft)
-        await processAiCreatorGeneration(this.userId);
+        if (typeof window === 'undefined') {
+            if (!ledgerServer) ledgerServer = require('./ledger-server');
+            await ledgerServer.processAiCreatorGenerationServer(this.userId);
+        } else {
+            await processAiCreatorGeneration(this.userId);
+        }
 
         // 2. Prepare Prompt (Using Zero-Day Config if available)
         const config = this.user.aiCreatorModeConfig;
@@ -699,22 +739,34 @@ Output ONLY the caption text.`;
         const data = await response.json();
 
         // 5. Save to Creator Media as SCHEDULED (for autonomous publishing)
-        const mediaDoc = await addDoc(collection(db, 'creator_media'), {
+        const scheduledData = {
             creatorId: this.userId,
             mediaUrl: data.mediaUrl,
             mediaType: 'image',
             status: 'scheduled', // Auto-schedule for immediate publishing
             scheduledFor: Date.now(),
             source: 'ai_auto',
-            createdAt: serverTimestamp(),
+            createdAt: typeof window === 'undefined' ? admin.firestore.FieldValue.serverTimestamp() : serverTimestamp(),
             priceULC: 10, // Default price
             contentType: 'public',
             isAI: true,
             aiPrompt: enhancement.originalPrompt,
             aiEnhancedPrompt: enhancement.enhancedPrompt
-        });
+        };
 
-        return mediaDoc.id;
+        let mediaDocId = "";
+        if (typeof window === 'undefined') {
+            if (!adminDb) adminDb = require('./firebase-admin').adminDb;
+            if (!admin) admin = require('firebase-admin');
+            
+            const docRef = await adminDb.collection('creator_media').add(scheduledData);
+            mediaDocId = docRef.id;
+        } else {
+            const docRef = await addDoc(collection(db, 'creator_media'), scheduledData);
+            mediaDocId = docRef.id;
+        }
+
+        return mediaDocId;
     }
 
     /**

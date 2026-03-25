@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { processAiGenerationPayment } from '@/lib/ledger';
+import { adminDb, adminStorage } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
+import { processAiGenerationPaymentServer } from '@/lib/ledger-server';
 
 export async function POST(req: Request) {
   try {
@@ -13,14 +12,14 @@ export async function POST(req: Request) {
     }
 
     // 1. Get original image from Container
-    const mediaRef = doc(db, 'creator_media', imageId);
-    const mediaSnap = await getDoc(mediaRef);
+    const mediaRef = adminDb.collection('creator_media').doc(imageId);
+    const mediaSnap = await mediaRef.get();
 
-    if (!mediaSnap.exists()) {
+    if (!mediaSnap.exists) {
       return NextResponse.json({ error: 'Source image not found in container' }, { status: 404 });
     }
 
-    const sourceData = mediaSnap.data();
+    const sourceData = mediaSnap.data() as any;
     const sourceImageUrl = sourceData.mediaUrl;
 
     // 2. Pricing Logic (Standardize)
@@ -29,7 +28,7 @@ export async function POST(req: Request) {
     // 3. Process Payment
     let ledgerId: string | null = null;
     try {
-        ledgerId = await processAiGenerationPayment(userId, cost);
+        ledgerId = await processAiGenerationPaymentServer(userId, cost);
     } catch (payErr: any) {
         if (payErr.message === 'INSUFFICIENT_ULC') {
             return NextResponse.json({ error: `Not enough ULC. Animation costs ${cost} ULC.` }, { status: 402 });
@@ -75,12 +74,15 @@ export async function POST(req: Request) {
 
     const fileName = `animate_${Date.now()}_${Math.random().toString(36).substring(7)}.mp4`;
     const videoPath = `creator-media/${userId}/${fileName}`;
-    const storageRef = ref(storage, videoPath);
-    await uploadString(storageRef, videoBase64, 'base64', { contentType: 'video/mp4' });
-    const finalUrl = await getDownloadURL(storageRef);
+    const bucket = adminStorage.bucket();
+    const file = bucket.file(videoPath);
+    await file.save(Buffer.from(videoBase64, 'base64'), {
+        metadata: { contentType: 'video/mp4' }
+    });
+    const finalUrl = `https://storage.googleapis.com/${bucket.name}/${videoPath}`;
 
     // 6. Save to Container (Mandatory Flow)
-    const containerDoc = await addDoc(collection(db, 'creator_media'), {
+    const containerDoc = await adminDb.collection('creator_media').add({
         creatorId: userId,
         mediaUrl: finalUrl,
         mediaType: 'video',
@@ -92,13 +94,13 @@ export async function POST(req: Request) {
     });
 
     // 7. Log the generation
-    await addDoc(collection(db, 'ai_generation_logs'), {
+    await adminDb.collection('ai_generation_logs').add({
         userId,
         prompt,
         mediaUrl: finalUrl,
         mediaType: 'video',
         paymentReference: ledgerId,
-        timestamp: serverTimestamp(),
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
         tags: ["animation", "uniq-animate"]
     });
 

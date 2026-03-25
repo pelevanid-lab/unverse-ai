@@ -12,7 +12,7 @@ service cloud.firestore {
       return isSignedIn() && (
         request.auth.uid == userId || 
         (resource != null && resource.data.authUid == request.auth.uid) ||
-        (request.resource != null && request.resource.data.authUid == request.auth.uid)
+        (get(/databases/$(database)/documents/users/$(userId)).data.authUid == request.auth.uid)
       );
     }
 
@@ -22,7 +22,7 @@ service cloud.firestore {
 
     // User Profiles
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true; // Public for discovery and profile view
       
       // Users can update their basic profile, Admins can update everything
       allow update: if (isOwner(userId) 
@@ -38,52 +38,91 @@ service cloud.firestore {
     // Ledger (ReadOnly for users, Write only by backend)
     match /ledger/{entryId} {
       allow read: if isSignedIn() && (
-        resource.data.fromUserId == request.auth.uid || 
-        resource.data.toUserId == request.auth.uid
+        isOwner(resource.data.fromUserId) || 
+        isOwner(resource.data.toUserId)
       );
-      allow write: if false; // Only Cloud Functions (Admin SDK) can write
+      allow write: if false; 
     }
 
     // Subscriptions
     match /subscriptions/{subId} {
       allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || 
-        resource.data.creatorId == request.auth.uid
+        isOwner(resource.data.userId) || 
+        isOwner(resource.data.creatorId)
       );
-      allow write: if false; // Only Cloud Functions
+      allow write: if false; 
     }
 
     // Claim Requests
     match /claim_requests/{claimId} {
-      allow read: if isSignedIn() && resource.data.creatorId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
-      allow update: if false; // Status changes handled by backend
+      allow read: if isSignedIn() && isOwner(resource.data.creatorId);
+      allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
+      allow update: if false; 
     }
 
     // Vesting Schedules
     match /vesting_schedules/{scheduleId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false; // Only Cloud Functions
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow write: if false; 
     }
     
     // Posts & Content
     match /posts/{postId} {
-      allow read: if true; // Public discovery
+      allow read: if true; 
       allow write: if isSignedIn() && (
-        resource == null || resource.data.creatorId == request.auth.uid
+        resource == null || isOwner(resource.data.creatorId)
       );
     }
 
-    // System Config (ReadOnly for users, Admin only for write)
+    // System Config (Public for floor price/settings)
     match /config/{configId} {
-      allow read: if isSignedIn();
+      allow read: if true; 
       allow write: if false; 
     }
     
     // Creator Media (Drafts/Processing)
     match /creator_media/{mediaId} {
-      allow read, write: if isSignedIn() && resource.data.creatorId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow read, write: if isSignedIn() && isOwner(resource.data.creatorId);
+      allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
+    }
+    
+    // Chats & Messaging
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (
+        isOwner(resource.data.subscriberId) || 
+        isOwner(resource.data.creatorId)
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        isOwner(resource.data.subscriberId) || 
+        isOwner(resource.data.creatorId)
+      );
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.subscriberId) ||
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.creatorId)
+        );
+        allow create: if isSignedIn();
+      }
+    }
+
+    // Presentations (Public Read)
+    match /presentations/{docId} {
+      allow read: if true;
+      allow write: if false; 
+    }
+
+    // Forum topics and replies
+    match /forum_topics/{topicId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isOwner(resource.data.authorId);
+    }
+
+    match /forum_replies/{replyId} {
+      allow read: if true;
+      allow create: if isSignedIn();
     }
     
     // Default fallback

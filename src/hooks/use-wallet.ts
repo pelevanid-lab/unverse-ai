@@ -16,7 +16,7 @@ import {
   updateDoc,
   limit,
 } from 'firebase/firestore';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { modal } from '@/lib/web3modal';
 import { useAccount, useDisconnect } from 'wagmi';
 import { UserProfile } from '@/lib/types';
 import { getSystemConfig, recordTransaction, grantWelcomeBonus } from '@/lib/ledger';
@@ -29,7 +29,6 @@ export function useWallet() {
   const [loading, setLoading] = useState(true);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
 
-  const { open } = useWeb3Modal();
   const { address: rawAddress, isConnected, isDisconnected } = useAccount();
   const { disconnect } = useDisconnect();
   
@@ -147,7 +146,10 @@ export function useWallet() {
     }
   }, [isDisconnected]);
 
-  const connectWallet = () => open();
+  const connectWallet = () => {
+    if (modal) modal.open();
+    else console.error("Web3Modal not initialized");
+  };
   const disconnectWallet = () => disconnect();
 
   return {

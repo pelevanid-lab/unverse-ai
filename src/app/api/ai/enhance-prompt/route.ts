@@ -111,33 +111,51 @@ export async function POST(req: Request) {
     }
 
     console.log(`SUCCESS: Used Gemini model: ${successfulModel}`);
-    const geminiData = await geminiResponse.json();
-    let RawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    console.log("AI PROMPT ENHANCE RAW OUTPUT:", RawText);
+        const geminiData = await geminiResponse.json();
+        const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!RawText) {
-      throw new Error("Received empty response from Gemini.");
-    }
+        if (!text) throw new Error("Empty response from Gemini.");
 
-    // Defensive JSON cleaning (remove markdown blocks if present)
-    RawText = RawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    let parsed;
-    try {
-        parsed = JSON.parse(RawText);
-    } catch (e) {
-        console.warn("Gemini failed to return valid JSON. Falling back to raw text.", RawText);
-        parsed = {
-            enhancedPrompt: RawText,
-            outfitSummary: outfit || "as requested",
-            environmentSummary: "as requested",
-            lightingSummary: style || "natural",
-            propSummary: "none"
-        };
-    }
+        console.log("AI PROMPT ENHANCE RAW OUTPUT:", text);
 
-    return NextResponse.json(parsed);
+        let data: any;
+        try {
+            // 1. Try direct parse
+            data = JSON.parse(text.replace(/```json|```/g, "").trim());
+        } catch (e) {
+            console.warn("Gemini failed to return valid JSON. Attempting recovery...");
+            
+            // 2. Recovery: Extract JSON within braces
+            try {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    let jsonCandidate = jsonMatch[0];
+                    
+                    // 3. Recovery: Fix common truncation (missing closing braces)
+                    const openBraces = (jsonCandidate.match(/\{/g) || []).length;
+                    const closeBraces = (jsonCandidate.match(/\}/g) || []).length;
+                    if (openBraces > closeBraces) {
+                        jsonCandidate += "}".repeat(openBraces - closeBraces);
+                    }
+                    
+                    data = JSON.parse(jsonCandidate);
+                } else {
+                    throw new Error("No JSON structure found in response.");
+                }
+            } catch (recoveryErr) {
+                console.error("JSON Recovery Failed:", text);
+                // Fallback for UI continuity
+                data = {
+                    enhancedPrompt: text.substring(0, 500),
+                    outfitSummary: "Natural",
+                    environmentSummary: "Cozy",
+                    lightingSummary: "Warm",
+                    propSummary: "None"
+                };
+            }
+        }
+
+        return NextResponse.json(data);
 
   } catch (error: any) {
     console.error('AI PROMPT ENHANCE ERROR:', error);

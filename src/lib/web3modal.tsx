@@ -24,24 +24,38 @@ export const config = defaultWagmiConfig({
   chains: [base, mainnet],
   projectId,
   metadata,
+  ssr: true, // Enable SSR support
 })
 
-// 3. Create modal
-createWeb3Modal({
-  wagmiConfig: config,
-  projectId,
-  enableAnalytics: true,
-  themeMode: 'dark',
-  themeVariables: {
-    '--w3m-accent': '#0052FF',
-    '--w3m-border-radius-master': '2px'
-  }
-});
+// 3. Create modal - Initialize only on client at module level
+export let modal: any = null;
+
+if (typeof window !== 'undefined') {
+  modal = createWeb3Modal({
+    wagmiConfig: config,
+    projectId,
+    enableAnalytics: true,
+    themeMode: 'dark',
+    themeVariables: {
+      '--w3m-accent': '#0052FF',
+      '--w3m-border-radius-master': '2px'
+    }
+  });
+}
 
 export function Web3ModalProvider({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {mounted && children}
+        {!mounted && <div className="hidden">{children}</div>}
+      </QueryClientProvider>
     </WagmiProvider>
   )
 }
