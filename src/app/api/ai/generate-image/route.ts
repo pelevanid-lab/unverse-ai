@@ -1,4 +1,6 @@
 
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { processAiGenerationPaymentServer, refundAiGenerationPaymentServer } from '@/lib/ledger-server';

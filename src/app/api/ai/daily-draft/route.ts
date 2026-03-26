@@ -1,4 +1,6 @@
 
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from 'next/server';
 import { Uniq } from '@/lib/uniq';
 
