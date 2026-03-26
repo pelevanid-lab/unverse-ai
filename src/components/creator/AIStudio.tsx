@@ -316,7 +316,9 @@ export function AIStudio() {
                     translation: lastTranslation || translatedInput, // Ensure English intent is is passed
                     negativePrompt: lastNegativePrompt, 
                     userId: user.uid,
+                    authUid: user.authUid, // 🧬 Identity Bridge
                     cost: currentCost,
+                    isAdvanced: activeTab !== 'standard' || (activeTab === 'standard' && user.isAdvancedModeUnlocked), // 🛡️ Advanced Mode Logic
                     image: imageToUse || undefined,
                     mask: activeTab === 'aiEdit' ? imageToUse : undefined
                 }),
@@ -375,12 +377,14 @@ export function AIStudio() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: user.uid,
+                    authUid: user.authUid, // 🧬 Identity Bridge
                     mediaUrl: imageUrl,
                     mediaType: 'image',
                     prompt: prompt,
                     isAI: true,
                     aiPrompt: prompt,
                     aiEnhancedPrompt: enhancedPromptUsed || prompt,
+                    isAdvanced: activeTab !== 'standard' || (activeTab === 'standard' && user.isAdvancedModeUnlocked), // 🛡️ Metadata Preservation
                     paymentReference: logId,
                     tags: tags
                 })

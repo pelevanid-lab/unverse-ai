@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         }
         
         if (error.message === 'INSUFFICIENT_ULC') {
-            return NextResponse.json({ error: 'Insufficient ULC balance. 15 ULC required.' }, { status: 402 });
+            return NextResponse.json({ error: 'Insufficient ULC balance. 2 ULC required.' }, { status: 402 });
         }
 
         return NextResponse.json({ 

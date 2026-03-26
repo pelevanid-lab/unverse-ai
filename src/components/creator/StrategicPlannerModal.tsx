@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CreatorMedia, UserProfile, PostContentType } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, or, and } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,8 +80,10 @@ interface DayPlannerProps {
         try {
             const q = query(
                 collection(db, 'creator_media'),
-                where('creatorId', '==', userId),
-                where('status', '==', 'draft')
+                and(
+                    where('creatorId', '==', userId),
+                    where('status', 'in', ['draft', 'planned'])
+                )
             );
             const snap = await getDocs(q);
             const media = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia));
@@ -90,8 +92,13 @@ interface DayPlannerProps {
             // Fetch already scheduled for this day if any
             const qScheduled = query(
                 collection(db, 'creator_media'),
-                where('creatorId', '==', userId),
-                where('status', 'in', ['scheduled', 'planned'])
+                and(
+                    or(
+                        where('creatorId', '==', userId),
+                        where('userId', '==', userId)
+                    ),
+                    where('status', 'in', ['scheduled', 'planned'])
+                )
             );
             const snapScheduled = await getDocs(qScheduled);
             const scheduled = snapScheduled.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia));

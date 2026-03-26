@@ -183,7 +183,7 @@ export async function processAiCreatorGenerationServer(userId: string): Promise<
 }
 
 export async function processUniqProUnlockServer(userId: string): Promise<string> {
-    const cost = 15;
+    const cost = 2; // Reduced from 15 to 2 UCU as per user request
     return await adminDb.runTransaction(async (transaction) => {
         const userRef = adminDb.collection('users').doc(userId);
         const userSnap = await transaction.get(userRef);

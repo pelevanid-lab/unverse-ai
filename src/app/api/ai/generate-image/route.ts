@@ -283,6 +283,7 @@ export async function POST(req: Request) {
     const createAuditLog = async (imageUrl: string) => {
         const logData = {
           userId,
+          authUid: json.authUid || null, // 🧬 Identity Bridge: Persist Firebase UID in logs
           prompt: prompt, // Original User Input
           translatedPrompt: translation || prompt, 
           enhancedPrompt: enhancedPrompt || "",

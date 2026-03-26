@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, or, and } from 'firebase/firestore';
 import { CreatorMedia, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Video, Calendar, MessageSquare, Upload, Wand2, Sparkles } from 'lucide-react';
@@ -51,11 +51,12 @@ export function ContainerTab() {
     setLoading(true);
     const q = query(
       collection(db, 'creator_media'),
-      where('creatorId', '==', user.uid),
-      where('status', 'in', ['draft', 'scheduled']),
+      and(
+        where('creatorId', '==', user.uid),
+        where('status', 'in', ['draft', 'scheduled', 'planned'])
+      ),
       orderBy('createdAt', 'desc')
     );
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia));
       setMediaItems(items);

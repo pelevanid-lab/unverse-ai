@@ -14,10 +14,12 @@ export async function POST(req: Request) {
         // 🚀 Save to creator_media using Admin SDK (Safe from permission errors)
         const docRef = await adminDb.collection('creator_media').add({
             creatorId: userId,
+            authUid: metadata.authUid || null, // 🧬 Identity Bridge: Link to Firebase UID
             mediaUrl,
             mediaType,
             createdAt: Date.now(),
             status: 'draft',
+            isAdvanced: !!metadata.isAdvanced, // 🛡️ Preservation: Signal Premium status
             ...metadata
         });
 

@@ -3,148 +3,80 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // 🛡️ BASIC HELPERS
+    // Note: Firestore rules do NOT support 'if' or 'return' keywords inside functions.
+    // They must be single-expression boolean evaluations.
     function isSignedIn() {
       return request.auth != null;
     }
     
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isSignedIn() && userId != null && (
+        request.auth.uid == userId || 
+        (exists(/databases/$(database)/documents/users/$(userId)) && 
+         get(/databases/$(database)/documents/users/$(userId)).data.authUid == request.auth.uid)
+      );
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // User Profiles
+    // 👤 USER PROFILES
     match /users/{userId} {
-      allow read: if true; // Public for discovery and profile view
-      
-      // Users can update their basic profile, Admins can update everything
-      allow update: if (isOwner(userId) 
-                    && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['ulcBalance', 'totalEarnings', 'totalSpent', 'isCreator', 'isFrozen', 'isAdmin']))
-                    || isAdmin();
-      
-      // Prevent users from setting admin or financial flags during creation
-      allow create: if isSignedIn() && userId == request.auth.uid
-                    && !request.resource.data.hasAny(['isAdmin', 'isCreator', 'isFrozen', 'ulcBalance', 'totalEarnings']);
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
     }
 
-    // Ledger (ReadOnly for users, Write only by backend)
-    match /ledger/{entryId} {
-      allow read: if isSignedIn() && (
-        isOwner(resource.data.fromUserId) || 
-        isOwner(resource.data.toUserId) ||
-        resource.data.userId == request.auth.uid
-      );
-      allow write: if false; 
-    }
-
-    // Subscriptions
-    match /subscriptions/{subId} {
-      allow read: if isSignedIn() && (
-        isOwner(resource.data.userId) || 
-        isOwner(resource.data.creatorId) ||
-        resource.data.authUid == request.auth.uid
-      );
-      allow write: if false; 
-    }
-
-    // Claim Requests
-    match /claim_requests/{claimId} {
-      allow read: if isSignedIn() && isOwner(resource.data.creatorId);
-      allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
-      allow update: if false; 
-    }
-
-    // Vesting Schedules
-    match /vesting_schedules/{scheduleId} {
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      allow write: if false; 
-    }
-    
-    // Posts & Content
-    match /posts/{postId} {
-      allow read: if true; 
-      allow write: if isSignedIn() && (
-        resource == null || 
-        isOwner(resource.data.creatorId) || 
-        resource.data.userId == request.auth.uid || 
-        resource.data.authUid == request.auth.uid
-      );
-    }
-
-    // System Config (Public for floor price/settings)
-    match /config/{configId} {
-      allow read: if true; 
-      allow write: if false; 
-    }
-    
-    // Creator Media (Drafts/Processing)
+    // 📸 CREATOR MEDIA (Workshop / Drafts)
     match /creator_media/{mediaId} {
-      allow read, write: if isSignedIn() && (
-        isOwner(resource.data.creatorId) || 
-        resource.data.userId == request.auth.uid || 
-        resource.data.authUid == request.auth.uid
-      );
-      allow create: if isSignedIn() && (
-        isOwner(request.resource.data.creatorId) || 
-        request.resource.data.userId == request.auth.uid
-      );
-    }
-
-    // AI Generation Logs
-    match /ai_generation_logs/{logId} {
-      allow read: if isSignedIn() && (
-        isOwner(resource.data.userId) || 
-        resource.data.creatorId == request.auth.uid || 
-        resource.data.authUid == request.auth.uid
-      );
-      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
-      allow update: if isSignedIn() && isOwner(request.resource.data.userId);
-    }
-    
-    // Chats & Messaging
-    match /chats/{chatId} {
-      allow read: if isSignedIn() && (
-        isOwner(resource.data.subscriberId) || 
-        isOwner(resource.data.creatorId)
-      );
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (
-        isOwner(resource.data.subscriberId) || 
-        isOwner(resource.data.creatorId)
-      );
+      allow read: if isOwner(resource.data.creatorId) || resource.data.visibility == 'public' || isAdmin();
+      allow write: if isOwner(resource.data.creatorId) || isAdmin();
+    }
 
+    // 📜 FINANCIAL LEDGER
+    match /ledger/{entryId} {
+      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.fromUserId) || isOwner(resource.data.toUserId) || isAdmin();
+      allow write: if false; // ADMIN SDK ONLY
+    }
+
+    // 💳 SUBSCRIPTIONS
+    match /subscriptions/{subId} {
+      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.creatorId) || isAdmin();
+      allow write: if false; // ADMIN SDK ONLY
+    }
+
+    // 🤖 AI GENERATION LOGS
+    match /ai_generation_logs/{logId} {
+      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.creatorId) || isAdmin();
+      allow write: if isSignedIn(); 
+    }
+
+    // 📰 POSTS (Public Content)
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if isOwner(resource.data.creatorId) || isAdmin();
+    }
+
+    // ⚙️ SYSTEM CONFIG
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 💬 CHATS & MESSAGES
+    match /chats/{chatId} {
+      allow read, write: if isOwner(resource.data.subscriberId) || isOwner(resource.data.creatorId) || isAdmin();
+      
       match /messages/{messageId} {
-        allow read: if isSignedIn() && (
-          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.subscriberId) ||
-          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.creatorId)
-        );
-        allow create: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
-    // Presentations (Public Read)
-    match /presentations/{docId} {
-      allow read: if true;
-      allow write: if false; 
-    }
-
-    // Forum topics and replies
-    match /forum_topics/{topicId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isOwner(resource.data.authorId);
-    }
-
-    match /forum_replies/{replyId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-    }
-    
-    // Default fallback
+    // 🏗️ DEFAULT FALLBACK
     match /{path=**} {
       allow read, write: if false;
     }

@@ -391,7 +391,7 @@ export default function AIMusePage() {
                     mediaUrl: lastResult,
                     mediaType: 'image',
                     category: 'ai_muse',
-                    isAdvanced: lastResultIsAdvanced 
+                    isAdvanced: lastResultIsAdvanced
                 })
             });
 
@@ -455,8 +455,8 @@ export default function AIMusePage() {
 
     const handleUnlockPro = async () => {
         if (!user?.uid) return
-        if ((user.ulcBalance?.available || 0) < 15) {
-            toast({ variant: 'destructive', title: tCommon("insufficientULC"), description: tCommon("insufficientULCDesc") })
+        if ((user.ulcBalance?.available || 0) < 2) {
+            toast({ variant: 'destructive', title: tCommon("insufficientULC"), description: "Uniq Pro kilit açımı için 2 ULC gereklidir." })
             return
         }
         
