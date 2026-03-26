@@ -83,9 +83,9 @@ export async function POST(req: Request) {
     console.log("AI PROMPT ENHANCE INPUT:", finalSystemPrompt);
 
     const modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-2.0-flash'
+        'gemini-2.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-2.0-flash-exp'
     ];
 
     const geminiRequestBody = {
