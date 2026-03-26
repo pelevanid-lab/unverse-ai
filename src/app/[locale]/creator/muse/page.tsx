@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers, Video, Maximize, Heart, Zap, Sun } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Uniq } from '@/lib/uniq'
-import { processUniqProUnlock } from '@/lib/ledger'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -384,15 +383,23 @@ export default function AIMusePage() {
         if (!user?.uid || !lastResult) return
         setSaving(true)
         try {
-            await addDoc(collection(db, 'creator_media'), {
-                creatorId: user.uid,
-                mediaUrl: lastResult,
-                mediaType: 'image',
-                category: 'ai_muse',
-                isAdvanced: lastResultIsAdvanced,
-                createdAt: Date.now(),
-                status: 'draft'
-            })
+            const response = await fetch('/api/ai/save-to-container', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    mediaUrl: lastResult,
+                    mediaType: 'image',
+                    category: 'ai_muse',
+                    isAdvanced: lastResultIsAdvanced 
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Save failed");
+            }
+            
             toast({ title: tCommon("savedToContainer"), description: tCommon("savedToContainerDesc") })
             if (!skipRedirect) {
                 router.push('/creator/container')
@@ -455,7 +462,15 @@ export default function AIMusePage() {
         
         setLoading(true)
         try {
-            await processUniqProUnlock(user.uid)
+            const response = await fetch('/api/ai/unlock-pro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.uid })
+            });
+            
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Unlock failed");
+
             toast({ title: "Uniq Pro Unlocked!", description: "You now have access to Advanced AI features." })
             setIsAdvancedMode(true)
         } catch (err: any) {

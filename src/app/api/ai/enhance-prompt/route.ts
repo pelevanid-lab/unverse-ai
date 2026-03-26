@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { prompt, character, style, composition, outfit, systemInstructions } = await req.json();
+    const body = await req.json();
+    const { prompt, character, style, composition, outfit, systemInstructions, locale } = body;
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -14,6 +15,31 @@ export async function POST(req: Request) {
     if (!apiKey) {
       return NextResponse.json({ error: 'Gemini API key is not configured.' }, { status: 500 });
     }
+
+    // 🌐 AUTO-TRANSLATE IF NON-ENGLISH
+    const shouldTranslate = (text: string) => {
+        const nonAscii = /[^\x00-\x7F]/;
+        return nonAscii.test(text);
+    };
+
+    let processedPrompt = prompt;
+    if (shouldTranslate(prompt)) {
+        try {
+            const response = await fetch(`${new URL(req.url).origin}/api/ai/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: prompt, targetLang: 'en' })
+            });
+            if (response.ok) {
+                const trData = await response.json();
+                processedPrompt = trData.translation;
+                console.log("AUTO-TRANSLATED ENHANCE INPUT:", processedPrompt);
+            }
+        } catch (e) {
+            console.warn("Translation failed for enhance-prompt, using original.");
+        }
+    }
+
 
     // Build the context for for the and Prompt Engineer persona
     let characterContext = "A person";
@@ -43,7 +69,7 @@ export async function POST(req: Request) {
     3. NO HALLUCINATIONS: Do not add extra people or change the core subject identity.
     4. CINEMATIC DETAIL: Use 40-50 words for the enhancedPrompt, focusing on textures, fabrics, and atmospheric lighting.
     
-    User Scenario (in English): "${prompt}"
+    User Scenario (in English): "${processedPrompt}"
     
     Subject Attributes:
     - Identity: ${characterContext}
@@ -57,10 +83,9 @@ export async function POST(req: Request) {
     console.log("AI PROMPT ENHANCE INPUT:", finalSystemPrompt);
 
     const modelsToTry = [
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash-latest'
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-2.0-flash'
     ];
 
     const geminiRequestBody = {
@@ -154,6 +179,29 @@ export async function POST(req: Request) {
                     lightingSummary: "Warm",
                     propSummary: "None"
                 };
+            }
+        }
+
+        // 🌐 BIDIRECTIONAL TRANSLATION (Story Localization)
+        const targetLocale = locale || 'en';
+        const isTurkish = targetLocale === 'tr' || targetLocale === 'tr-TR';
+        const isRussian = targetLocale === 'ru' || targetLocale === 'ru-RU';
+        const targetLangCode = isTurkish ? 'tr' : (isRussian ? 'ru' : 'en');
+
+        if (targetLangCode !== 'en' && data.enhancedPrompt) {
+            try {
+                const trResponse = await fetch(`${new URL(req.url).origin}/api/ai/translate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: data.enhancedPrompt, targetLang: targetLangCode })
+                });
+                if (trResponse.ok) {
+                    const trData = await trResponse.json();
+                    data.translatedStory = trData.translation || data.enhancedPrompt;
+                    console.log(`[ENHANCE] Translated Story to ${targetLangCode}`);
+                }
+            } catch (e) {
+                console.warn("Story translation failed:", e);
             }
         }
 

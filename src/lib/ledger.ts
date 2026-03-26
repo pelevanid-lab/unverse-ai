@@ -56,35 +56,19 @@ export async function recordTransaction(entry: Omit<LedgerEntry, 'id' | 'timesta
 }
 
 export async function grantWelcomeBonus(address: string): Promise<void> {
-    const userDocRef = doc(db, 'users', address);
-    const configRef = doc(db, 'config', 'system');
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'GRANT_WELCOME_BONUS',
+            userId: address
+        })
+    });
     
-    const batch = writeBatch(db);
-    
-    // 1. Record in Ledger
-    const ledgerRef = doc(collection(db, 'ledger'));
-    batch.set(ledgerRef, {
-        fromWallet: "SYSTEM_PROMO_POOL",
-        toUserId: address,
-        toWallet: address,
-        amount: 15, // Reduced from 100 (User Request)
-        currency: 'ULC',
-        type: 'welcome_bonus',
-        timestamp: Date.now(),
-    });
-
-    // 2. Update User Profile
-    batch.update(userDocRef, {
-        welcomeBonusClaimed: true,
-        'ulcBalance.available': increment(15)
-    });
-
-    // 3. Update Global Promo Pool
-    batch.update(configRef, {
-        'pools.promo': increment(-15)
-    });
-
-    await batch.commit();
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to grant welcome bonus");
+    }
 }
 
 export async function recordUsdcSubscription(
@@ -94,121 +78,24 @@ export async function recordUsdcSubscription(
     network: 'Base' | 'EVM',
     txHash: string
 ): Promise<void> {
-    if (!creator.creatorData) throw new Error("Target user is not a creator.");
-
-    const batch = writeBatch(db);
-    const subscriptionPrice = creator.creatorData.subscriptionPriceMonthly;
-    
-    const creatorRatio = 0.85;
-    const platformMarginRatio = 0.15;
-    
-    const treasuryRatio = config.subscription_treasury_ratio || 0.67;
-    const buybackRatio = config.subscription_buyback_ratio || 0.33;
-
-    const platformMargin = subscriptionPrice * platformMarginRatio;
-    const treasuryShare = platformMargin * treasuryRatio;
-    const buybackShare = platformMargin * buybackRatio;
-    const creatorEarning = subscriptionPrice * creatorRatio;
-
-    const now = Date.now();
-    const duration = 30 * 24 * 60 * 60 * 1000;
-
-    const subQuery = query(
-        collection(db, 'subscriptions'),
-        where('userId', '==', subscriber.uid),
-        where('creatorId', '==', creator.uid),
-        where('status', '==', 'active')
-    );
-    const subSnap = await getDocs(subQuery);
-    
-    let subRef;
-    let newExpiry;
-
-    if (!subSnap.empty) {
-        const currentSub = subSnap.docs[0];
-        subRef = doc(db, 'subscriptions', currentSub.id);
-        const currentExpiry = currentSub.data().expiresAt;
-        newExpiry = Math.max(now, currentExpiry) + duration;
-        batch.update(subRef, { expiresAt: newExpiry, updatedAt: now });
-    } else {
-        subRef = doc(collection(db, 'subscriptions'));
-        newExpiry = now + duration;
-        const newSub: Omit<SubscriptionRecord, 'id'> = {
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'RECORD_SUBSCRIPTION',
             userId: subscriber.uid,
-            creatorId: creator.uid,
-            startedAt: now,
-            expiresAt: newExpiry,
-            status: 'active'
-        };
-        batch.set(subRef, newSub);
+            payload: {
+                creatorId: creator.uid,
+                network,
+                txHash
+            }
+        })
+    });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to record subscription");
     }
-
-    const paymentRef = doc(collection(db, "ledger"));
-    batch.set(paymentRef, {
-        type: 'subscription_payment',
-        timestamp: now,
-        fromUserId: subscriber.uid,
-        toUserId: creator.uid,
-        amount: subscriptionPrice,
-        currency: 'USDC',
-        network: network,
-        txHash: txHash,
-        toWallet: config.treasury_address,
-    });
-
-    batch.set(doc(collection(db, "ledger")), {
-        type: 'creator_earning',
-        timestamp: now,
-        creatorId: creator.uid,
-        toUserId: creator.uid,
-        userId: subscriber.uid,
-        amount: creatorEarning,
-        currency: 'USDC',
-        referenceId: paymentRef.id,
-    });
-
-    // 3. Update Creator USDC Balance
-    const creatorRef = doc(db, 'users', creator.uid);
-    batch.update(creatorRef, {
-        'usdcBalance.available': increment(creatorEarning),
-        totalEarnings: increment(creatorEarning)
-    });
-
-    // 4. Update Global USDC Stats
-    const statsRef = doc(db, 'config', 'system');
-    
-    // Rule: 10% Treasury, 5% Buyback Staking Reward
-    const buybackStakingShare = buybackShare; // Entire 5% goes to staking
-
-    batch.update(statsRef, {
-        totalTreasuryUSDC: increment(treasuryShare),
-        totalBuybackStakingUSDC: increment(buybackStakingShare)
-    });
-
-    batch.set(doc(collection(db, "ledger")), {
-        type: 'treasury_fee',
-        timestamp: now,
-        amount: treasuryShare,
-        currency: 'USDC',
-        referenceId: paymentRef.id,
-        toWallet: config.treasury_address
-    });
-
-    batch.set(doc(collection(db, "ledger")), {
-        type: 'buyback_staking_fee',
-        timestamp: now,
-        amount: buybackShare,
-        currency: 'USDC',
-        referenceId: paymentRef.id,
-    });
-    
-    const userRef = doc(db, "users", subscriber.uid);
-    const updatedSubs = Array.from(new Set([...(subscriber.activeSubscriptionIds || []), creator.uid]));
-    batch.update(userRef, {
-        activeSubscriptionIds: updatedSubs
-    });
-
-    await batch.commit();
 }
 
 export async function calculateCreatorUsdcEarnings(creatorId: string): Promise<{ available: number, pending: number }> {
@@ -412,77 +299,37 @@ export async function syncSystemConfigAction() {
 }
 
 export async function handleStaking(user: UserProfile, amount: number) {
-    if (amount <= 0) throw new Error("Amount must be positive");
-    
-    await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        const available = userData.ulcBalance?.available || 0;
-        
-        if (available < amount) throw new Error("INSUFFICIENT_BALANCE");
-
-        // 1. Move Balance
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(-amount),
-            'ulcBalance.staked': increment(amount)
-        });
-
-        // 2. Update Global Stats
-        const configRef = doc(db, 'config', 'system');
-        transaction.update(configRef, {
-            totalStakedULC: increment(amount)
-        });
-
-        // 3. Ledger Entry
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'staking_deposit',
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'STAKE',
             userId: user.uid,
-            amount: amount,
-            currency: 'ULC',
-            timestamp: Date.now()
-        });
+            payload: { amount }
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Staking failed");
+    }
 }
 
 export async function handleUnstaking(user: UserProfile, amount: number) {
-    if (amount <= 0) throw new Error("Amount must be positive");
-    
-    await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        const staked = userData.ulcBalance?.staked || 0;
-        
-        if (staked < amount) throw new Error("INSUFFICIENT_STAKED_BALANCE");
-
-        // 1. Move Balance
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(amount),
-            'ulcBalance.staked': increment(-amount)
-        });
-
-        // 2. Update Global Stats
-        const configRef = doc(db, 'config', 'system');
-        transaction.update(configRef, {
-            totalStakedULC: increment(-amount)
-        });
-
-        // 3. Ledger Entry
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'staking_withdraw',
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'UNSTAKE',
             userId: user.uid,
-            amount: amount,
-            currency: 'ULC',
-            timestamp: Date.now()
-        });
+            payload: { amount }
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unstaking failed");
+    }
 }
 
 export async function sealEconomyAction() {
@@ -531,90 +378,40 @@ export async function toggleUserFreeze(uid: string, freeze: boolean) {
  * Ratio: 70% Treasury / 30% Burn
  */
 export async function processAiGenerationPayment(userId: string, cost: number, isRegeneration?: boolean): Promise<string> {
-    // 100% Profit Margin: Ensure no generation goes below a 5 ULC base (covers $0.03 cost at $0.015/ULC for 2x margin)
-    // If original cost is 10 (Consistent), regen is 5. If original cost is 5 (Standard), regen is 5.
-    const finalCost = isRegeneration ? Math.max(5, Math.floor(cost / 2)) : cost;
-    return await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await transaction.get(userRef);
-        
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        const balance = userData.ulcBalance?.available || 0;
-        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
-        // The 'cost' parameter is now used directly, removing the shadowed 'const cost = 3;'
-        // The fixed shares are replaced with calculated percentages.
-
-        const config = await getSystemConfig();
-        const tSplit = config.ai_generation_treasury_split ?? 7;
-        const bSplit = config.ai_generation_burn_split ?? 3;
-        const totalSplit = tSplit + bSplit;
-
-        const treasuryShare = Number((cost * (tSplit / totalSplit)).toFixed(2));
-        const burnShare = Number((cost - treasuryShare).toFixed(2));
-
-        // 1. Deduct from user
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(-finalCost)
-        });
-
-        // 2. Update Global Treasury and Burn Stats
-        const statsRef = doc(db, 'config', 'stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: increment(treasuryShare),
-            totalBurnedULC: increment(burnShare)
-        }, { merge: true });
-
-        // 3. Record in Ledger
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'ai_generation_payment',
-            fromUserId: userId,
-            amount: finalCost,
-            currency: 'ULC',
-            timestamp: Date.now(),
-            details: { treasury: treasuryShare, burn: burnShare }
-        });
-
-        return ledgerRef.id;
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'AI_GENERATION_PAYMENT',
+            userId,
+            payload: { cost, isRegeneration }
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Payment failed");
+    }
+
+    const { ledgerId } = await response.json();
+    return ledgerId;
 }
 
 export async function refundAiGenerationPayment(userId: string, ledgerId: string, cost: number): Promise<void> {
-    await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const config = await getSystemConfig();
-        const tSplit = config.ai_generation_treasury_split ?? 7;
-        const bSplit = config.ai_generation_burn_split ?? 3;
-        const totalSplit = tSplit + bSplit;
-
-        const treasuryShare = Number((cost * (tSplit / totalSplit)).toFixed(2));
-        const burnShare = Number((cost - treasuryShare).toFixed(2));
-
-        // 1. Refund user
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(cost)
-        });
-
-        // 2. Reverse Stats
-        const statsRef = doc(db, 'config', 'stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: increment(-treasuryShare),
-            totalBurnedULC: increment(-burnShare)
-        }, { merge: true });
-
-        // 3. Record Refund Entry
-        const refundLedgerRef = doc(collection(db, 'ledger'));
-        transaction.set(refundLedgerRef, {
-            type: 'ai_generation_refund',
-            toUserId: userId,
-            amount: cost,
-            currency: 'ULC',
-            timestamp: Date.now(),
-            referenceId: ledgerId
-        });
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'AI_GENERATION_REFUND',
+            userId,
+            payload: { ledgerId, cost }
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Refund failed");
+    }
 }
 
 /**
@@ -622,59 +419,22 @@ export async function refundAiGenerationPayment(userId: string, ledgerId: string
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorActivation(userId: string): Promise<string> {
-    return await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        const now = Date.now();
-
-        // Check if already active
-        if (userData.aiCreatorModeExpiresAt && userData.aiCreatorModeExpiresAt > now) {
-            throw new Error("ALREADY_ACTIVE");
-        }
-
-        // Logic: First time is FREE. Subsequent activations are 10 ULC.
-        const firstTime = !userData.aiCreatorModeActivatedAt;
-        const finalCost = firstTime ? 0 : 10;
-
-        const balance = userData.ulcBalance?.available || 0;
-        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
-
-        const treasuryShare = Number((finalCost * 0.70).toFixed(2));
-        const burnShare = Number((finalCost - treasuryShare).toFixed(2));
-
-        const expiresAt = now + (30 * 24 * 60 * 60 * 1000);
-
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(-finalCost),
-            aiCreatorModeEnabled: true,
-            aiCreatorModeActivatedAt: firstTime ? now : userData.aiCreatorModeActivatedAt,
-            aiCreatorModeExpiresAt: expiresAt,
-            aiCreatorModeLastChargedAt: now
-        });
-
-        if (finalCost > 0) {
-            const statsRef = doc(db, 'config', 'stats');
-            transaction.set(statsRef, {
-                totalTreasuryULC: increment(treasuryShare),
-                totalBurnedULC: increment(burnShare)
-            }, { merge: true });
-        }
-
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'ai_creator_activation',
-            fromUserId: userId,
-            amount: finalCost,
-            currency: 'ULC',
-            timestamp: now,
-            details: { treasury: treasuryShare, burn: burnShare, expiresAt }
-        });
-
-        return ledgerRef.id;
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'AI_CREATOR_ACTIVATION',
+            userId
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Activation failed");
+    }
+
+    const { ledgerId } = await response.json();
+    return ledgerId;
 }
 
 /**
@@ -682,50 +442,22 @@ export async function processAiCreatorActivation(userId: string): Promise<string
  * 70% Treasury / 30% Burn
  */
 export async function processAiCreatorGeneration(userId: string): Promise<string> {
-    const cost = 2;
-    return await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        const now = Date.now();
-
-        // Ensure active
-        if (!userData.aiCreatorModeExpiresAt || userData.aiCreatorModeExpiresAt < now) {
-            throw new Error("UNIQ_MODE_EXPIRED");
-        }
-
-        const finalCost = cost;
-        const balance = userData.ulcBalance?.available || 0;
-        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
-
-        const treasuryShare = Number((finalCost * 0.70).toFixed(2));
-        const burnShare = Number((finalCost - treasuryShare).toFixed(2));
-
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(-finalCost),
-            aiCreatorModeLastRunAt: now
-        });
-
-        const statsRef = doc(db, 'config', 'stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: increment(treasuryShare),
-            totalBurnedULC: increment(burnShare)
-        }, { merge: true });
-
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'ai_creator_generation',
-            fromUserId: userId,
-            amount: finalCost,
-            currency: 'ULC',
-            timestamp: now,
-            details: { treasury: treasuryShare, burn: burnShare }
-        });
-
-        return ledgerRef.id;
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'AI_CREATOR_GENERATION',
+            userId
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Generation payment failed");
+    }
+
+    const { ledgerId } = await response.json();
+    return ledgerId;
 }
 
 /**
@@ -733,47 +465,22 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
  * 70% Treasury / 30% Burn
  */
 export async function processUniqProUnlock(userId: string): Promise<string> {
-    const cost = 15;
-    return await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User not found");
-        
-        const userData = userSnap.data() as UserProfile;
-        
-        if (userData.isAdvancedModeUnlocked) {
-            throw new Error("ALREADY_UNLOCKED");
-        }
-
-        const balance = userData.ulcBalance?.available || 0;
-        if (balance < cost) throw new Error("INSUFFICIENT_ULC");
-
-        const treasuryShare = Number((cost * 0.70).toFixed(2));
-        const burnShare = Number((cost - treasuryShare).toFixed(2));
-
-        transaction.update(userRef, {
-            'ulcBalance.available': increment(-cost),
-            isAdvancedModeUnlocked: true
-        });
-
-        const statsRef = doc(db, 'config', 'stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: increment(treasuryShare),
-            totalBurnedULC: increment(burnShare)
-        }, { merge: true });
-
-        const ledgerRef = doc(collection(db, 'ledger'));
-        transaction.set(ledgerRef, {
-            type: 'premium_unlock',
-            fromUserId: userId,
-            amount: cost,
-            currency: 'ULC',
-            timestamp: Date.now(),
-            details: { treasury: treasuryShare, burn: burnShare, feature: 'uniq_pro_engine' }
-        });
-
-        return ledgerRef.id;
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'UNIQ_PRO_UNLOCK',
+            userId
+        })
     });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unlock failed");
+    }
+
+    const { ledgerId } = await response.json();
+    return ledgerId;
 }
 
 export async function updateClaimRequestStatus(claimId: string, status: ClaimRequest['status'], adminId?: string, txHash?: string): Promise<void> {

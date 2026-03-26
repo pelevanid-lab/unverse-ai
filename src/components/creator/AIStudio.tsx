@@ -262,7 +262,8 @@ export function AIStudio() {
             await uniq.init();
 
             // 2. Process Payment
-            const ledgerId = await processAiGenerationPayment(user.uid, baseCost, isRegen);
+            // Payment is now handled server-side inside /api/ai/generate-image
+            // const ledgerId = await processAiGenerationPayment(user.uid, baseCost, isRegen);
 
             // 🚀 SMART FLOW: Proactive enhancement
             // If the prompt is short or user has smartMode on, we enhance it automatically
@@ -369,19 +370,27 @@ export function AIStudio() {
             const tags = await uniq.generateTags(prompt, locale); // 🚀 Auto-tagging
 
             // "Havuza Kaydet" now creates the draft manually
-            const mediaDocRef = await addDoc(collection(db, 'creator_media'), {
-                creatorId: user.uid,
-                mediaUrl: imageUrl,
-                mediaType: 'image',
-                status: 'draft',
-                createdAt: Date.now(),
-                prompt: prompt,
-                isAI: true,
-                aiPrompt: prompt,
-                aiEnhancedPrompt: enhancedPromptUsed || prompt,
-                paymentReference: logId,
-                tags: tags // Storing generated tags
+            const response = await fetch('/api/ai/save-to-container', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    mediaUrl: imageUrl,
+                    mediaType: 'image',
+                    prompt: prompt,
+                    isAI: true,
+                    aiPrompt: prompt,
+                    aiEnhancedPrompt: enhancedPromptUsed || prompt,
+                    paymentReference: logId,
+                    tags: tags
+                })
             });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Save failed");
+            }
+            const mediaId = (await response.json()).mediaId;
 
             // Also update the log
             if (logId) {
@@ -392,7 +401,7 @@ export function AIStudio() {
                 });
             }
 
-            setMediaId(mediaDocRef.id);
+            setMediaId(mediaId);
             toast({ title: t('savedInPool'), description: t('savedInPoolDesc') });
             resetStudio(); // Clear the screen after save as requested
         } catch (e) {

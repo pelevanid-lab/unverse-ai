@@ -44,6 +44,30 @@ export async function POST(req: Request) {
         throw new Error("FAL_API_KEY is missing on server.");
     }
 
+    // 🌐 AUTO-TRANSLATE IF NON-ENGLISH
+    const shouldTranslate = (text: string) => {
+        const nonAscii = /[^\x00-\x7F]/;
+        return nonAscii.test(text);
+    };
+
+    let processedPrompt = prompt || "Smooth cinematic animation";
+    if (prompt && shouldTranslate(prompt)) {
+        try {
+            const trResponse = await fetch(`${new URL(req.url).origin}/api/ai/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: prompt, targetLang: 'en' })
+            });
+            if (trResponse.ok) {
+                const trData = await trResponse.json();
+                processedPrompt = trData.translation;
+                console.log("[ANIMATE] Auto-translated prompt:", processedPrompt);
+            }
+        } catch (e) {
+            console.warn("[ANIMATE] Translation failed, using original.");
+        }
+    }
+
     const response = await fetch("https://fal.run/fal-ai/kling-video/v1/standard/image-to-video", {
         method: "POST",
         headers: {
@@ -51,11 +75,12 @@ export async function POST(req: Request) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            prompt: prompt || "Smooth cinematic animation",
+            prompt: processedPrompt,
             image_url: sourceImageUrl,
             duration: duration === 10 ? "10" : "5",
         })
     });
+
 
     if (!response.ok) {
         const errData = await response.json();

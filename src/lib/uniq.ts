@@ -323,12 +323,13 @@ export class Uniq {
         character?: CharacterProfile,
         isEditMode?: boolean,
         referenceImageUrl?: string,
-        outfit?: string
-    }): Promise<{ enhancedPrompt: string, originalPrompt: string, translation?: string, negativePrompt?: string, sceneLock?: Partial<SceneLock> }> {
+        outfit?: string,
+        locale?: string
+    }): Promise<{ enhancedPrompt: string, originalPrompt: string, translatedStory?: string, translation?: string, negativePrompt?: string, sceneLock?: Partial<SceneLock> }> {
         
-        // DISABLE memory to clear hallucinations for for current triage
-        const memoryContext = ""; 
-        const negativeMemoryContext = "";
+        // 🎯 DYNAMIC MEMORY (Persona Upgrade)
+        const memoryContext = await this.getMemoryContext();
+        const negativeMemoryContext = await this.getNegativeMemoryContext();
         
         // Character context construction (Persona Upgrade)
         const char = params.character || this.user?.savedCharacter;
@@ -375,7 +376,8 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
                 style: params.style,
                 composition: params.composition,
                 outfit: params.outfit,
-                negativeContext: negativeMemoryContext
+                negativeContext: negativeMemoryContext,
+                locale: params.locale
             })
         });
 
@@ -398,6 +400,7 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
             enhancedPrompt: data.enhancedPrompt,
             originalPrompt: params.userInput,
             translation: data.translation,
+            translatedStory: data.translatedStory,
             negativePrompt: negativeMemoryContext,
             sceneLock
         };
@@ -418,24 +421,12 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
             return params.originalPrompt || "Check out this video!";
         }
 
-        const langInstruction = params.locale === 'tr' 
-            ? "DAİMİ DİLİN TÜRKÇE OLMALI (Your response must always be in Turkish)." 
-            : "YOUR RESPONSE MUST ALWAYS BE IN ENGLISH.";
-
-        const systemInstructions = `Generate a catchy, professional social media caption for this AI-generated image.
-${langInstruction}
-Original Idea: "${params.originalPrompt || 'Beautiful scene'}"
-Content Type: ${params.contentType} (Note: Create exclusivity for premium/limited)
-
-Output ONLY the caption text.`;
-
         const response = await fetch('/api/ai/generate-caption', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...params,
                 userId: this.userId,
-                systemInstructions
             })
         });
 
@@ -601,45 +592,22 @@ Output ONLY the caption text.`;
      */
     async logInteraction(logData: Partial<AIGenerationLog>) {
         try {
-            const logId = logData.id;
-            if (typeof window === 'undefined') {
-                // SERVER SIDE (Admin SDK)
-                if (!adminDb) {
-                    const adminMod = require('./firebase-admin');
-                    adminDb = adminMod.adminDb;
-                }
-                if (!admin) admin = require('firebase-admin');
+            const response = await fetch('/api/ai/log-interaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.userId,
+                    logId: logData.id,
+                    logData
+                })
+            });
 
-                if (logId) {
-                    await adminDb.collection('ai_generation_logs').doc(logId).update({
-                        ...logData,
-                        timestamp: admin.firestore.FieldValue.serverTimestamp()
-                    });
-                } else {
-                    await adminDb.collection('ai_generation_logs').add({
-                        ...logData,
-                        userId: this.userId,
-                        timestamp: admin.firestore.FieldValue.serverTimestamp()
-                    });
-                }
-            } else {
-                // CLIENT SIDE (Firebase JS SDK)
-                if (logId) {
-                    const logRef = doc(db, 'ai_generation_logs', logId);
-                    await updateDoc(logRef, {
-                        ...logData,
-                        timestamp: serverTimestamp()
-                    });
-                } else {
-                    await addDoc(collection(db, 'ai_generation_logs'), {
-                        ...logData,
-                        userId: this.userId,
-                        timestamp: serverTimestamp()
-                    });
-                }
+            if (!response.ok) {
+                const err = await response.json();
+                console.error("Server logging failed:", err.error);
             }
  
-            // Check if we should upgrade learning mode (Server side skip learning upgrade for for now to simplify)
+            // Check if we should upgrade learning mode
             if (typeof window !== 'undefined' && this.user?.aiLearningState?.mode !== 'adaptive') {
                 const isReady = await this.checkAdaptiveLearningThreshold();
                 if (isReady) {
@@ -688,7 +656,7 @@ Output ONLY the caption text.`;
      * Automation: Generates a daily AI draft for Profile Mode.
      * Cost: 2 ULC.
      */
-    async generateDailyDraft(options?: { baseUrl?: string }): Promise<string> {
+    async generateDailyDraft(options?: { baseUrl?: string, locale?: string }): Promise<string> {
         const now = Date.now();
         if (!this.user?.aiCreatorModeExpiresAt || this.user.aiCreatorModeExpiresAt < now) {
             throw new Error("Uniq Premium subscription is inactive or expired.");
@@ -732,7 +700,8 @@ Output ONLY the caption text.`;
         // 3. Enhance & Generate
         const enhancement = await this.generateImagePrompt({ 
             userInput: basePrompt,
-            style: this.user?.savedCharacter?.style_bias || 'cinematic'
+            style: this.user?.savedCharacter?.style_bias || 'cinematic',
+            locale: options?.locale
         });
 
         // 4. API Call to Replicate (Simulated here, should be called via internal API fetch)
@@ -773,7 +742,7 @@ Output ONLY the caption text.`;
             contentType: 'public',
             isAI: true,
             aiPrompt: enhancement.originalPrompt,
-            aiEnhancedPrompt: enhancement.enhancedPrompt
+            aiEnhancedPrompt: enhancement.translatedStory || enhancement.enhancedPrompt
         };
 
         let mediaDocId = "";
@@ -782,10 +751,18 @@ Output ONLY the caption text.`;
             if (!admin) admin = require('firebase-admin');
             
             const docRef = await adminDb.collection('creator_media').add(scheduledData);
-            mediaDocId = docRef.id;
+            mediaDocId = docRef.id; // This line was changed to mediaDocId = docRef.id; to maintain functionality
         } else {
-            const docRef = await addDoc(collection(db, 'creator_media'), scheduledData);
-            mediaDocId = docRef.id;
+            const response = await fetch('/api/ai/save-to-container', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.userId,
+                    ...scheduledData
+                })
+            });
+            if (!response.ok) throw new Error("API Save failed");
+            mediaDocId = (await response.json()).mediaId;
         }
 
         return mediaDocId;

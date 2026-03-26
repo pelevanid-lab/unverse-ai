@@ -493,16 +493,23 @@ export default function ContentUploadPage() {
             const downloadUrl = await getDownloadURL(storageRef)
 
             // 3. Save to Firestore
-            await addDoc(collection(db, 'creator_media'), {
-                creatorId: user.uid,
-                mediaUrl: downloadUrl,
-                mediaType: fileType,
-                status: 'draft',
-                createdAt: serverTimestamp(),
-                source: 'user',
-                priceULC: 0,
-                contentType: 'public'
-            })
+            const response = await fetch('/api/ai/save-to-container', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    mediaUrl: downloadUrl,
+                    mediaType: fileType,
+                    source: 'user',
+                    priceULC: 0,
+                    contentType: 'public'
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Save failed");
+            }
 
             toast({ title: t('savedSuccess'), description: t('savedSuccessDesc') })
             router.push('/creator?tab=container')

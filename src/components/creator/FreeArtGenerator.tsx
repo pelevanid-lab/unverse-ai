@@ -58,17 +58,19 @@ export function FreeArtGenerator() {
                 await uniq.init();
                 const tags = await uniq.generateTags(prompt, locale);
 
-                await addDoc(collection(db, 'creator_media'), {
-                    creatorId: user.uid,
-                    mediaUrl: imageUrl,
-                    mediaType: 'image',
-                    status: 'draft',
-                    createdAt: Date.now(),
-                    prompt: prompt,
-                    isAI: true,
-                    aiPrompt: prompt,
-                    isFreeArt: true,
-                    tags: tags
+                await fetch('/api/ai/save-to-container', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: user.uid,
+                        mediaUrl: imageUrl,
+                        mediaType: 'image',
+                        prompt: prompt,
+                        isAI: true,
+                        aiPrompt: prompt,
+                        isFreeArt: true,
+                        tags: tags
+                    })
                 });
                 console.log("Auto-saved previous image to pool before variation.");
             } catch (e) {
@@ -160,18 +162,25 @@ export function FreeArtGenerator() {
             await uniq.init();
             const tags = await uniq.generateTags(prompt, locale);
 
-            await addDoc(collection(db, 'creator_media'), {
-                creatorId: user.uid,
-                mediaUrl: imageUrl,
-                mediaType: 'image',
-                status: 'draft',
-                createdAt: Date.now(),
-                prompt: prompt,
-                isAI: true,
-                aiPrompt: prompt,
-                isFreeArt: true,
-                tags: tags
+            const response = await fetch('/api/ai/save-to-container', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    mediaUrl: imageUrl,
+                    mediaType: 'image',
+                    prompt: prompt,
+                    isAI: true,
+                    aiPrompt: prompt,
+                    isFreeArt: true,
+                    tags: tags
+                })
             });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || "Save failed");
+            }
 
             toast({ title: t('savedInPool'), description: t('savedInPoolDesc') });
             setPrompt('');

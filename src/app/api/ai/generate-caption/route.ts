@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     // Call the direct Gemini REST API
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
@@ -107,7 +107,38 @@ export async function POST(req: Request) {
       throw new Error("Received empty text from Gemini.");
     }
 
-    return NextResponse.json({ caption: generatedText.trim() });
+    let finalCaption = generatedText.trim();
+
+    // 🌐 BIDIRECTIONAL TRANSLATION FAIL-SAFE
+    const isTurkish = locale === 'tr' || locale === 'tr-TR';
+    const isRussian = locale === 'ru' || locale === 'ru-RU';
+    const targetLangCode = isTurkish ? 'tr' : (isRussian ? 'ru' : 'en');
+
+    const hasNonEnglish = (text: string) => /[^\x00-\x7F]/.test(text);
+    
+    // If we want TR/RU but got English (common Gemini fallback), or vice versa
+    const needsTranslation = (isTurkish && !hasNonEnglish(finalCaption)) || 
+                             (isRussian && !hasNonEnglish(finalCaption));
+
+    if (needsTranslation && targetLangCode !== 'en') {
+        try {
+            console.log(`[CAPTION] Pincer Translation triggered for ${targetLangCode}`);
+            const trResponse = await fetch(`${new URL(req.url).origin}/api/ai/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: finalCaption, targetLang: targetLangCode })
+            });
+            if (trResponse.ok) {
+                const trData = await trResponse.json();
+                finalCaption = trData.translation || finalCaption;
+                console.log(`[CAPTION] Pincer Translation complete: ${finalCaption.substring(0, 30)}...`);
+            }
+        } catch (e) {
+            console.warn("Caption pincer translation failed:", e);
+        }
+    }
+
+    return NextResponse.json({ caption: finalCaption });
 
   } catch (error: any) {
     console.error('AI CAPTION GENERATION ERROR:', error);

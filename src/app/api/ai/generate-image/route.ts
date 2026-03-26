@@ -195,21 +195,23 @@ export async function POST(req: Request) {
         };
     }
 
-    // HELPER: Autonomous Translation Fail-safe
-    const autoTranslateToEnglish = async (text: string) => {
-        try {
-            const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
-            if (!apiKey) return text;
+    // 4. LINGUISTIC FIREWALL & VALIDATION (User Instruction 4)
+    const shouldTranslate = (text: string) => {
+        const nonAscii = /[^\x00-\x7F]/;
+        return nonAscii.test(text);
+    };
 
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-            const body = {
-                contents: [{ parts: [{ text: `Translate this text to natural, cinematic English for an AI image prompt. Output ONLY the raw translation: "${text}"` }] }],
-                generationConfig: { temperature: 0.2 }
-            };
-            const response = await fetch(geminiUrl, { method: 'POST', body: JSON.stringify(body) });
+    const translateToEnglish = async (text: string) => {
+        if (!shouldTranslate(text)) return text;
+        try {
+            const response = await fetch(`${new URL(req.url).origin}/api/ai/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, targetLang: 'en' })
+            });
             if (!response.ok) return text;
             const data = await response.json();
-            return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || text;
+            return data.translation || text;
         } catch (e) {
             console.warn("Autonomous translation failed:", e);
             return text;
@@ -237,25 +239,11 @@ export async function POST(req: Request) {
         }
     };
 
-
-    // 4. LINGUISTIC FIREWALL & VALIDATION (User Instruction 4)
-    const containsTurkish = (text: string) => {
-        const trChars = /[ğüşıöçĞÜŞİÖÇ]/;
-        return trChars.test(text);
-    };
-
-    if (containsTurkish(finalPromptForAI)) {
-        console.warn("Linguistic Firewall: Turkish detected. Attempting autonomous translation...", finalPromptForAI);
-        const selfHealedPrompt = await autoTranslateToEnglish(finalPromptForAI);
-        
-        // Final check after healing
-        if (containsTurkish(selfHealedPrompt)) {
-             console.error("Linguistic Firewall: Self-healing failed. Turkish remnants still present.", selfHealedPrompt);
-             throw new Error("Linguistic Firewall: Non-English characters detected. Please provide your prompt in English or try a simpler Turkish description.");
-        }
-        
-        console.log("Linguistic Firewall: Self-healing successful.", selfHealedPrompt);
-        finalPromptForAI = selfHealedPrompt;
+    // 🕊️ Apply Linguistic Firewall
+    if (shouldTranslate(finalPromptForAI)) {
+        console.warn("Linguistic Firewall: Non-ASCII detected. Translating...", finalPromptForAI);
+        finalPromptForAI = await translateToEnglish(finalPromptForAI);
+        console.log("Linguistic Firewall: Translation complete.", finalPromptForAI);
     }
 
     // SHARED LOGGING HELPER
