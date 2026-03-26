@@ -59,23 +59,34 @@ export class Uniq {
         if (!this.userId) return "";
 
         try {
-            const logsRef = collection(db, 'ai_generation_logs');
-            // We fetch a larger pool to rank them locally for better control
-            const q = query(
-                logsRef,
-                where('userId', '==', this.userId),
-                where('satisfactionScore', '>=', 4),
-                orderBy('timestamp', 'desc'),
-                limit(15)
-            );
+            let logs: AIGenerationLog[] = [];
+            
+            if (typeof window === 'undefined') {
+                if (!adminDb) adminDb = require('./firebase-admin').adminDb;
+                const querySnapshot = await adminDb.collection('ai_generation_logs')
+                    .where('userId', '==', this.userId)
+                    .where('satisfactionScore', '>=', 4)
+                    .orderBy('timestamp', 'desc')
+                    .limit(15)
+                    .get();
+                logs = querySnapshot.docs.map((doc: any) => doc.data() as AIGenerationLog);
+            } else {
+                const logsRef = collection(db, 'ai_generation_logs');
+                const q = query(
+                    logsRef,
+                    where('userId', '==', this.userId),
+                    where('satisfactionScore', '>=', 4),
+                    orderBy('timestamp', 'desc'),
+                    limit(15)
+                );
+                const querySnapshot = await getDocs(q);
+                logs = querySnapshot.docs.map(doc => doc.data() as AIGenerationLog);
+            }
 
-            const querySnapshot = await getDocs(q);
-            const allLogs = querySnapshot.docs.map(doc => doc.data() as AIGenerationLog);
-
-            if (allLogs.length === 0) return "";
+            if (logs.length === 0) return "";
 
             // Rank logs: Score (primary), Published (secondary), Saved (tertiary)
-            const rankedLogs = [...allLogs].sort((a, b) => {
+            const rankedLogs = [...logs].sort((a, b) => {
                 if ((b.satisfactionScore || 0) !== (a.satisfactionScore || 0)) {
                     return (b.satisfactionScore || 0) - (a.satisfactionScore || 0);
                 }
@@ -109,22 +120,35 @@ export class Uniq {
         if (!this.userId) return "";
 
         try {
-            const logsRef = collection(db, 'ai_generation_logs');
-            const q = query(
-                logsRef,
-                where('userId', '==', this.userId),
-                where('satisfactionScore', '<=', 2),
-                orderBy('timestamp', 'desc'),
-                limit(5)
-            );
+            let logs: AIGenerationLog[] = [];
 
-            const querySnapshot = await getDocs(q);
-            const badLogs = querySnapshot.docs.map(doc => doc.data() as AIGenerationLog);
+            if (typeof window === 'undefined') {
+                if (!adminDb) adminDb = require('./firebase-admin').adminDb;
+                const querySnapshot = await adminDb.collection('ai_generation_logs')
+                    .where('userId', '==', this.userId)
+                    .where('satisfactionScore', '<=', 2)
+                    .orderBy('timestamp', 'desc')
+                    .limit(5)
+                    .get();
+                logs = querySnapshot.docs.map((doc: any) => doc.data() as AIGenerationLog);
+            } else {
+                const logsRef = collection(db, 'ai_generation_logs');
+                const q = query(
+                    logsRef,
+                    where('userId', '==', this.userId),
+                    where('satisfactionScore', '<=', 2),
+                    orderBy('timestamp', 'desc'),
+                    limit(5)
+                );
 
-            if (badLogs.length === 0) return "";
+                const querySnapshot = await getDocs(q);
+                logs = querySnapshot.docs.map(doc => doc.data() as AIGenerationLog);
+            }
+
+            if (logs.length === 0) return "";
 
             // Use Gemini to analyze why these were bad
-            const badPrompts = badLogs.map(l => l.prompt).join(" | ");
+            const badPrompts = logs.map(l => l.prompt).join(" | ");
             const response = await fetch('/api/ai/enhance-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -394,7 +418,6 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
             return params.originalPrompt || "Check out this video!";
         }
 
-        const memoryContext = await this.getMemoryContext();
         const langInstruction = params.locale === 'tr' 
             ? "DAİMİ DİLİN TÜRKÇE OLMALI (Your response must always be in Turkish)." 
             : "YOUR RESPONSE MUST ALWAYS BE IN ENGLISH.";
@@ -404,8 +427,6 @@ ${langInstruction}
 Original Idea: "${params.originalPrompt || 'Beautiful scene'}"
 Content Type: ${params.contentType} (Note: Create exclusivity for premium/limited)
 
-${memoryContext}
-
 Output ONLY the caption text.`;
 
         const response = await fetch('/api/ai/generate-caption', {
@@ -413,6 +434,7 @@ Output ONLY the caption text.`;
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...params,
+                userId: this.userId,
                 systemInstructions
             })
         });

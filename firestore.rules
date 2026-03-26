@@ -85,6 +85,13 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && isOwner(resource.data.creatorId);
       allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
     }
+
+    // AI Generation Logs
+    match /ai_generation_logs/{logId} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
+      allow update: if isSignedIn() && isOwner(resource.data.userId);
+    }
     
     // Chats & Messaging
     match /chats/{chatId} {

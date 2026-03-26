@@ -79,7 +79,14 @@ export async function POST(req: Request) {
     await file.save(Buffer.from(videoBase64, 'base64'), {
         metadata: { contentType: 'video/mp4' }
     });
-    const finalUrl = `https://storage.googleapis.com/${bucket.name}/${videoPath}`;
+    
+    // Generate signed URL (7 days)
+    const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
+
+    const finalUrl = signedUrl;
 
     // 6. Save to Container (Mandatory Flow)
     const containerDoc = await adminDb.collection('creator_media').add({

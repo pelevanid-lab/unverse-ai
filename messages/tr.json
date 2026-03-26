@@ -113,7 +113,8 @@
     "recliningPose": "Arkaya Yaslanan",
     "proActive": "Uniq Pro Aktif",
     "setProfilePhoto": "Profil fotoğrafım yap",
-    "profilePhotoSuccess": "Profil fotoğrafı güncellendi!"
+    "profilePhotoSuccess": "Profil fotoğrafı güncellendi!",
+    "saveAndVariations": "Kaydet ve Varyasyonlar"
   },
   "Discover": {
     "featuredCreators": "Öne Çıkan Yaratıcılar",

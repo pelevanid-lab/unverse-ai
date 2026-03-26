@@ -113,7 +113,8 @@
     "recliningPose": "Reclining",
     "proActive": "Uniq Pro Active",
     "setProfilePhoto": "Set as profile photo",
-    "profilePhotoSuccess": "Profile photo updated!"
+    "profilePhotoSuccess": "Profile photo updated!",
+    "saveAndVariations": "Save & Variations"
   },
   "Discover": {
     "featuredCreators": "Featured Creators",

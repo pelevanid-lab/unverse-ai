@@ -113,7 +113,8 @@
     "recliningPose": "وضعية الاستلقاء",
     "proActive": "Uniq Pro نشط",
     "setProfilePhoto": "تعيين كصورة للملف الشخصي",
-    "profilePhotoSuccess": "تم تحديث صورة الملف الشخصي!"
+    "profilePhotoSuccess": "تم تحديث صورة الملف الشخصي!",
+    "saveAndVariations": "حفظ وتنويعات"
   },
   "Discover": {
     "featuredCreators": "المبدعون المميزون",

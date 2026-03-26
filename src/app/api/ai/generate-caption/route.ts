@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { Uniq } from '@/lib/uniq';
 
 export async function POST(req: Request) {
   try {
-    const { imageUrl, prompt, contentType, systemInstructions, locale } = await req.json();
+    const { imageUrl, prompt, contentType, systemInstructions, locale, userId } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: 'imageUrl is required' }, { status: 400 });
@@ -48,13 +49,27 @@ export async function POST(req: Request) {
 
     const finalSystemPrompt = systemInstructions || defaultSystemPrompt;
 
+    let personalizedPrompt = finalSystemPrompt;
+    if (userId) {
+        try {
+            const uniq = new Uniq(userId);
+            await uniq.init();
+            const memoryContext = await uniq.getMemoryContext();
+            if (memoryContext) {
+                personalizedPrompt = `${finalSystemPrompt}\n\n${memoryContext}`;
+            }
+        } catch (memError) {
+            console.warn("Could not fetch memory context for caption:", memError);
+        }
+    }
+
     // Call the direct Gemini REST API
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const geminiRequestBody = {
       contents: [{
         parts: [
-          { text: finalSystemPrompt },
+          { text: personalizedPrompt },
           {
             inline_data: {
               mime_type: mimeType,

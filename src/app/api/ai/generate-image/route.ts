@@ -213,6 +213,28 @@ export async function POST(req: Request) {
             return text;
         }
     };
+    
+    // HELPER: Fetch image as buffer, with internal bucket awareness
+    const fetchImageBuffer = async (url: string) => {
+        try {
+            // Check if it's our own storage URL to avoid permission issues and save bandwidth
+            const bucketName = adminStorage.bucket().name;
+            if (url.includes(`storage.googleapis.com/${bucketName}/`)) {
+                const path = url.split(`${bucketName}/`)[1].split('?')[0]; // Strip query params
+                console.log(`[STORAGE_HELPER] Internal read detected: ${path}`);
+                const [buffer] = await adminStorage.bucket().file(path).download();
+                return buffer;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`External fetch failed: ${response.statusText}`);
+            return Buffer.from(await response.arrayBuffer());
+        } catch (e: any) {
+            console.error(`[STORAGE_HELPER] Buffer fetch failed for ${url}:`, e.message);
+            throw e;
+        }
+    };
+
 
     // 4. LINGUISTIC FIREWALL & VALIDATION (User Instruction 4)
     const containsTurkish = (text: string) => {
@@ -265,9 +287,22 @@ export async function POST(req: Request) {
       if (!falKey) {
           throw new Error("FAL_API_KEY is missing on server.");
       }
+      console.log(`UNIQ PULID INPUT: prompt="${finalPromptForAI}", image="${imageToUseForTwin}"`);
 
       // 🚀 Use finalSeed defined above
       console.log(`UNIQ PULID: Shot=${shotType}, Weight=${id_weight}, Seed=${finalSeed}`);
+
+      const falPayload = {
+          prompt: finalPromptForAI,
+          reference_image_url: imageToUseForTwin, // 🚀 FAL-AI REQUIRED KEY: reference_image_url
+          id_weight: id_weight,
+          seed: finalSeed,
+          negative_prompt: userNegativePrompt,
+          num_inference_steps: isAdvanced ? 50 : 28, 
+          guidance_scale: isAdvanced ? 7.5 : 3.5,
+      };
+
+      console.log("Fal.ai Full Payload:", JSON.stringify(falPayload, null, 2));
 
       const response = await fetch("https://fal.run/fal-ai/flux-pulid", {
         method: "POST",
@@ -275,27 +310,14 @@ export async function POST(req: Request) {
             "Authorization": `Key ${falKey}`,
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-            prompt: finalPromptForAI,
-            reference_image_url: imageToUseForTwin, // Use primary image as as as main reference
-            id_weight: id_weight, // 🚀 ADAPTIVE STRENGTH
-            seed: finalSeed,
-            negative_prompt: userNegativePrompt,
-            num_inference_steps: isAdvanced ? 50 : 40, 
-            guidance_scale: isAdvanced ? 8.0 : 7.0,
-            enable_safety_checker: !isAdvanced, // 🛡️ UNIQ PRO: Disable safety filter
-            safety_tolerance: isAdvanced ? 5 : 2, // 🚀 UNIQ PRO: Maximum tolerance
-            // 🚀 Bypassing internal filters for Advanced Mode
-            ...(isAdvanced && {
-                safety_checker: "none",
-                disable_safety_filter: true
-            })
-        })
+        body: JSON.stringify(falPayload)
       });
 
       if (!response.ok) {
           const errData = await response.json();
-          throw new Error(`Uniq Engine Error: ${errData.detail || response.statusText}`);
+          const errorMsg = errData.detail ? (typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail)) : JSON.stringify(errData);
+          console.error("Fal.ai Engine Error Details:", errorMsg);
+          throw new Error(`Uniq Engine Error: ${errorMsg}`);
       }
 
       const result = await response.json();
@@ -307,20 +329,23 @@ export async function POST(req: Request) {
       }
 
       // 3. Storage & DB persistence
-      const imageResponse = await fetch(imageUrl);
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+      const imageBuffer = await fetchImageBuffer(imageUrl);
+      const imageBase64 = imageBuffer.toString('base64');
 
       const fileName = `ai_twin_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
       const imagePath = `creator-media/${userId}/${fileName}`;
       const bucket = adminStorage.bucket();
       const file = bucket.file(imagePath);
-      await file.save(Buffer.from(imageBase64, 'base64'), {
+      await file.save(imageBuffer, {
           metadata: { contentType: 'image/png' }
       });
-      // Make public or get signed URL? User seems to use public URLs from client storage
-      // In Admin SDK, we can get a signed URL or use the standard public URL if the bucket is public
-      const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
+
+      // 🔐 Generate SIGNED URL (Fixed AccessDenied in Director Mode)
+      const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      const finalUrl = signedUrl;
 
       const logDocRef = await createAuditLog(finalUrl);
 
@@ -368,18 +393,23 @@ export async function POST(req: Request) {
       const result = await response.json();
       const imageUrl = result.images?.[0]?.url;
       
-      const imageResponse = await fetch(imageUrl);
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+      const imageBuffer = await fetchImageBuffer(imageUrl);
+      const imageBase64 = imageBuffer.toString('base64');
 
       const fileName = `ai_edit_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
       const imagePath = `creator-media/${userId}/${fileName}`;
       const bucket = adminStorage.bucket();
       const file = bucket.file(imagePath);
-      await file.save(Buffer.from(imageBase64, 'base64'), {
+      await file.save(imageBuffer, {
           metadata: { contentType: 'image/png' }
       });
-      const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
+
+      // 🔐 Generate SIGNED URL (Fixed AccessDenied in Director Mode)
+      const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      const finalUrl = signedUrl;
 
       const logDocRef = await createAuditLog(finalUrl);
 
@@ -410,21 +440,24 @@ export async function POST(req: Request) {
     const imageUrl = output[0];
     
     // 3. Storage & DB persistence
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image from Replicate: ${imageResponse.statusText}`);
-    }
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+    const imageBuffer = await fetchImageBuffer(imageUrl);
+    const imageBase64 = imageBuffer.toString('base64');
 
     const fileName = `ai_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
     const imagePath = `creator-media/${userId}/${fileName}`;
     const bucket = adminStorage.bucket();
     const file = bucket.file(imagePath);
-    await file.save(Buffer.from(imageBase64, 'base64'), {
+    await file.save(imageBuffer, {
         metadata: { contentType: 'image/png' }
     });
-    const finalUrl = `https://storage.googleapis.com/${bucket.name}/${imagePath}`;
+    
+    // Generate a signed URL for immediate viewing (expires in 1 week)
+    const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    
+    const finalUrl = signedUrl;
 
     // Save logic removed from here as per user request (no auto-save to pool)
     // The previous addDoc call to 'creator_media' has been removed.

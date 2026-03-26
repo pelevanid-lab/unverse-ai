@@ -728,6 +728,54 @@ export async function processAiCreatorGeneration(userId: string): Promise<string
     });
 }
 
+/**
+ * Uniq Pro Engine Unlock (15 ULC)
+ * 70% Treasury / 30% Burn
+ */
+export async function processUniqProUnlock(userId: string): Promise<string> {
+    const cost = 15;
+    return await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User not found");
+        
+        const userData = userSnap.data() as UserProfile;
+        
+        if (userData.isAdvancedModeUnlocked) {
+            throw new Error("ALREADY_UNLOCKED");
+        }
+
+        const balance = userData.ulcBalance?.available || 0;
+        if (balance < cost) throw new Error("INSUFFICIENT_ULC");
+
+        const treasuryShare = Number((cost * 0.70).toFixed(2));
+        const burnShare = Number((cost - treasuryShare).toFixed(2));
+
+        transaction.update(userRef, {
+            'ulcBalance.available': increment(-cost),
+            isAdvancedModeUnlocked: true
+        });
+
+        const statsRef = doc(db, 'config', 'stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: increment(treasuryShare),
+            totalBurnedULC: increment(burnShare)
+        }, { merge: true });
+
+        const ledgerRef = doc(collection(db, 'ledger'));
+        transaction.set(ledgerRef, {
+            type: 'premium_unlock',
+            fromUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: Date.now(),
+            details: { treasury: treasuryShare, burn: burnShare, feature: 'uniq_pro_engine' }
+        });
+
+        return ledgerRef.id;
+    });
+}
+
 export async function updateClaimRequestStatus(claimId: string, status: ClaimRequest['status'], adminId?: string, txHash?: string): Promise<void> {
     const claimRef = doc(db, 'claim_requests', claimId);
     const updateData: any = { status, updatedAt: Date.now() };

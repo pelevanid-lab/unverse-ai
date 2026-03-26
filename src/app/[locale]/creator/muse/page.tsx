@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers, Video, Maximize, Heart, Zap, Sun } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Uniq } from '@/lib/uniq'
+import { processUniqProUnlock } from '@/lib/ledger'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +50,7 @@ export default function AIMusePage() {
     const [uploadedRefUrls, setUploadedRefUrls] = useState<string[]>([])
     const [lastEnhancedPrompt, setLastEnhancedPrompt] = useState<string | null>(null)
     const [masterEnhancedPrompt, setMasterEnhancedPrompt] = useState<string | null>(null)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
     // Scene Variations State
     const [showVariationPresets, setShowVariationPresets] = useState(false)
@@ -139,6 +141,8 @@ export default function AIMusePage() {
                 if (!genResponse.ok) throw new Error(tCommon("generationFailed"))
                 const genData = await genResponse.json()
                 finalAvatar = genData.mediaUrl
+                setPreviewAvatar(genData.mediaUrl)
+                setPreviewUrl(genData.mediaBase64 || genData.mediaUrl)
 
                 // 3. Multi-modal Parse (Description + Visual)
                 const parseRes = await fetch('/api/ai/parse-character', {
@@ -303,6 +307,7 @@ export default function AIMusePage() {
             setDetectedSceneType(sceneType);
             setLastResultIsAdvanced(false); // Initial generation is standard
             setLastResult(data.mediaUrl)
+            setPreviewUrl(data.mediaBase64 || data.mediaUrl)
             setLogId(data.logId)
             setLastSeed(data.seed)
             setLastEnhancedPrompt(data.finalAuditPrompt)
@@ -360,6 +365,7 @@ export default function AIMusePage() {
             const data = await response.json()
             
             setLastResult(data.mediaUrl)
+            setPreviewUrl(data.mediaBase64 || data.mediaUrl)
             setLastResultIsAdvanced(isAdvancedMode)
             setLogId(data.logId)
             setLastSeed(data.seed)
@@ -440,6 +446,25 @@ export default function AIMusePage() {
         }
     }
 
+    const handleUnlockPro = async () => {
+        if (!user?.uid) return
+        if ((user.ulcBalance?.available || 0) < 15) {
+            toast({ variant: 'destructive', title: tCommon("insufficientULC"), description: tCommon("insufficientULCDesc") })
+            return
+        }
+        
+        setLoading(true)
+        try {
+            await processUniqProUnlock(user.uid)
+            toast({ title: "Uniq Pro Unlocked!", description: "You now have access to Advanced AI features." })
+            setIsAdvancedMode(true)
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Unlock Failed", description: err.message })
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (step === 'selection') {
         return (
             <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
@@ -512,7 +537,7 @@ export default function AIMusePage() {
                              <div className="space-y-4 animate-in zoom-in-95 duration-500">
                                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("preview")}</Label>
                                 <div className="aspect-square rounded-3xl overflow-hidden glass-card border-primary/20 relative group">
-                                    <img src={previewAvatar} className="w-full h-full object-cover" alt="Preview" />
+                                    <img src={previewUrl || previewAvatar} className="w-full h-full object-cover" alt="Preview" />
                                     <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-4 text-center">
                                          <p className="text-[10px] font-bold text-primary mb-1 uppercase">
                                             {extractedAttributes?.hairColor || '---'} {t("hair")} • {extractedAttributes?.eyeColor || '---'} {t("eyes")}
@@ -735,7 +760,7 @@ export default function AIMusePage() {
                         {lastResult ? (
                             <Card className="glass-card border-primary/20 bg-black/40 overflow-hidden group relative">
                                 <div className="aspect-square w-full flex items-center justify-center">
-                                    <img src={lastResult} className="w-full h-full object-contain" alt="Generated" />
+                                    <img src={previewUrl || lastResult} className="w-full h-full object-contain" alt="Generated" />
                                 </div>
                                     <div className="p-6 space-y-4 bg-black/60 backdrop-blur-md">
                                         {/* Satisfaction Rating */}
@@ -943,14 +968,25 @@ export default function AIMusePage() {
                                     </div>
                                 </div>
                                 <Button 
-                                    variant={isAdvancedMode ? 'default' : 'outline'}
+                                    variant={(user?.isAdvancedModeUnlocked && isAdvancedMode) ? 'default' : 'outline'}
                                     className={cn(
                                         "h-10 rounded-xl px-4 font-bold transition-all",
-                                        isAdvancedMode ? "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500" : "border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
+                                        (user?.isAdvancedModeUnlocked && isAdvancedMode) ? "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500" : "border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
                                     )}
-                                    onClick={() => setIsAdvancedMode(!isAdvancedMode)}
+                                    onClick={() => {
+                                        if (user?.isAdvancedModeUnlocked) {
+                                            setIsAdvancedMode(!isAdvancedMode)
+                                        } else {
+                                            handleUnlockPro()
+                                        }
+                                    }}
+                                    disabled={loading}
                                 >
-                                    {isAdvancedMode ? t("proActive") : t("unlockPro")}
+                                    {loading ? <Loader2 className="animate-spin w-4 h-4" /> : (
+                                        user?.isAdvancedModeUnlocked 
+                                            ? (isAdvancedMode ? t("proActive") : t("unlockPro"))
+                                            : `${t("unlockPro")} (15 ULC)`
+                                    )}
                                 </Button>
                             </div>
 

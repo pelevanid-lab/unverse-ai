@@ -71,7 +71,6 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
     if (!media.mediaUrl || media.mediaType !== 'image') return;
     setIsGeneratingCaption(true);
     try {
-      await uniq.init();
       const promptToUse = media.prompt || media.aiPrompt || "";
       const generatedCaption = await uniq.generateContainerCopy({
         imageUrl: media.mediaUrl,

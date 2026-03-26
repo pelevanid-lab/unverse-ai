@@ -100,6 +100,7 @@ export interface UserProfile {
     totalUniquePremiumUnlocks?: number;
     milestoneRewardCount?: number;
     totalMilestoneRewardULC?: number;
+    isAdvancedModeUnlocked?: boolean;
 }
 
 export interface PromoCard {
