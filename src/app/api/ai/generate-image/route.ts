@@ -207,12 +207,24 @@ export async function POST(req: Request) {
     // Final Audit Copy for for Logging
     const finalAuditPrompt = finalPromptForAI;
 
-    if (image && cost === 5) {
+    // 🏋️ POSE-AWARE STRENGTH: Detect if user is requesting a major pose change (e.g. sitting -> standing)
+    // If a major pose change is detected, we lower prompt_strength to allow more pixel flexibility 
+    // while Pulid maintains the facial identity.
+    let finalPromptStrength = 0.8;
+    const poseKeywords = ["standing up", "standing", "walking", "running", "jumping", "climbing", "leaping"];
+    const isPoseChange = poseKeywords.some(word => lowerPrompt.includes(word));
+    
+    if (isPoseChange) {
+        console.log("[UNIQ] Major pose change detected. Lowering prompt_strength to 0.65 for flexibility.");
+        finalPromptStrength = 0.65;
+    }
+
+    if (image && (cost === 5 || cost === 10)) {
         // Standard mode with reference: maintain same model but keep img2img logic
         input = {
             ...input,
             image: image,
-            prompt_strength: 0.8,
+            prompt_strength: finalPromptStrength,
         };
     }
 

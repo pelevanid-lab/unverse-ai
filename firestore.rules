@@ -9,10 +9,7 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return isSignedIn() && (
-        request.auth.uid == userId || 
-        (resource != null && (resource.data.authUid == request.auth.uid || resource.data.userId == request.auth.uid || resource.data.creatorId == request.auth.uid))
-      );
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isAdmin() {
@@ -38,7 +35,8 @@ service cloud.firestore {
     match /ledger/{entryId} {
       allow read: if isSignedIn() && (
         isOwner(resource.data.fromUserId) || 
-        isOwner(resource.data.toUserId)
+        isOwner(resource.data.toUserId) ||
+        resource.data.userId == request.auth.uid
       );
       allow write: if false; 
     }
@@ -47,7 +45,8 @@ service cloud.firestore {
     match /subscriptions/{subId} {
       allow read: if isSignedIn() && (
         isOwner(resource.data.userId) || 
-        isOwner(resource.data.creatorId)
+        isOwner(resource.data.creatorId) ||
+        resource.data.authUid == request.auth.uid
       );
       allow write: if false; 
     }
@@ -69,7 +68,10 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if true; 
       allow write: if isSignedIn() && (
-        resource == null || isOwner(resource.data.creatorId)
+        resource == null || 
+        isOwner(resource.data.creatorId) || 
+        resource.data.userId == request.auth.uid || 
+        resource.data.authUid == request.auth.uid
       );
     }
 
@@ -81,15 +83,26 @@ service cloud.firestore {
     
     // Creator Media (Drafts/Processing)
     match /creator_media/{mediaId} {
-      allow read, write: if isSignedIn() && isOwner(resource.data.creatorId);
-      allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
+      allow read, write: if isSignedIn() && (
+        isOwner(resource.data.creatorId) || 
+        resource.data.userId == request.auth.uid || 
+        resource.data.authUid == request.auth.uid
+      );
+      allow create: if isSignedIn() && (
+        isOwner(request.resource.data.creatorId) || 
+        request.resource.data.userId == request.auth.uid
+      );
     }
 
     // AI Generation Logs
     match /ai_generation_logs/{logId} {
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow read: if isSignedIn() && (
+        isOwner(resource.data.userId) || 
+        resource.data.creatorId == request.auth.uid || 
+        resource.data.authUid == request.auth.uid
+      );
       allow create: if isSignedIn() && isOwner(request.resource.data.userId);
-      allow update: if isSignedIn() && isOwner(resource.data.userId);
+      allow update: if isSignedIn() && isOwner(request.resource.data.userId);
     }
     
     // Chats & Messaging
