@@ -78,7 +78,7 @@ export default function AnimatePage() {
             setContainerItems(items)
         } catch (e) {
             console.error("Error loading container:", e)
-            toast({ variant: 'destructive', title: tStudio('errorTitle'), description: "Havuz yüklenemedi." })
+            toast({ variant: 'destructive', title: tStudio('errorTitle'), description: t('errorLoadingPool') })
         } finally {
             setLoadingContainer(false)
         }
@@ -119,7 +119,7 @@ export default function AnimatePage() {
 
             const data = await res.json()
             setResultVideoUrl(data.mediaUrl)
-            toast({ title: tStudio('successTitle'), description: "Video hazır! Artık havuza kaydedebilirsiniz." })
+            toast({ title: tStudio('successTitle'), description: t('animateSuccess') })
         } catch (error: any) {
             console.error("Animation failed:", error)
             toast({ variant: "destructive", title: tStudio('errorTitle'), description: error.message })
@@ -131,7 +131,7 @@ export default function AnimatePage() {
     const handleSaveToPool = () => {
         if (!resultVideoUrl) return;
         toast({ title: tStudio('successTitle'), description: t('animateSuccess') })
-        router.push('/creator?tab=container')
+        router.push('/creator/container')
     }
 
     return (
@@ -141,7 +141,7 @@ export default function AnimatePage() {
                     <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => router.back()} 
+                        onClick={() => router.push('/creator/container')} 
                         className="h-10 w-10 rounded-full bg-white/5"
                     >
                         <ChevronLeft className="w-6 h-6" />
@@ -164,7 +164,7 @@ export default function AnimatePage() {
                                 {!generating && (
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <Button variant="secondary" onClick={() => { setShowPicker(true); fetchContainerItems(); }}>
-                                            Görseli Değiştir
+                                            {t('changeImage')}
                                         </Button>
                                     </div>
                                 )}
@@ -196,14 +196,14 @@ export default function AnimatePage() {
                             <div className="p-6 bg-primary/10 rounded-3xl border border-primary/20 space-y-2">
                                 <h3 className="text-xl font-bold flex items-center gap-2">
                                     <Sparkles className="text-primary w-6 h-6" />
-                                    Şaheser Hazır!
+                                    {t('masterpieceReady')}
                                 </h3>
-                                <p className="text-sm text-muted-foreground">Videonuz başarıyla oluşturuldu. Şimdi ne yapmak istersiniz?</p>
+                                <p className="text-sm text-muted-foreground">{t('videoCreatedSuccess')}</p>
                             </div>
 
                             <Button onClick={handleSaveToPool} className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-lg font-bold shadow-xl shadow-primary/20">
                                 <Play className="mr-2 h-5 w-5" />
-                                Havuza Kaydet ve Devam Et
+                                {t('saveToPoolAndContinue')}
                             </Button>
 
                             <div className="grid grid-cols-1 gap-3">
@@ -211,16 +211,16 @@ export default function AnimatePage() {
                                     <Film className="w-5 h-5 text-primary" />
                                     {tStudio('regenerateDiscount')}
                                 </Button>
-                                <Button variant="ghost" onClick={async () => { 
-                                    if (resultVideoUrl) {
-                                        await deleteObject(ref(storage, resultVideoUrl)).catch(() => {});
-                                    }
-                                    setResultVideoUrl(null); 
-                                    setSelectedImage(null); 
-                                    setMotionPrompt(''); 
-                                }} className="text-muted-foreground hover:text-white">
-                                    Baştan Başla
-                                </Button>
+                                    <Button variant="ghost" onClick={async () => { 
+                                        if (resultVideoUrl) {
+                                            await deleteObject(ref(storage, resultVideoUrl)).catch(() => {});
+                                        }
+                                        setResultVideoUrl(null); 
+                                        setSelectedImage(null); 
+                                        setMotionPrompt(''); 
+                                    }} className="text-muted-foreground hover:text-white">
+                                        {tStudio('startOver')}
+                                    </Button>
                             </div>
                         </div>
                     ) : (
@@ -297,16 +297,16 @@ export default function AnimatePage() {
                             {loadingContainer ? (
                                 <div className="flex flex-col items-center justify-center h-64 gap-3">
                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                    <p className="text-xs text-muted-foreground">Havuz yükleniyor...</p>
+                                    <p className="text-xs text-muted-foreground">{t('loadingPool')}</p>
                                 </div>
                             ) : containerItems.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
                                     <ImageIcon className="w-12 h-12 text-muted-foreground opacity-20" />
                                     <div>
                                         <p className="font-bold text-muted-foreground">{t('emptyStateTitle') || 'Havuzunuz Boş'}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Stüdyo'da içerik üreterek veya manuel yükleyerek başlayın.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{t('poolEmptyDesc')}</p>
                                     </div>
-                                    <Button onClick={() => router.push('/creator/studio')}>Stüdyo'ya Git</Button>
+                                    <Button onClick={() => router.push('/creator/studio')}>{t('goToStudio')}</Button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

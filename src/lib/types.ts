@@ -396,6 +396,7 @@ export interface SceneLock {
     environmentSummary: string;
     outfitSummary: string;
     lightingSummary: string;
+    hairSummary?: string;
     propSummary: string;
     baseComposition: string;
     allowedVariationTypes: string[];

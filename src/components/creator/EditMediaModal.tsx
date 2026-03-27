@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles, Video, Star } from 'lucide-react';
+import { Loader2, Trash2, X, Calendar as CalendarIcon, Upload, Globe, Lock, Clock, Wand2, Sparkles, Video, Star, RefreshCcw } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -345,6 +345,32 @@ export function EditMediaModal({ creatorProfile, media, onClose, onPublished }: 
                   >
                     <Sparkles className="w-4 h-4" />
                     {t('animateBtn')}
+                  </Button>
+                </div>
+              )}
+
+              {/* 🚀 Uniq V4: Scene Variation Shortcuts */}
+              {media.mediaType === 'image' && (
+                <div className="space-y-3 p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl animate-in fade-in slide-in-from-left-4 duration-500">
+                  <div className="flex items-center gap-2">
+                    <RefreshCcw className="w-4 h-4 text-yellow-500" />
+                    <span className="text-xs font-bold uppercase text-yellow-500 tracking-widest">{t('variationBtn').split(' (')[0]}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">Bu görseli referans alarak farklı pozlar ve sahneler üretin. Ortam ve yüz korunacaktır.</p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-11 rounded-xl font-bold gap-2 border-yellow-500/50 hover:bg-yellow-500 hover:text-black transition-all"
+                    onClick={() => {
+                        const baseUrl = `/${locale}/creator/muse`;
+                        const params = new URLSearchParams();
+                        params.set('variationImage', media.mediaUrl);
+                        params.set('variationPrompt', media.aiPrompt || media.prompt || '');
+                        params.set('origin', 'container');
+                        window.location.href = `${baseUrl}?${params.toString()}`;
+                    }}
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    {t('variationBtn')}
                   </Button>
                 </div>
               )}

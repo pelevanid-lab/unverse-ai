@@ -72,6 +72,7 @@ export class SceneRuleEngine {
             environmentSummary: extractedDNA?.environmentSummary || "extracted from base prompt",
             outfitSummary: extractedDNA?.outfitSummary || "extracted from base prompt",
             lightingSummary: extractedDNA?.lightingSummary || "extracted from base prompt",
+            hairSummary: extractedDNA?.hairSummary || "identical hair style",
             propSummary: extractedDNA?.propSummary || "extracted from base prompt",
             baseComposition: "medium",
             allowedVariationTypes: baseRules.allowedVariationTypes!,

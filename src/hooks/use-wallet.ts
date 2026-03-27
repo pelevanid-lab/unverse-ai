@@ -1,3 +1,4 @@
+"use client"
 
 import { useState, useEffect } from 'react';
 import { auth, db } from '@/lib/firebase';
@@ -28,6 +29,7 @@ export function useWallet() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [claimsSynced, setClaimsSynced] = useState(false);
 
   const { address: rawAddress, isConnected, isDisconnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -48,6 +50,7 @@ export function useWallet() {
   useEffect(() => {
     if (!address || !firebaseUser) {
       setUser(null);
+      setClaimsSynced(false);
        if (isDisconnected) {
          setLoading(false);
        } else {
@@ -61,9 +64,32 @@ export function useWallet() {
     const findOrCreateProfile = async () => {
       const userDocSnap = await getDoc(userDocRef);
 
+      // Function to sync auth claims
+      const syncAuth = async (wallet: string) => {
+        try {
+          const res = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: firebaseUser.uid, walletAddress: wallet })
+          });
+          if (res.ok) {
+            // Force token refresh to pick up new claims
+            await firebaseUser.getIdToken(true);
+            setClaimsSynced(true);
+            console.log("🔐 Auth claims synchronized");
+          }
+        } catch (err) {
+          console.error("Failed to sync auth claims:", err);
+          setClaimsSynced(true); // Proceed anyway to avoid infinite loading
+        }
+      };
+
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data() as UserProfile;
         
+        // Always sync claims on login/reconnect to ensure they are up to date
+        await syncAuth(address);
+
         // === AUTH SYNC FIX ===
         // Link the current Firebase Auth session to the wallet-based profile
         if (userData.authUid !== firebaseUser.uid) {
@@ -154,10 +180,11 @@ export function useWallet() {
 
   return {
     user,
-    loading,
+    loading: loading || (!!address && !claimsSynced),
     connectWallet,
     disconnectWallet,
-    isConnected: !!user && isConnected,
+    isConnected: !!user && isConnected && claimsSynced,
+    claimsSynced,
     walletAddress: user?.walletAddress || '',
     rawAddress: rawAddress,
     ulcBalance: user?.ulcBalance?.available || 0,

@@ -297,14 +297,38 @@
     "uploadCompleteDesc": "وسائطك الآن في الحاوية.",
     "uploadError": "خطأ في التحميل",
     "uploadMedia": "تحميل الوسائط",
+    "tabAnimate": "تحريك",
+    "animateDesc": "اجعل صورك تنبض بالحياة مع تقنية Uniq.",
+    "animateBtn": "تحريك",
+    "motionPrompt": "وصف الحركة",
+    "motionPromptPlaceholder": "مثال: الشعر يتطاير في الرياح، تبتسم للكاميرا...",
+    "duration": "المدة",
+    "sec5": "٥ ثوانٍ",
+    "sec10": "١٠ ثوانٍ",
+    "generateVideo": "توليد فيديو",
+    "selectFromContainer": "اختر صورة من المجمع",
+    "noAnimateForVideo": "لا يمكن إعادة تحريك الفيديوهات.",
+    "animateSuccess": "تم إنشاء الفيديو بنجاح وإضافته إلى المجمع.",
+    "errorLoadingPool": "تعذر تحميل المجمع.",
+    "changeImage": "تغيير الصورة",
+    "masterpieceReady": "التحفة جاهزة!",
+    "videoCreatedSuccess": "تم إنشاء الفيديو بنجاح. ماذا تود أن تفعل الآن؟",
+    "saveToPoolAndContinue": "حفظ في المجمع والمتابعة",
+    "loadingPool": "جاري تحميل المجمع...",
+    "poolEmptyDesc": "ابدأ بإنتاج محتوى في الاستوديو أو تحميله يدوياً.",
+    "goToStudio": "الذهاب إلى الاستوديو",
     "untitled": "بدون عنوان",
     "shortcuts": {
-      "uniq": "يونيك",
-      "edit": "تعديل",
-      "muse": "Muse",
-      "animate": "Animate",
-      "freeArt": "فن"
-    }
+      "messages": "...",
+      "edit": "تحميل",
+      "muse": "MUSE",
+      "animate": "تحريك",
+      "freeArt": "إنشاء"
+    },
+    "uniqPremium": "Uniq Premium",
+    "uniqPremiumDesc": "الاشتراك والتحكم في البروتوكول",
+    "promoCard": "بطاقة ترويجية",
+    "promoCardDesc": "أداء الإعلان والوصول"
   },
   "Published": {
     "title": "المحتوى المنشور",
@@ -389,6 +413,13 @@
     "deleteAlertDesc": "سيؤدي هذا إلى إزالة ملف الوسائط نهائياً.",
     "cancel": "إلغاء",
     "delete": "حذف",
+    "animateImage": "تحريك الصورة",
+    "animateDesc": "حول هذه الصورة إلى فيديو احترافي باستخدام يونيك.",
+    "animateBtn": "تحريك (٦٠ ULC)",
+    "variationBtn": "إنشاء تنويع (٥ ULC)",
+    "improveCaption": "تحسين الوصف",
+    "generateCaptionBtn": "توليد وصف",
+    "uniqEvaluation": "تقييم يونيك V2",
     "proContentRestriction": "قيود محتوى Uniq Pro"
   },
   "AIStudio": {
@@ -1036,5 +1067,18 @@
     "botName": "بوت Unverse",
     "userName": "المبدع",
     "statusOnline": "المسارات العصبية المميزة متصلة"
+  },
+  "Post": {
+    "limited": "محدود",
+    "premium": "بريميوم",
+    "soldOut": "نفدت الكمية",
+    "limitedEdition": "إصدار محدود",
+    "premiumContent": "محتوى حصري",
+    "exclusiveDesc": "هذا إصدار محدود. افتح القفل لتمتلك نسخة رقمية برقم تسلسلي فريد.",
+    "individualPriceDesc": "افتح هذا المحتوى المميز لمشاهدة التحفة الفنية الكاملة.",
+    "unlockFor": "افتح مقابل {price} ULC",
+    "availability": "متبقي {count} نسخ",
+    "yourSerialNo": "رقمك التسلسلي: #{serial} / {total}",
+    "securingMedia": "تأمين الوسائط..."
   }
 }

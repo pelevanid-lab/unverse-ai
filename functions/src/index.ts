@@ -508,3 +508,156 @@ export const checkScheduledPosts = onSchedule("every 30 minutes", async (event) 
 
     logger.log("Scheduled publish cycle completed.");
 });
+
+/**
+ * UNLOCK CONTENT: Unlocks premium or limited content using ULC.
+ */
+export const unlockContent = onCall({ memory: "256MiB" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+    const { postId } = request.data;
+    if (!postId) throw new HttpsError("invalid-argument", "postId is required.");
+
+    const userId = request.auth.uid;
+    const userDocResult = await getUserDoc(db, userId);
+    if (!userDocResult) throw new HttpsError("not-found", "User profile not found.");
+    const { ref: userRef, data: userData } = userDocResult as any;
+
+    const postRef = db.collection("posts").doc(postId);
+    
+    return await db.runTransaction(async (transaction) => {
+        const postSnap = await transaction.get(postRef);
+        if (!postSnap.exists) throw new HttpsError("not-found", "Post not found.");
+        const postData = postSnap.data() as any;
+
+        // 1. Check if already unlocked
+        const unlockRef = userRef.collection("unlocked_media").doc(postId);
+        const unlockSnap = await transaction.get(unlockRef);
+        if (unlockSnap.exists) return { success: true, message: "Already unlocked." };
+
+        const price = (postData.contentType === 'limited' ? postData.limited?.price : postData.unlockPrice) || 0;
+        const availableUlc = userData.ulcBalance?.available || 0;
+
+        if (availableUlc < price) {
+            throw new HttpsError("failed-precondition", "INSUFFICIENT_BALANCE");
+        }
+
+        let serialNumber = null;
+        if (postData.contentType === 'limited') {
+            const limited = postData.limited;
+            if (limited.soldCount >= limited.totalSupply) {
+                throw new HttpsError("failed-precondition", "This limited edition is sold out.");
+            }
+            serialNumber = limited.soldCount + 1;
+            transaction.update(postRef, { "limited.soldCount": admin.firestore.FieldValue.increment(1) });
+        }
+
+        // 2. Deduct ULC
+        transaction.update(userRef, { "ulcBalance.available": admin.firestore.FieldValue.increment(-price) });
+
+        // 3. Record Unlock for Client
+        transaction.set(unlockRef, {
+            postId,
+            unlockedAt: Date.now(),
+            price,
+            serialNumber,
+            contentType: postData.contentType
+        });
+
+        // 4. Ledger Entry
+        transaction.set(db.collection("ledger").doc(), {
+            type: "premium_unlock",
+            fromUserId: userId,
+            toUserId: postData.creatorId,
+            referenceId: postId,
+            amount: price,
+            currency: "ULC",
+            timestamp: Date.now()
+        });
+
+        return { success: true, serialNumber };
+    });
+});
+
+/**
+ * CONFIRM PURCHASE: Records ULC purchase after on-chain verification.
+ */
+export const confirmPurchase = onCall({ memory: "256MiB" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+    const { amount, network, txHash } = request.data;
+    if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing required fields.");
+
+    const userId = request.auth.uid;
+    const userDocResult = await getUserDoc(db, userId);
+    if (!userDocResult) throw new HttpsError("not-found", "User profile not found.");
+    const { ref: userRef } = userDocResult as any;
+
+    // Check for duplicate tx
+    const ledgerSnap = await db.collection("ledger").where("txHash", "==", txHash).limit(1).get();
+    if (!ledgerSnap.empty) return { success: true, message: "Transaction already processed." };
+
+    await db.runTransaction(async (transaction) => {
+        transaction.update(userRef, { "ulcBalance.available": admin.firestore.FieldValue.increment(amount) });
+        transaction.set(db.collection("ledger").doc(), {
+            type: "top_up",
+            toUserId: userId,
+            amount,
+            currency: "ULC",
+            network,
+            txHash,
+            timestamp: Date.now()
+        });
+    });
+
+    return { success: true };
+});
+
+/**
+ * CONFIRM PRESALE PURCHASE: Records ULC purchase in vesting after on-chain verification.
+ */
+export const confirmPresalePurchase = onCall({ memory: "256MiB" }, async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Authentication required.");
+    const { amount, network, txHash } = request.data;
+    if (!amount || !network || !txHash) throw new HttpsError("invalid-argument", "Missing required fields.");
+
+    const userId = request.auth.uid;
+    const userDocResult = await getUserDoc(db, userId);
+    if (!userDocResult) throw new HttpsError("not-found", "User profile not found.");
+    const { ref: userRef } = userDocResult as any;
+
+    const ledgerSnap = await db.collection("ledger").where("txHash", "==", txHash).limit(1).get();
+    if (!ledgerSnap.empty) return { success: true, message: "Already processed." };
+
+    const now = Date.now();
+    const durationMs = 24 * 30 * 24 * 60 * 60 * 1000;
+    const cliffMs = 12 * 30 * 24 * 60 * 60 * 1000;
+
+    await db.runTransaction(async (transaction) => {
+        transaction.update(userRef, { "ulcBalance.locked": admin.firestore.FieldValue.increment(amount) });
+        
+        const scheduleRef = db.collection("vesting_schedules").doc();
+        transaction.set(scheduleRef, {
+            userId,
+            totalAmount: amount,
+            releasedAmount: 0,
+            startTime: now,
+            cliff: cliffMs,
+            duration: durationMs,
+            description: "Presale Round 1",
+            poolId: "presale",
+            createdAt: now,
+            txHash
+        });
+
+        transaction.set(db.collection("ledger").doc(), {
+            type: "presale_purchase",
+            toUserId: userId,
+            amount,
+            currency: "ULC",
+            network,
+            txHash,
+            timestamp: now
+        });
+    });
+
+    return { success: true };
+});

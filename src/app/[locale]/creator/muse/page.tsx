@@ -13,16 +13,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, User, Camera, Wand2, ChevronLeft, Lock, RefreshCcw, Loader2, Save, Info, Check, Upload, Star, Layers, Video, Maximize, Heart, Zap, Sun } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Uniq } from '@/lib/uniq'
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { CharacterProfile, SceneLock } from '@/lib/types'
 import { SceneRuleEngine } from '@/lib/scene-engine'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 export default function AIMusePage() {
+    const locale = useLocale()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { user } = useWallet()
     const { toast } = useToast()
     const t = useTranslations('Muse')
@@ -31,6 +33,7 @@ export default function AIMusePage() {
     const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady'>('selection')
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
+    const [generatingVariation, setGeneratingVariation] = useState(false)
     const [saving, setSaving] = useState(false)
     
     // Character Creation State
@@ -73,6 +76,30 @@ export default function AIMusePage() {
             setStep('selection')
         }
     }, [user?.savedCharacter])
+
+    // 🚀 Uniq V4: Deep Linking for Variations from Container
+    useEffect(() => {
+        const variationImage = searchParams.get('variationImage')
+        const variationPrompt = searchParams.get('variationPrompt')
+        const origin = searchParams.get('origin')
+
+        if (variationImage && user?.savedCharacter) {
+            setLastResult(variationImage)
+            setPreviewUrl(variationImage)
+            if (variationPrompt) {
+                setGenPrompt(variationPrompt)
+                setMasterEnhancedPrompt(variationPrompt)
+            }
+            setIsVariationMode(true)
+            setShowVariationPresets(true)
+            setStep('steady')
+            
+            // Clean up URL so refresh doesn't trigger it again
+            if (origin === 'container') {
+                router.replace(`/${locale}/creator/muse`)
+            }
+        }
+    }, [searchParams, user?.savedCharacter, locale, router])
 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const file = e.target.files?.[0]
@@ -323,7 +350,7 @@ export default function AIMusePage() {
 
     const handleGenerateVariation = async () => {
         if (!user?.uid || !lastResult || !genPrompt) return
-        setGenerating(true)
+        setGeneratingVariation(true)
         setShowVariationPresets(false)
         try {
             const uniq = new Uniq(user.uid)
@@ -375,7 +402,7 @@ export default function AIMusePage() {
         } catch (err: any) {
             toast({ variant: 'destructive', title: tCommon("generationError"), description: err.message })
         } finally {
-            setGenerating(false)
+            setGeneratingVariation(false)
         }
     }
 
@@ -455,8 +482,12 @@ export default function AIMusePage() {
 
     const handleUnlockPro = async () => {
         if (!user?.uid) return
-        if ((user.ulcBalance?.available || 0) < 2) {
-            toast({ variant: 'destructive', title: tCommon("insufficientULC"), description: "Uniq Pro kilit açımı için 2 ULC gereklidir." })
+        
+        const isPremium = user.aiCreatorModeExpiresAt && user.aiCreatorModeExpiresAt > Date.now();
+        const cost = isPremium ? 0 : 2;
+
+        if (!isPremium && (user.ulcBalance?.available || 0) < cost) {
+            toast({ variant: 'destructive', title: tCommon("insufficientULC"), description: `Uniq Pro kilit açımı için ${cost} ULC gereklidir.` })
             return
         }
         
@@ -484,7 +515,7 @@ export default function AIMusePage() {
         return (
             <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
                 <header className="flex items-center gap-4 border-b pb-10 border-white/10">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/studio')} className="rounded-full">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/container')} className="rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <div>
@@ -641,7 +672,7 @@ export default function AIMusePage() {
         <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
              <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b pb-10 border-white/10">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/studio')} className="rounded-full">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/container')} className="rounded-full">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <div>
@@ -742,7 +773,7 @@ export default function AIMusePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <span className="flex items-center gap-2 italic"><Sparkles className="text-primary" /> {t("consistentProd")}</span>
-                                <Badge variant="outline" className="text-xs font-bold bg-primary/10 text-primary border-primary/20">5 ULC</Badge>
+                                <Badge variant="outline" className="text-xs font-bold bg-primary/10 text-primary border-primary/20">10 ULC</Badge>
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -806,8 +837,9 @@ export default function AIMusePage() {
                                                     {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={18} />}
                                                     {t("saveToPool")}
                                                 </Button>
-                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white" onClick={handleSaveAndVariations} disabled={saving}>
-                                                    <Layers size={18} /> {t("saveAndVariations")}
+                                                <Button className="flex-1 h-12 rounded-xl font-bold gap-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white" onClick={handleSaveAndVariations} disabled={saving || generatingVariation}>
+                                                    {generatingVariation ? <Loader2 className="animate-spin w-4 h-4" /> : <Layers size={18} />}
+                                                    {t("saveAndVariations")} (5 ULC)
                                                 </Button>
                                             </div>
                                             <Button className="w-full h-12 rounded-xl font-bold gap-2" variant="outline" onClick={handleRegenerate} disabled={generating}>
@@ -1000,7 +1032,7 @@ export default function AIMusePage() {
                                     {loading ? <Loader2 className="animate-spin w-4 h-4" /> : (
                                         user?.isAdvancedModeUnlocked 
                                             ? (isAdvancedMode ? t("proActive") : t("unlockPro"))
-                                            : `${t("unlockPro")} (15 ULC)`
+                                            : `${t("unlockPro")} (${(user?.aiCreatorModeExpiresAt && (typeof user.aiCreatorModeExpiresAt === 'number' ? user.aiCreatorModeExpiresAt : (user.aiCreatorModeExpiresAt as any).seconds * 1000) > Date.now()) ? '0' : '2'} ULC)`
                                     )}
                                 </Button>
                             </div>
@@ -1072,11 +1104,11 @@ export default function AIMusePage() {
                         <Button
                             className="w-full h-16 rounded-3xl font-bold bg-primary text-white text-xl gap-3 shadow-2xl shadow-primary/40 relative overflow-hidden group"
                             onClick={handleGenerateVariation}
-                            disabled={generating || Object.values(selectedPresets).every(v => v === undefined)}
+                            disabled={generatingVariation || Object.values(selectedPresets).every(v => v === undefined)}
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                            {generating ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
-                            <span className="relative">{t("generateAction")} (5 ULC)</span>
+                                    {generatingVariation ? <Loader2 className="animate-spin w-6 h-6" /> : <Wand2 className="w-6 h-6" />}
+                                    <span className="relative">{t("generateAction")} (5 ULC)</span>
                         </Button>
                     </DialogFooter>
                 </DialogContent>

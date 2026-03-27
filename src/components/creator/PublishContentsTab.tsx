@@ -45,10 +45,11 @@ export function PublishContentsTab() {
       let postsWithStats = fetchedPosts;
 
       if (premiumAndLimitedPostIds.length > 0) {
-        // Stats for premium unlocks
+        // Stats for premium unlocks - Added creatorId filter to satisfy security rules
         const ledgerQuery = query(
           collection(db, 'ledger'),
           where('type', '==', 'premium_unlock'),
+          where('creatorId', '==', user.uid),
           where('referenceId', 'in', premiumAndLimitedPostIds)
         );
         

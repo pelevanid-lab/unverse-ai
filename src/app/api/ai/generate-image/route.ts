@@ -126,6 +126,10 @@ export async function POST(req: Request) {
         if (originalEnhancedPrompt && (cost === 5 || cost === 3)) {
             console.log(`SCENE CONSISTENCY LOCK: Applying variation logic (Same Photoshoot Mode). Scene: ${sceneType || 'generic'}`);
             
+            // 🎬 IDENTITY HARDENING (Director/Variation Mode)
+            // 🧬 UNIQ 4.0: Increased weight to 0.98 for absolute reference fidelity
+            id_weight = Math.max(id_weight, 0.98); 
+
             // variation directive (shot type, angle, etc.)
             const framingDirective = translation || 'cinematic framing';
             
@@ -133,12 +137,14 @@ export async function POST(req: Request) {
             const outfitAnchor = sceneLock?.outfitSummary ? `OUTFIT: ${sceneLock.outfitSummary}` : "identical clothing";
             const envAnchor = sceneLock?.environmentSummary ? `LOCATION: ${sceneLock.environmentSummary}` : "identical surroundings";
             const lightAnchor = sceneLock?.lightingSummary ? `LIGHTING: ${sceneLock.lightingSummary}` : "same lighting";
+            const hairAnchor = sceneLock?.hairSummary ? `HAIR: ${sceneLock.hairSummary}` : "identical hair style";
             
             // 🎬 SAME PHOTOSHOOT REINFORCEMENT: 
-            const persistentContext = `Same photoshoot, ${outfitAnchor}, ${envAnchor}, ${lightAnchor}`;
+            const persistentContext = `Same photoshoot, ${outfitAnchor}, ${envAnchor}, ${lightAnchor}, ${hairAnchor}`;
             const baseSceneContext = `Original location and setup: ${originalEnhancedPrompt}`;
             
-            finalPromptForAI = `${framingDirective}. ${persistentContext}. ${baseSceneContext}. IDENTITY: ${identityLine}. STRICT RULE: do not change environment, outfit, lighting setup or character identity.`;
+            // 🚀 PRIORITY REORDERING: Identity must come FIRST in the string for maximum attention
+            finalPromptForAI = `IDENTITY: ${identityLine}. ${framingDirective}. ${persistentContext}. ${baseSceneContext}. STRICT RULE: do not change environment, outfit, lighting setup or character identity. IDENTICAL FACE PIXEL-FOR-PIXEL.`;
         }
         
         // 🕊️ AI EDIT / IN-PAINTING PROMPT ASSEMBLY (Outside character block if needed)
@@ -147,8 +153,8 @@ export async function POST(req: Request) {
         }
         
         // Dynamic Negative Prompt based on requested profile & scene
-        // 🧬 SKELETAL PROTECTION: Added "altered jawline" and "different face shape" to negative prompt
-        let negativeFils = "child, kid, toddler, teenager, underage, worst quality, low quality, blurry, distorted, deformed, watermark, bad anatomy, bad hands, altered jawline, different face shape, different person";
+        // 🧬 SKELETAL PROTECTION: Added "vogue model" and "generic face" to prevent drift
+        let negativeFils = "child, kid, toddler, teenager, underage, worst quality, low quality, blurry, distorted, deformed, watermark, bad anatomy, bad hands, altered jawline, different face shape, different person, different nose, altered eye shape, facial drift, vogue model, generic beauty, stock photo face, plastic skin";
         
         if (finalPromptForAI.toLowerCase().includes("woman") || finalPromptForAI.toLowerCase().includes("female")) {
             negativeFils += ", man, male, facial hair, beard";
@@ -156,12 +162,17 @@ export async function POST(req: Request) {
             negativeFils += ", woman, female";
         }
 
+        // 🛡️ SCENE PRESERVATION: If a specific environment is locked (plane, jet, outdoor), block generic indoor rooms
+        if (sceneType === 'jet' || sceneType === 'beach' || sceneType === "nature" || sceneType === "yacht") {
+            negativeFils += ", indoor, room, bedroom, house, studio, interior, apartment, office, domestic setting";
+        }
+
         // 🛡️ UNIQ PRO: Relax nudity-related filters in negative prompt
         if (isAdvanced) {
             negativeFils = negativeFils.replace(/nsfw|nudity|naked|exposed/gi, "");
         }
 
-        const identityNegativeAnchor = isIdentityLocked ? `${STRONG_IDENTITY_NEGATIVE}, ` : '';
+        const identityNegativeAnchor = isIdentityLocked ? `STRONG IDENTITY LOCK (DO NOT DRIFT): ${STRONG_IDENTITY_NEGATIVE}, ` : '';
         userNegativePrompt = negativePrompt ? `${identityNegativeAnchor}${negativePrompt}, ${negativeFils}` : `${identityNegativeAnchor}${negativeFils}`;
         
         // Solo Subject Enforcement
@@ -171,7 +182,7 @@ export async function POST(req: Request) {
 
         // 🛡️ CLEVER BYPASS 2.0: Artistic Protection for Advanced Mode
         if (isAdvanced) {
-            const artisticQualifiers = "fine art photography, vogue editorial style, high fashion aesthetic, professional studio lighting, detailed skin texture, raw photo, masterpiece, elegant composition";
+            const artisticQualifiers = "fine art photography, high fashion aesthetic, professional studio lighting, detailed skin texture, raw photo, masterpiece, elegant composition";
             finalPromptForAI = `${artisticQualifiers}, ${finalPromptForAI}`;
             
             // Final Sanitization: Remove any accidentally leaked explicit trigger words
@@ -198,8 +209,8 @@ export async function POST(req: Request) {
     let input: any = {
       prompt: finalPromptForAI,
       aspect_ratio: "1:1",
-      num_inference_steps: isFreeArt ? 4 : 28, // Schnell needs fewer steps
-      guidance_scale: isFreeArt ? 2.5 : 7.5,
+      num_inference_steps: isFreeArt ? 4 : (isAdvanced ? 40 : 28), // 🚀 Uniq Pro: 40 steps is optimal
+      guidance_scale: isFreeArt ? 2.5 : (isAdvanced ? 6.0 : 3.5), // 🚀 Uniq Pro: 6.0 scale for better identity retention
       seed: finalSeed,
       negative_prompt: userNegativePrompt,
     };
@@ -210,12 +221,13 @@ export async function POST(req: Request) {
     // 🏋️ POSE-AWARE STRENGTH: Detect if user is requesting a major pose change (e.g. sitting -> standing)
     // If a major pose change is detected, we lower prompt_strength to allow more pixel flexibility 
     // while Pulid maintains the facial identity.
-    let finalPromptStrength = 0.8;
+    // 🧬 UNIQ 4.0: For variations (img2img), we use a lower prompt_strength (0.55) to lock the background piksels.
+    let finalPromptStrength = (cost === 5 || cost === 3) ? 0.55 : 0.8;
     const poseKeywords = ["standing up", "standing", "walking", "running", "jumping", "climbing", "leaping"];
     const isPoseChange = poseKeywords.some(word => lowerPrompt.includes(word));
     
-    if (isPoseChange) {
-        console.log("[UNIQ] Major pose change detected. Lowering prompt_strength to 0.65 for flexibility.");
+    if (isPoseChange && finalPromptStrength > 0.65) {
+        console.log("[UNIQ] Major pose change detected. Using prompt_strength 0.65 for flexibility.");
         finalPromptStrength = 0.65;
     }
 

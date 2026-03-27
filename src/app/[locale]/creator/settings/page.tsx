@@ -129,7 +129,7 @@ export default function CreatorSettingsPage() {
     return (
         <div className="max-w-3xl mx-auto space-y-8 pb-20 px-4">
             <header className="flex items-center gap-4">
-                <Link href="/creator">
+                <Link href="/creator/container">
                     <Button variant="outline">{t('backToDashboard')}</Button>
                 </Link>
                 <div>

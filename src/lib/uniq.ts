@@ -205,8 +205,9 @@ export class Uniq {
             lighting?: string
         },
         character?: CharacterProfile,
-        sceneLock?: SceneLock
-    }): Promise<{ enhancedPrompt: string }> {
+        sceneLock?: SceneLock,
+        isAdvanced?: boolean
+    }): Promise<{ enhancedPrompt: string, negativePrompt?: string }> {
         const MAPPINGS: Record<string, Record<string, string>> = {
             composition: {
                 wide: "wide cinematic composition, subject smaller in frame",
@@ -308,9 +309,19 @@ export class Uniq {
             
         const envAnchor = sceneLock?.environmentSummary ? `LOCATION: ${sceneLock.environmentSummary}` : "identical surroundings";
         
-        const finalPrompt = `${variationMod}. Same photoshoot, ${outfitAnchor}, ${envAnchor}, same lighting, same location: ${params.originalPrompt}. STRICT RULE: do not change environment ${bypassClothingLock ? '' : 'or outfit'}, lighting setup or character identity.`;
+        const hairAnchor = sceneLock?.hairSummary ? `HAIR: ${sceneLock.hairSummary}` : "identical hair style";
 
-        return { enhancedPrompt: finalPrompt };
+        // 🧬 IDENTITY REINFORCEMENT: Always inject physical traits even in Director Mode
+        const identityTraits = params.character ? 
+            `Subject: 1 adult ${params.character.gender}, with ${params.character.hairColor} hair, ${params.character.eyeColor} eyes, ${params.character.faceStyle} face shape, ${params.character.bodyStyle} body.` : 
+            "";
+
+        // 🛡️ SAFETY GUARD: Dedicated negative prompt for Pro variations
+        const safetyNegative = isAdvanced ? "explicit, nude, anatomical, suggestive, erotic, pornographic, genitals, nipples" : "";
+
+        const finalPrompt = `[STRICT SCENE LOCK: ${envAnchor}, ${sceneLock?.lightingSummary || 'same lighting'}, ${hairAnchor}]. [STRICT IDENTITY LOCK: ${identityTraits}]. ${variationMod}. [STRICT ${bypassClothingLock ? 'CLOTHING RELAXED' : `OUTFIT LOCK: ${outfitAnchor}`}]. Same photoshoot, identical surroundings: ${params.originalPrompt}. STRICT RULE: do not change environment ${bypassClothingLock ? '' : 'or outfit'}, lighting setup or character identity. IDENTICAL FACE TO REFERENCE.`;
+
+        return { enhancedPrompt: finalPrompt, negativePrompt: safetyNegative };
     }
 
     /**
@@ -340,12 +351,16 @@ export class Uniq {
             const traits = [];
             if (isLocked) {
                 traits.push(`Gender: ${char.gender}`);
-                charInfo = traits.join(", ") + ". (Core identity is locked and will be handled by reference image).";
+                // 🧬 REDUNDANCY: Even if locked, mention traits to guide the generative process
+                if (char.hairColor && char.hairColor.toLowerCase() !== 'unknown') traits.push(`Hair: ${char.hairColor}`);
+                if (char.eyeColor && char.eyeColor.toLowerCase() !== 'unknown') traits.push(`Eyes: ${char.eyeColor}`);
+                charInfo = traits.join(", ") + ". (Core identity is locked and will be handled by reference image, but traits must match).";
             } else {
                 if (char.gender) traits.push(`Identity: ${char.gender}`);
                 if (char.hairColor && char.hairColor.toLowerCase() !== 'unknown') traits.push(`Hair: ${char.hairColor}`);
                 if (char.eyeColor && char.eyeColor.toLowerCase() !== 'unknown') traits.push(`Eyes: ${char.eyeColor}`);
                 if (char.faceStyle && char.faceStyle.toLowerCase() !== 'unknown') traits.push(`Face: ${char.faceStyle}`);
+                if (char.bodyStyle && char.bodyStyle.toLowerCase() !== 'unknown') traits.push(`Body: ${char.bodyStyle}`);
                 charInfo = traits.join(", ") + ". Always maintain this EXACT identity.";
             }
             if (char.persona_prompt) charInfo += ` Persona Context: ${char.persona_prompt}`;
@@ -396,12 +411,18 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
             propSummary: data.propSummary
         };
 
+        // 🛡️ BATCHED NEGATIVE CONTEXT: Combine user history failures with default safety
+        const finalNegative = [
+            negativeMemoryContext,
+            "explicit, nude, suggestive, erotic, pornographic, distorted anatomy, morphing faces"
+        ].filter(Boolean).join(", ");
+
         return {
             enhancedPrompt: data.enhancedPrompt,
             originalPrompt: params.userInput,
             translation: data.translation,
             translatedStory: data.translatedStory,
-            negativePrompt: negativeMemoryContext,
+            negativePrompt: finalNegative,
             sceneLock
         };
     }
@@ -781,7 +802,7 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
             mood?: string
         },
         character?: CharacterProfile
-    }): Promise<{ enhancedPrompt: string }> {
+    }): Promise<{ enhancedPrompt: string, negativePrompt?: string }> {
         const char = params.character || this.user?.savedCharacter;
         let charInfo = "A person";
         if (char) {

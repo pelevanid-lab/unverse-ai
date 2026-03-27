@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone, Package, Wand2, CreditCard, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile } from '@/lib/types';
@@ -47,6 +47,13 @@ export default function CreatorPanel() {
   const { user, isConnected } = useWallet();
   const router = useRouter();
   const [activationLoading, setActivationLoading] = useState(false);
+
+  // 🚀 DIRECT PANEL ACCESS: Redirect creators directly to the Container
+  useEffect(() => {
+    if (user?.isCreator) {
+      router.replace('/creator/container');
+    }
+  }, [user?.isCreator, router]);
 
   const handleBecomeCreator = async () => {
       if (!user?.uid) return;
@@ -169,21 +176,6 @@ export default function CreatorPanel() {
                 </Card>
             </Link>
 
-
-            <Link href="/creator/published" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-green-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-green-500/10 rounded-xl group-hover:bg-green-500/20 transition-colors"><Globe className="w-6 h-6 text-green-400" /></div>
-                            <div>
-                                <p className="font-bold">{t('publishedTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('publishedDesc')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-green-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
 
             <Link href="/creator/promo-card" className="group">
                 <Card className="glass-card border-white/10 group-hover:border-yellow-500/40 transition-all h-full bg-white/[0.02]">

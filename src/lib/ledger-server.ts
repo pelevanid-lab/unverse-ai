@@ -183,7 +183,7 @@ export async function processAiCreatorGenerationServer(userId: string): Promise<
 }
 
 export async function processUniqProUnlockServer(userId: string): Promise<string> {
-    const cost = 2; // Reduced from 15 to 2 UCU as per user request
+    const cost = 2; // Standard cost is 2 ULC
     return await adminDb.runTransaction(async (transaction) => {
         const userRef = adminDb.collection('users').doc(userId);
         const userSnap = await transaction.get(userRef);
@@ -194,31 +194,43 @@ export async function processUniqProUnlockServer(userId: string): Promise<string
             throw new Error("ALREADY_UNLOCKED");
         }
 
-        const balance = userData.ulcBalance?.available || 0;
-        if (balance < cost) throw new Error("INSUFFICIENT_ULC");
+        // 🌟 PREMIUM BYPASS: If user has an active Uniq Premium subscription (aiCreatorModeExpiresAt), cost is 0
+        const now = Date.now();
+        const isPremium = userData.aiCreatorModeExpiresAt && userData.aiCreatorModeExpiresAt > now;
+        const finalCost = isPremium ? 0 : cost;
 
-        const treasuryShare = Number((cost * 0.70).toFixed(2));
-        const burnShare = Number((cost - treasuryShare).toFixed(2));
+        const balance = userData.ulcBalance?.available || 0;
+        if (balance < finalCost) throw new Error("INSUFFICIENT_ULC");
+
+        const treasuryShare = Number((finalCost * 0.70).toFixed(2));
+        const burnShare = Number((finalCost - treasuryShare).toFixed(2));
 
         transaction.update(userRef, {
-            'ulcBalance.available': admin.firestore.FieldValue.increment(-cost),
+            'ulcBalance.available': admin.firestore.FieldValue.increment(-finalCost),
             isAdvancedModeUnlocked: true
         });
 
-        const statsRef = adminDb.collection('config').doc('stats');
-        transaction.set(statsRef, {
-            totalTreasuryULC: admin.firestore.FieldValue.increment(treasuryShare),
-            totalBurnedULC: admin.firestore.FieldValue.increment(burnShare)
-        }, { merge: true });
+        if (finalCost > 0) {
+            const statsRef = adminDb.collection('config').doc('stats');
+            transaction.set(statsRef, {
+                totalTreasuryULC: admin.firestore.FieldValue.increment(treasuryShare),
+                totalBurnedULC: admin.firestore.FieldValue.increment(burnShare)
+            }, { merge: true });
+        }
 
         const ledgerRef = adminDb.collection('ledger').doc();
         transaction.set(ledgerRef, {
             type: 'premium_unlock',
             fromUserId: userId,
-            amount: cost,
+            amount: finalCost,
             currency: 'ULC',
-            timestamp: Date.now(),
-            details: { treasury: treasuryShare, burn: burnShare, feature: 'uniq_pro_engine' }
+            timestamp: now,
+            details: { 
+                treasury: treasuryShare, 
+                burn: burnShare, 
+                feature: 'uniq_pro_engine',
+                isPremiumBypass: isPremium
+            }
         });
 
         return ledgerRef.id;

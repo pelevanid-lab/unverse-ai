@@ -3,62 +3,116 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 🛡️ BASIC HELPERS
-    // Note: Firestore rules do NOT support 'if' or 'return' keywords inside functions.
-    // They must be single-expression boolean evaluations.
+    // 🛡️ BEYOND SECURITY: UNIFIED IDENTITY (CUSTOM CLAIMS & FALLBACK)
     function isSignedIn() {
       return request.auth != null;
     }
     
     function isOwner(userId) {
-      return isSignedIn() && userId != null && (
-        request.auth.uid == userId || 
+      return isSignedIn() && (
+        request.auth.token.walletAddress == userId || 
+        request.auth.uid == userId ||
         (exists(/databases/$(database)/documents/users/$(userId)) && 
          get(/databases/$(database)/documents/users/$(userId)).data.authUid == request.auth.uid)
       );
     }
 
     function isAdmin() {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return isSignedIn() && (
+        request.auth.token.isAdmin == true ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
     }
 
     // 👤 USER PROFILES
     match /users/{userId} {
       allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
+      // 🔒 BALANCE PROTECTION: Users can update profile but NOT financial fields
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isAdmin() || 
+                    (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ulcBalance', 'totalEarnings', 'totalSpent']));
+      allow delete: if isAdmin();
     }
 
     // 📸 CREATOR MEDIA (Workshop / Drafts)
     match /creator_media/{mediaId} {
-      allow create: if isSignedIn();
-      allow read: if isOwner(resource.data.creatorId) || resource.data.visibility == 'public' || isAdmin();
-      allow write: if isOwner(resource.data.creatorId) || isAdmin();
+      // 🔒 SADECE KENDİ ADINA MEDYA OLUŞTURABİLİR
+      allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
+      allow read: if resource.data.visibility == 'public' || 
+                   isOwner(resource.data.creatorId) || 
+                   isAdmin();
+      allow update, delete: if isOwner(resource.data.creatorId) || isAdmin();
     }
 
     // 📜 FINANCIAL LEDGER
     match /ledger/{entryId} {
-      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.fromUserId) || isOwner(resource.data.toUserId) || isAdmin();
+      allow read: if isSignedIn() && (
+                   resource.data.userId == request.auth.uid ||
+                   resource.data.fromUserId == request.auth.uid ||
+                   resource.data.toUserId == request.auth.uid ||
+                   resource.data.creatorId == request.auth.uid ||
+                   resource.data.userId == request.auth.token.walletAddress ||
+                   resource.data.fromUserId == request.auth.token.walletAddress ||
+                   resource.data.toUserId == request.auth.token.walletAddress ||
+                   resource.data.creatorId == request.auth.token.walletAddress ||
+                   isAdmin()
+                 );
       allow write: if false; // ADMIN SDK ONLY
     }
 
     // 💳 SUBSCRIPTIONS
     match /subscriptions/{subId} {
-      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.creatorId) || isAdmin();
+      allow read: if isSignedIn() && (
+                   resource.data.userId == request.auth.uid ||
+                   resource.data.creatorId == request.auth.uid ||
+                   resource.data.userId == request.auth.token.walletAddress ||
+                   resource.data.creatorId == request.auth.token.walletAddress ||
+                   isAdmin()
+                 );
       allow write: if false; // ADMIN SDK ONLY
+    }
+
+    // 💰 CLAIM REQUESTS
+    match /claim_requests/{claimId} {
+      allow read: if isSignedIn() && (
+                   resource.data.creatorId == request.auth.uid ||
+                   resource.data.creatorId == request.auth.token.walletAddress ||
+                   isAdmin()
+                 );
+      allow write: if isSignedIn() && (
+                    isOwner(request.resource.data.creatorId) ||
+                    isAdmin()
+                  );
+    }
+
+    // ⏳ VESTING SCHEDULES
+    match /vesting_schedules/{scheduleId} {
+      allow read: if isSignedIn() && (
+                   resource.data.userId == request.auth.uid ||
+                   resource.data.userId == request.auth.token.walletAddress ||
+                   isAdmin()
+                 );
+      allow write: if isAdmin();
     }
 
     // 🤖 AI GENERATION LOGS
     match /ai_generation_logs/{logId} {
-      allow read: if isOwner(resource.data.userId) || isOwner(resource.data.creatorId) || isAdmin();
-      allow write: if isSignedIn(); 
+      // 🔒 SADECE KENDİ ADINA LOG OLUŞTURABİLİR
+      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
+      allow read: if isOwner(resource.data.userId) || 
+                   isOwner(resource.data.creatorId) || 
+                   isAdmin();
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
     // 📰 POSTS (Public Content)
     match /posts/{postId} {
       allow read: if true;
-      allow write: if isOwner(resource.data.creatorId) || isAdmin();
+      // create: Gelecek olan veriye (request.resource.data) bak
+      allow create: if isSignedIn() && (isOwner(request.resource.data.creatorId) || isAdmin());
+      // update/delete: Mevcut veriye (resource.data) bak
+      allow update, delete: if isOwner(resource.data.creatorId) || isAdmin();
     }
 
     // ⚙️ SYSTEM CONFIG
@@ -69,10 +123,29 @@ service cloud.firestore {
 
     // 💬 CHATS & MESSAGES
     match /chats/{chatId} {
-      allow read, write: if isOwner(resource.data.subscriberId) || isOwner(resource.data.creatorId) || isAdmin();
+      // 🔒 CREATE VE UPDATE/DELETE AYRILDI (Çökme Önlendi)
+      allow read, update, delete: if isOwner(resource.data.subscriberId) || 
+                                     isOwner(resource.data.creatorId) || 
+                                     isAdmin();
+                                     
+      allow create: if isSignedIn() && (
+                      isOwner(request.resource.data.subscriberId) || 
+                      isOwner(request.resource.data.creatorId) || 
+                      isAdmin()
+                    );
       
       match /messages/{messageId} {
-        allow read, write: if isSignedIn();
+        // Parent dokümana (chatId) bakarak işlem izni
+        allow read, update, delete: if isSignedIn() && (
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.subscriberId) ||
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.creatorId) ||
+          isAdmin()
+        );
+        allow create: if isSignedIn() && (
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.subscriberId) ||
+          isOwner(get(/databases/$(database)/documents/chats/$(chatId)).data.creatorId) ||
+          isAdmin()
+        );
       }
     }
 

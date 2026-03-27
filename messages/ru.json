@@ -254,14 +254,39 @@
     "emptyStateDesc": "Созданный или загруженный контент появится здесь.",
     "errorTitle": "Ошибка",
     "profileLoadError": "Не удалось загрузить профиль.",
+    "uploadMedia": "Загрузить Медиа",
+    "tabAnimate": "Анимировать",
+    "animateDesc": "Оживите свои изображения с помощью технологии Uniq.",
+    "animateBtn": "Анимировать",
+    "motionPrompt": "Описание движения",
+    "motionPromptPlaceholder": "Напр.: Волосы развеваются на ветру, улыбается в камеру...",
+    "duration": "Длительность",
+    "sec5": "5 Секунд",
+    "sec10": "10 Секунд",
+    "generateVideo": "Создать видео",
+    "selectFromContainer": "Выбрать изображение из пула",
+    "noAnimateForVideo": "Видео нельзя анимировать повторно.",
+    "animateSuccess": "Видео успешно создано и добавлено в пул.",
+    "errorLoadingPool": "Не удалось загрузить пул.",
+    "changeImage": "Изменить изображение",
+    "masterpieceReady": "Шедевр Готов!",
+    "videoCreatedSuccess": "Ваше видео успешно создано. Что вы хотите сделать теперь?",
+    "saveToPoolAndContinue": "Сохранить в пул и продолжить",
+    "loadingPool": "Загрузка пула...",
+    "poolEmptyDesc": "Начните с создания контента в Студии или загрузите его вручную.",
+    "goToStudio": "Перейти в Студию",
     "untitled": "Без названия",
     "shortcuts": {
-      "uniq": "Uniq",
-      "edit": "Edit",
-      "muse": "Muse",
-      "animate": "Animate",
-      "freeArt": "Art"
-    }
+      "messages": "...",
+      "edit": "ЗАГРУЗИТЬ",
+      "muse": "MUSE",
+      "animate": "АНИМАЦИЯ",
+      "freeArt": "СОЗДАТЬ"
+    },
+    "uniqPremium": "Uniq Premium",
+    "uniqPremiumDesc": "Управление подпиской и протоколом",
+    "promoCard": "Промо-карта",
+    "promoCardDesc": "Эффективность рекламы и охвата"
   },
   "Creator": {
     "becomeCreatorTitle": "Стать Автором",
@@ -373,6 +398,13 @@
     "deleteAlertDesc": "Медиафайл будет удален навсегда.",
     "cancel": "Отмена",
     "delete": "Удалить",
+    "animateImage": "Анимация изображения",
+    "animateDesc": "Превратите это изображение в профессиональное видео с помощью Uniq.",
+    "animateBtn": "Анимировать (60 ULC)",
+    "variationBtn": "Создать вариацию (5 ULC)",
+    "improveCaption": "Улучшить описание",
+    "generateCaptionBtn": "Сгенерировать описание",
+    "uniqEvaluation": "Оценка Uniq V2",
     "proContentRestriction": "Ограничение контента Uniq Pro"
   },
   "AIStudio": {
@@ -997,5 +1029,18 @@
     "botName": "Unverse Bot",
     "userName": "Автор",
     "statusOnline": "Премиальные нейронные пути ПОДКЛЮЧЕНЫ"
+  },
+  "Post": {
+    "limited": "Ограничено",
+    "premium": "Премиум",
+    "soldOut": "Продано",
+    "limitedEdition": "Лимитированное издание",
+    "premiumContent": "Премиум контент",
+    "exclusiveDesc": "Это лимитированное издание. Разблокируйте, чтобы получить цифровую копию с уникальным серийным номером.",
+    "individualPriceDesc": "Разблокируйте этот премиум-контент, чтобы увидеть шедевр полностью.",
+    "unlockFor": "Открыть за {price} ULC",
+    "availability": "Осталось {count} шт.",
+    "yourSerialNo": "Ваш серийный номер: #{serial} / {total}",
+    "securingMedia": "Защита медиа..."
   }
 }

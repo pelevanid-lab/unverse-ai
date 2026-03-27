@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ContainerTab } from './ContainerTab';
 import { AIStudioTab } from './AIStudioTab';
-import { PublishContentsTab } from './PublishContentsTab';
 import { CreatorInbox } from './CreatorInbox';
 import { PromoCardTab } from './PromoCardTab';
 
@@ -19,7 +18,6 @@ export function CreatorTabs() {
     const tabs = [
         { id: 'container', name: t('containerTab'), icon: '📦' },
         { id: 'ai-studio', name: t('aiStudioTab'), icon: '✨' },
-        { id: 'published', name: t('publishedTab'), icon: '💰', badge: 'EARN' },
         { id: 'promo', name: t('promoCardTab'), icon: '🎴' },
         { id: 'messages', name: t('messagesTab'), icon: '💬' },
     ];
@@ -52,9 +50,9 @@ export function CreatorTabs() {
                     >
                         <span>{tab.icon}</span>
                         {tab.name}
-                        {tab.badge && (
+                        {(tab as any).badge && (
                             <span className="bg-orange-600 text-[8px] px-1.5 py-0.5 rounded-sm font-black animate-pulse">
-                                {tab.badge}
+                                {(tab as any).badge}
                             </span>
                         )}
                     </Button>
@@ -64,7 +62,6 @@ export function CreatorTabs() {
             <div className="animate-in fade-in duration-500">
                 {activeTab === 'container' && <ContainerTab />}
                 {activeTab === 'ai-studio' && <AIStudioTab />}
-                {activeTab === 'published' && <PublishContentsTab />}
                 {activeTab === 'promo' && <PromoCardTab />}
                 {activeTab === 'messages' && <CreatorInbox />}
             </div>

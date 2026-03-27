@@ -60,6 +60,7 @@ export async function POST(req: Request) {
       "outfitSummary": "Brief description of the clothing (e.g. 'white silk bikini' or 'blue denim jacket')",
       "environmentSummary": "Brief description of the location (e.g. 'tropical beach at sunset' or 'modern library interior')",
       "lightingSummary": "Brief description of lighting (e.g. 'warm golden hour' or 'soft diffused indoor')",
+      "hairSummary": "Brief description of the subject's hair style and color in this scene (e.g. 'long wavy blonde hair' or 'slicked back ponytail')",
       "propSummary": "Key objects in the scene (e.g. 'cocktail glass' or 'old books')"
     }
     
@@ -177,6 +178,7 @@ export async function POST(req: Request) {
                     outfitSummary: "Natural",
                     environmentSummary: "Cozy",
                     lightingSummary: "Warm",
+                    hairSummary: "Natural",
                     propSummary: "None"
                 };
             }

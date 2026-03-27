@@ -12,7 +12,7 @@ export default function FreeArtPage() {
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6">
             <header className="flex items-center gap-4 border-b pb-10 border-white/10">
-                <Link href="/creator/studio">
+                <Link href="/creator/container">
                     <Button 
                         variant="ghost" 
                         size="icon" 
