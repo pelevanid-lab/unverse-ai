@@ -125,7 +125,9 @@
     "noContent": "لا يوجد محتوى عام متاح بعد.",
     "syncing": "جاري مزامنة الخلاصة المستقلة...",
     "updateName": "عصر التكوين (Genesis)",
-    "title": "أنفولد"
+    "title": "أنفولد",
+    "yourCard": "بطاقتك",
+    "promoFeedTitle": "خلاصة البطاقات"
   },
   "Navbar": {
     "connect": "ربط المحفظة",
@@ -134,7 +136,16 @@
     "tokenomics": "البيع المسبق",
     "staking": "انستيك",
     "community": "يونيتي",
-    "comingSoon": "قريباً"
+    "comingSoon": "قريباً",
+    "search": "بحث"
+  },
+  "SearchPage": {
+    "title": "البحث",
+    "subtitle": "اكتشف أفضل المبدعين في Unverse.",
+    "placeholder": "ابحث عن المبدعين بالاسم...",
+    "noResults": "لم يتم العثور على مبدعين لـ '{query}'",
+    "allCreators": "جميع المبدعين",
+    "viewProfile": "عرض الملف الشخصي"
   },
   "MyPage": {
     "dashboard": "لوحة التحكم",
@@ -175,7 +186,13 @@
     "cancelButton": "إلغاء",
     "deleting": "جاري حذف الحساب...",
     "deleteSuccess": "تم حذف حسابك بنجاح.",
-    "deleteError": "حدث خطأ أثناء حذف حسابك."
+    "deleteError": "حدث خطأ أثناء حذف حسابك.",
+    "languagePreference": "تفضيلات اللغة",
+    "selectLanguage": "اختر لغتك المفضلة للمنصة.",
+    "en": "English",
+    "tr": "Türkçe",
+    "ru": "Русский",
+    "ar": "العربية"
   },
   "Wallet": {
     "yourBalance": "رصيدك",
@@ -340,8 +357,9 @@
     "title": "إنشاء بطاقة ترويجية",
     "subtitle": "سيتم تمييز هذه البطاقة في الخلاصة لجذب مشتركين جدد.",
     "promoImage": "صورة ترويجية",
-    "replace": "استبدال",
-    "uploadInstruction": "حمل صورة مستطيلة (١٦:٩)",
+    "promoMedia": "وسائط ترويجية",
+    "replaceMedia": "استبدال",
+    "uploadInstruction": "حمل صورة مستطيلة أو فيديو (١٦:٩)",
     "cardTitle": "عنوان البطاقة",
     "titlePlaceholder": "مثال: انضم إلى دائرتي الخاصة",
     "shortDesc": "وصف قصير",

@@ -20,6 +20,9 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.isAdmin == true ||
+        (request.auth.token.walletAddress != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.token.walletAddress)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.token.walletAddress)).data.isAdmin == true) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
       );

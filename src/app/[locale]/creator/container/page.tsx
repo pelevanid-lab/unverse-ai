@@ -38,9 +38,9 @@ export default function ContainerPage() {
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <div>
-                        <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter italic uppercase">Creator Panel</h1>
+                        <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter italic uppercase">{t('panelTitle')}</h1>
                         <div className='mt-2'>
-                            <p className="text-sm font-medium text-muted-foreground opacity-70">Manage your digital empire</p>
+                            <p className="text-sm font-medium text-muted-foreground opacity-70">{t('manageEmpire')}</p>
                         </div>
                     </div>
                 </div>

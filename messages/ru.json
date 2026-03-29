@@ -125,7 +125,9 @@
     "noContent": "Публичных публикаций пока нет. Будьте первым, кто опубликует!",
     "syncing": "Синхронизация Вселенной...",
     "updateName": "Genesis Era",
-    "title": "Unverse"
+    "title": "Unverse",
+    "yourCard": "Твоя карта",
+    "promoFeedTitle": "Лента карт"
   },
   "Navbar": {
     "connect": "Подключить",
@@ -134,7 +136,16 @@
     "tokenomics": "Предпродажа",
     "staking": "Unstake",
     "community": "Unity",
-    "comingSoon": "Скоро"
+    "comingSoon": "Скоро",
+    "search": "Поиск"
+  },
+  "SearchPage": {
+    "title": "Поиск",
+    "subtitle": "Откройте для себя лучших авторов во Вселенной.",
+    "placeholder": "Поиск авторов по имени...",
+    "noResults": "Авторы по запросу '{query}' не найдены",
+    "allCreators": "Все Авторы",
+    "viewProfile": "Смотреть Профиль"
   },
   "MyPage": {
     "dashboard": "Доступ к Панели",
@@ -175,7 +186,13 @@
     "cancelButton": "Отмена",
     "deleting": "Удаление аккаунта...",
     "deleteSuccess": "Ваш аккаунт был успешно удален.",
-    "deleteError": "Произошла ошибка при удалении вашего аккаунта."
+    "deleteError": "Произошла ошибка при удалении вашего аккаунта.",
+    "languagePreference": "Языковые настройки",
+    "selectLanguage": "Выберите предпочтительный язык для платформы.",
+    "en": "English",
+    "tr": "Türkçe",
+    "ru": "Русский",
+    "ar": "العربية"
   },
   "Wallet": {
     "yourBalance": "Ваш Баланс",
@@ -324,8 +341,9 @@
     "title": "Создать Промо Карту",
     "subtitle": "Эта карта будет показана в ленте для привлечения подписчиков.",
     "promoImage": "Промо Изображение",
-    "replace": "Заменить",
-    "uploadInstruction": "ЗАГРУЗИТЕ ПРЯМОУГОЛЬНОЕ ИЗОБРАЖЕНИЕ (16:9)",
+    "promoMedia": "Промо-медиа",
+    "replaceMedia": "Заменить",
+    "uploadInstruction": "ЗАГРУЗИТЕ ПРЯМОУГОЛЬНОЕ ИЗОБРАЖЕНИЕ ИЛИ ВИДЕО (16:9)",
     "cardTitle": "Название Карты",
     "titlePlaceholder": "напр. Присоединяйтесь к моему кругу",
     "shortDesc": "Краткое Описание",

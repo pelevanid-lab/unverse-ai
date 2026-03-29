@@ -73,10 +73,10 @@ export default function AdminCommunity() {
         // Real-time listener for v3 presentations
         const unsubInv = onSnapshot(doc(db, 'presentations', 'investor_v3'), (snap) => {
             if (snap.exists()) setPresentations((prev: any) => ({ ...prev, investor: snap.data() }));
-        });
+        }, (err) => console.warn("Admin Community Investor Presentation fetch error:", err));
         const unsubCre = onSnapshot(doc(db, 'presentations', 'creator_v3'), (snap) => {
             if (snap.exists()) setPresentations((prev: any) => ({ ...prev, creator: snap.data() }));
-        });
+        }, (err) => console.warn("Admin Community Creator Presentation fetch error:", err));
 
         return () => { unsubInv(); unsubCre(); };
     }, []);

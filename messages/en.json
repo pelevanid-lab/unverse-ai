@@ -129,7 +129,9 @@
     "noContent": "No public content available yet.",
     "syncing": "Syncing Sovereign Feed...",
     "updateName": "Genesis Era",
-    "title": "Unverse"
+    "title": "Unverse",
+    "yourCard": "Your card",
+    "promoFeedTitle": "Card Feed"
   },
   "Navbar": {
     "connect": "Connect Wallet",
@@ -138,7 +140,16 @@
     "tokenomics": "Pre-Sale",
     "staking": "Unstake",
     "community": "Unity",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "search": "Search"
+  },
+  "SearchPage": {
+    "title": "Search",
+    "subtitle": "Discover the top creators in the Unverse.",
+    "placeholder": "Search creators by name...",
+    "noResults": "No creators found for '{query}'",
+    "allCreators": "All Creators",
+    "viewProfile": "View Profile"
   },
   "MyPage": {
     "dashboard": "Access Dashboard",
@@ -180,7 +191,13 @@
     "cancelButton": "Cancel",
     "deleting": "Deleting Account...",
     "deleteSuccess": "Your account has been successfully deleted.",
-    "deleteError": "An error occurred while deleting your account."
+    "deleteError": "An error occurred while deleting your account.",
+    "languagePreference": "Language Preference",
+    "selectLanguage": "Select your preferred language for the platform.",
+    "en": "English",
+    "tr": "Türkçe",
+    "ru": "Русский",
+    "ar": "العربية"
   },
   "Wallet": {
     "yourBalance": "Your Balance",
@@ -345,9 +362,9 @@
   "PromoCard": {
     "title": "Create Promo Card",
     "subtitle": "This card will be featured in the feed to attract new subscribers.",
-    "promoImage": "Promo Image",
-    "replace": "Replace",
-    "uploadInstruction": "UPLOAD RECTANGULAR IMAGE (16:9)",
+    "promoMedia": "Promo Media",
+    "replaceMedia": "Replace",
+    "uploadInstruction": "UPLOAD RECTANGULAR IMAGE OR VIDEO (16:9)",
     "cardTitle": "Card Title",
     "titlePlaceholder": "e.g. Join my inner circle",
     "shortDesc": "Short Description",

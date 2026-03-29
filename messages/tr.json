@@ -129,7 +129,9 @@
     "noContent": "Henüz açık içerik mevcut değil.",
     "syncing": "Kozmik Akış Senkronize Ediliyor...",
     "updateName": "Genesis Era",
-    "title": "Unverse"
+    "title": "Unverse",
+    "yourCard": "Senin kartın",
+    "promoFeedTitle": "Kart Akışı"
   },
   "Navbar": {
     "connect": "Cüzdan Bağla",
@@ -138,7 +140,16 @@
     "tokenomics": "Ön Satış",
     "staking": "Unstake",
     "community": "Unity",
-    "comingSoon": "Yakında"
+    "comingSoon": "Yakında",
+    "search": "Ara"
+  },
+  "SearchPage": {
+    "title": "Arama",
+    "subtitle": "Unverse'ün en iyi yaratıcılarını keşfedin.",
+    "placeholder": "Yaratıcı ara...",
+    "noResults": "'{query}' için yaratıcı bulunamadı",
+    "allCreators": "Tüm Yaratıcılar",
+    "viewProfile": "Profili Gör"
   },
   "MyPage": {
     "dashboard": "Panele Eriş",
@@ -179,7 +190,13 @@
     "cancelButton": "Vazgeç",
     "deleting": "Hesap Siliniyor...",
     "deleteSuccess": "Hesabınız başarıyla silindi.",
-    "deleteError": "Hesap silinirken bir hata oluştu."
+    "deleteError": "Hesap silinirken bir hata oluştu.",
+    "languagePreference": "Dil Tercihi",
+    "selectLanguage": "Platform için tercih ettiğiniz dili yan taraftan seçin.",
+    "en": "English",
+    "tr": "Türkçe",
+    "ru": "Русский",
+    "ar": "العربية"
   },
   "Wallet": {
     "yourBalance": "Bakiyeniz",
@@ -337,8 +354,9 @@
     "title": "Promo Kartı Oluştur",
     "subtitle": "Bu kart, yeni aboneler çekmek için akışta öne çıkarılacaktır.",
     "promoImage": "Promo Görseli",
-    "replace": "Değiştir",
-    "uploadInstruction": "DİKDÖRTGEN GÖRSEL YÜKLEYİN (16:9)",
+    "promoMedia": "Promo Medya",
+    "replaceMedia": "Değiştir",
+    "uploadInstruction": "DİKDÖRTGEN GÖRSEL VEYA VİDEO YÜKLEYİN (16:9)",
     "cardTitle": "Kart Başlığı",
     "titlePlaceholder": "örn. İç çemberime katılın",
     "shortDesc": "Kısa Açıklama",

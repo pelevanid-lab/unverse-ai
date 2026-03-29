@@ -30,6 +30,7 @@ export function useWallet() {
   const [loading, setLoading] = useState(true);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [claimsSynced, setClaimsSynced] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const { address: rawAddress, isConnected, isDisconnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -156,10 +157,36 @@ export function useWallet() {
       }
     };
 
-    const unsubscribeSnapshot = onSnapshot(userDocRef, (snapshot) => {
-      setUser(snapshot.exists() ? (snapshot.data() as UserProfile) : null);
-      setLoading(false);
-    });
+    const unsubscribeSnapshot = onSnapshot(
+        userDocRef, 
+        (snapshot) => {
+            setUser(snapshot.exists() ? (snapshot.data() as UserProfile) : null);
+            setLoading(false);
+        },
+        (error) => {
+            console.error("useWallet onSnapshot error:", error);
+            setLoading(false);
+        }
+    );
+
+    const checkAdminStatus = async () => {
+        if (!address) {
+            setIsAdmin(false);
+            return;
+        }
+        try {
+            const config = await getSystemConfig();
+            if (config.admin_wallet_address && address.toLowerCase() === config.admin_wallet_address.toLowerCase()) {
+                setIsAdmin(true);
+            } else {
+                setIsAdmin(false);
+            }
+        } catch (error) {
+            console.error("Error checking admin status:", error);
+            setIsAdmin(false);
+        }
+    };
+    checkAdminStatus();
 
     findOrCreateProfile();
 
@@ -190,5 +217,6 @@ export function useWallet() {
     ulcBalance: user?.ulcBalance?.available || 0,
     lockedULC: user?.ulcBalance?.locked || 0,
     claimableULC: user?.ulcBalance?.claimable || 0,
+    isAdmin,
   };
 }

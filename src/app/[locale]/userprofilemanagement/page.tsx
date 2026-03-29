@@ -16,16 +16,19 @@ import {
   AlertDialogTitle, 
   AlertDialogTrigger 
 } from '@/components/ui/alert-dialog';
-import { AlertCircle, Trash2, ChevronLeft, Loader2 } from 'lucide-react';
-import { Link, useRouter } from '@/i18n/routing';
+import { AlertCircle, Trash2, ChevronLeft, Loader2, Zap } from 'lucide-react';
+import { Link, useRouter, usePathname } from '@/i18n/routing';
+import { useLocale } from 'next-intl';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 export default function UserProfileManagement() {
   const t = useTranslations('UserProfileManagement');
+  const locale = useLocale();
   const { isConnected, user, disconnectWallet } = useWallet();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -77,6 +80,40 @@ export default function UserProfileManagement() {
       </div>
 
       <div className="grid grid-cols-1 gap-8">
+        {/* Language Preference */}
+        <Card className="border-white/10 bg-card/20 overflow-hidden">
+          <CardHeader className="pb-4 border-b border-white/5 bg-white/5">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg font-bold uppercase tracking-wider">{t('languagePreference')}</CardTitle>
+            </div>
+            <CardDescription>
+              {t('selectLanguage')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="flex flex-wrap gap-4">
+              {[
+                { code: 'en', label: t('en') },
+                { code: 'tr', label: t('tr') },
+                { code: 'ru', label: t('ru') },
+                { code: 'ar', label: t('ar') }
+              ].map((lang) => (
+                <Button 
+                  key={lang.code}
+                  variant={locale === lang.code ? "default" : "outline"}
+                  className={`rounded-xl px-6 h-12 font-bold transition-all ${
+                    locale === lang.code ? 'shadow-lg shadow-primary/20' : 'border-white/10 hover:bg-white/5'
+                  }`}
+                  onClick={() => router.push(pathname, { locale: lang.code as any })}
+                >
+                  {lang.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Security & Danger Zone */}
         <Card className="border-destructive/20 bg-destructive/5 overflow-hidden">
           <CardHeader className="bg-destructive/10 pb-4">

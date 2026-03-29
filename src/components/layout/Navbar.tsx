@@ -14,27 +14,27 @@ import { useTranslations, useLocale } from 'next-intl';
 export function Navbar() {
   const t = useTranslations('Navbar');
   const locale = useLocale();
-  const { user, isConnected, connectWallet } = useWallet();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user, isConnected, connectWallet, isAdmin } = useWallet();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
+  const [floorPrice, setFloorPrice] = useState(0.015);
+
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (user && user.walletAddress) {
+    const fetchConfig = async () => {
+      try {
         const config = await getSystemConfig();
-        if (config && config.admin_wallet_address && user.walletAddress &&
-            config.admin_wallet_address.toLowerCase() === user.walletAddress.toLowerCase()) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
+        if (config.protocolFloorPrice) {
+          setFloorPrice(config.protocolFloorPrice);
         }
-      } else {
-        setIsAdmin(false);
+      } catch (err) {
+        console.error("Failed to fetch floor price:", err);
       }
     };
-    checkAdmin();
-  }, [user]);
+    fetchConfig();
+
+    fetchConfig();
+  }, []);
 
   const navLinks = [
     { name: t('discover'), href: '/' },
@@ -44,12 +44,12 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="border-b bg-card/50 backdrop-blur-xl sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
+    <>
+      <nav className="lg:hidden border-b bg-background/80 backdrop-blur-xl sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-black/50 border border-white/5 shadow-lg shadow-primary/20">
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-black/50 border border-white/5 shadow-lg shadow-primary/20">
                 <img 
                   src="/logo.png" 
                   alt="Unverse Logo" 
@@ -57,134 +57,126 @@ export function Navbar() {
                   style={{ mixBlendMode: 'screen' }}
                 />
               </div>
+              <span className="font-headline text-lg font-bold tracking-tight">UNVERSE</span>
             </Link>
-            <div className="flex flex-col">
-              <Link href="/" className="group leading-none">
-                <span className="font-headline text-xl font-bold tracking-tight">UNVERSE</span>
-              </Link>
-              <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/50 font-bold font-headline mt-0.5">
-                <Link href={pathname || '/'} locale="en" className={`hover:text-primary transition-colors ${locale === 'en' ? 'text-primary opacity-100' : 'opacity-70'}`}>EN</Link>
-                <span className="opacity-50">/</span>
-                <Link href={pathname || '/'} locale="tr" className={`hover:text-primary transition-colors ${locale === 'tr' ? 'text-primary opacity-100' : 'opacity-70'}`}>TR</Link>
-                <span className="opacity-50">/</span>
-                <Link href={pathname || '/'} locale="ru" className={`hover:text-primary transition-colors ${locale === 'ru' ? 'text-primary opacity-100' : 'opacity-70'}`}>RU</Link>
-                <span className="opacity-50">/</span>
-                <Link href={pathname || '/'} locale="ar" className={`hover:text-primary transition-colors ${locale === 'ar' ? 'text-primary opacity-100' : 'opacity-70'}`}>AR</Link>
-              </div>
+            <div className="flex items-center ml-1">
+                <span className="text-[9px] font-bold text-primary px-1.5 py-0.5 bg-primary/10 rounded-full border border-primary/20 whitespace-nowrap">
+                    1 ULC = {floorPrice} USDC
+                </span>
             </div>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-            {navLinks.map((link) => {
-              const isTokenomics = link.href === '/tokenomics';
-              const isStaking = link.href === '/staking';
-              return (
-                <Link 
-                  key={link.name} 
-                  href={link.href} 
-                  className={`flex items-center gap-1.5 relative ${
-                    isTokenomics 
-                      ? 'text-yellow-400 hover:text-yellow-300 font-bold' 
-                      : (pathname === link.href ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors')
-                  }`}
-                >
-                  {link.name}
-                  {isStaking && (
-                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 border-orange-500/20 px-1.5 py-0 text-[10px] font-bold animate-pulse hover:bg-orange-500/30 transition-colors pointer-events-none">
-                      EARN 🔥
-                    </Badge>
-                  )}
-                </Link>
-              );
-            })}
-            {isAdmin && <Link href="/admin" className={`text-yellow-400 hover:text-yellow-300 transition-colors font-bold ${pathname === '/admin' ? 'underline' : ''}`}>Admin</Link>}
-          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {isConnected && (
-            <Link 
-              href="/mypage" 
-              className={`flex items-center gap-1.5 text-sm font-medium ${pathname === '/mypage' ? 'text-primary' : 'text-muted-foreground hover:text-primary transition-colors'}`}
-            >
-              <UserIcon className="w-5 h-5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline-block">{t('mypage')}</span>
-            </Link>
-          )}
-
-          <div className="hidden sm:flex items-center bg-muted/50 rounded-full px-3 py-1.5 border border-white/5 gap-2">
-            <Coins className="w-4 h-4 text-primary" />
-            <span className="text-xs font-bold">{user?.ulcBalance?.available?.toFixed(2) ?? '0.00'} ULC</span>
-          </div>
+        <div className="flex items-center gap-3">
+          <Link href="/search">
+            <Button variant="ghost" size="icon" className="w-9 h-9">
+              <Search className="w-5 h-5 text-muted-foreground" />
+            </Button>
+          </Link>
           
           {isConnected ? (
-            <Link href="/mypage">
-              <Button variant="outline" size="sm" className="gap-2 hidden sm:flex border-white/10 hover:bg-white/5 rounded-full px-4">
-                <Wallet className="w-4 h-4" />
-                {user?.walletAddress.slice(0, 6)}...
-              </Button>
+            <Link href="/wallet">
+              <div className="flex items-center bg-muted/50 rounded-full px-3 py-1 border border-white/5 gap-2 h-8">
+                <Coins className="w-3.5 h-3.5 text-primary" />
+                <span className="text-[10px] font-bold">{user?.ulcBalance?.available?.toFixed(0) ?? '0'}</span>
+              </div>
             </Link>
           ) : (
-            <Button onClick={connectWallet} className="bg-primary hover:bg-primary/90 px-6 rounded-full font-bold shadow-lg shadow-primary/20">
+            <Button onClick={connectWallet} size="sm" className="h-8 bg-primary hover:bg-primary/90 rounded-full text-[10px] font-bold">
               {t('connect')}
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-9 h-9"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu className="w-6 h-6 text-muted-foreground" />
           </Button>
         </div>
       </div>
+    </nav>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-card/95 backdrop-blur-2xl border-b border-white/10 absolute w-full animate-in slide-in-from-top-4 duration-300">
-          <div className="p-6 flex flex-col gap-6 font-headline font-bold text-lg">
-            {navLinks.map((link) => {
-              const isTokenomics = link.href === '/tokenomics';
-              const isStaking = link.href === '/staking';
-              return (
-                <Link 
-                  key={link.name} 
-                  href={link.href} 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center justify-between ${isTokenomics ? 'text-yellow-400' : ''}`}
-                >
-                  <span className="flex items-center gap-2">
-                    {link.name}
-                    {isStaking && (
-                      <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 border-orange-500/20 px-1.5 py-0 text-[10px] font-bold animate-pulse">
-                        EARN 🔥
-                      </Badge>
-                    )}
-                  </span>
-                </Link>
-              );
-            })}
-            
-            {/* My Page Link for connected users */}
-            {isConnected && (
+    {/* Mobile Menu Overlay */}
+    {mobileMenuOpen && (
+      <>
+        <div 
+          className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm lg:hidden animate-in fade-in duration-300"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+        <div className="fixed top-0 inset-x-0 z-[9999] bg-background/95 backdrop-blur-xl border-b border-white/10 flex flex-col p-6 animate-in slide-in-from-top-4 duration-300 lg:hidden text-foreground shadow-2xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-black/50 border border-white/5 shadow-lg shadow-primary/20">
+                <img src="/logo.png" alt="Unverse" className="w-full h-full object-cover scale-[1.6]" style={{ mixBlendMode: 'screen' }} />
+              </div>
+              <span className="font-headline text-lg font-bold tracking-tight uppercase italic">UNVERSE</span>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+              <X className="w-6 h-6" />
+            </Button>
+          </div>
+
+          {/* Links */}
+          <nav className="flex flex-col gap-6 flex-1">
+            {navLinks.map((link) => (
               <Link 
-                href="/mypage"
+                key={link.href} 
+                href={link.href} 
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between"
+                className={`text-2xl font-black font-headline tracking-tighter uppercase italic flex items-center gap-3 transition-colors ${
+                  link.href === '/tokenomics' ? 'text-yellow-400' : 'hover:text-primary'
+                }`}
               >
-                <span className="flex items-center gap-2"><UserIcon className='w-5 h-5'/> {t('mypage')}</span>
+                {link.name}
+                {link.href === '/staking' && (
+                  <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full border border-red-500/20 font-sans not-italic">
+                    EARN 🔥
+                  </span>
+                )}
+              </Link>
+            ))}
+
+            {isAdmin && (
+              <Link 
+                href="/admin" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-2xl font-black font-headline tracking-tighter uppercase italic flex items-center gap-3 text-red-500 hover:text-red-400 transition-colors"
+              >
+                <LayoutDashboard className="w-6 h-6" />
+                Admin
               </Link>
             )}
 
-            {isAdmin && <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="text-yellow-400">Admin</Link>}
-            
-            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-              <span className="text-sm font-body font-normal text-muted-foreground">Balance</span>
-              <div className="flex items-center gap-2">
+            {isConnected && (
+              <Link 
+                href="/mypage" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-2xl font-black font-headline tracking-tighter uppercase italic flex items-center gap-3 hover:text-primary transition-colors"
+              >
+                <UserIcon className="w-6 h-6" />
+                {t('mypage')}
+              </Link>
+            )}
+          </nav>
+
+          {/* Footer / Balance */}
+          <div className="mt-auto border-t border-white/5 pt-6 pb-4">
+            <div className="flex items-center justify-between text-muted-foreground mb-4">
+              <span className="text-sm font-bold tracking-wider">BALANCE</span>
+              <div className="flex items-center gap-2 text-foreground">
                 <Coins className="w-5 h-5 text-primary" />
-                <span>{user?.ulcBalance?.available?.toFixed(2) ?? '0.00'} ULC</span>
+                <span className="text-xl font-black font-headline tracking-tighter italic">
+                  {user?.ulcBalance?.available?.toLocaleString() ?? '0'} ULC
+                </span>
               </div>
             </div>
           </div>
         </div>
-      )}
-    </nav>
-  );
+      </>
+    )}
+  </>
+);
 }

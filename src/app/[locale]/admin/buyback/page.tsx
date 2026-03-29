@@ -58,7 +58,7 @@ export default function BuybackDashboard() {
           setAuthorized(true);
         }
       }
-    });
+    }, (err) => console.warn("Buyback Config fetch error:", err));
 
     const unsubHistory = onSnapshot(
       query(
@@ -69,7 +69,8 @@ export default function BuybackDashboard() {
       ), 
       (snap) => {
         setHistory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LedgerEntry)));
-      }
+      },
+      (err) => console.warn("Buyback History fetch error:", err)
     );
 
     return () => { unsubConfig(); unsubHistory(); };

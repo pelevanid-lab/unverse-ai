@@ -53,14 +53,14 @@ export default function AdminDashboard() {
       } else {
         setAuthorized(false);
       }
-    });
+    }, (err) => console.warn("Admin Config fetch error:", err));
 
     const unsubStats = onSnapshot(doc(db, 'config', 'stats'), (snap) => {
       if (snap.exists()) {
         const stats = snap.data();
         setStats(stats);
       }
-    });
+    }, (err) => console.warn("Admin Stats fetch error:", err));
 
     return () => { unsubConfig(); unsubStats(); };
   }, [walletAddress]);
@@ -72,15 +72,15 @@ export default function AdminDashboard() {
     
     const unsubLedger = onSnapshot(query(collection(db, 'ledger'), orderBy('timestamp', 'desc'), limit(50)), (snap) => {
       setRecentLedger(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LedgerEntry)));
-    });
+    }, (err) => console.warn("Admin Ledger fetch error:", err));
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       setAllUsers(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
-    });
+    }, (err) => console.warn("Admin Users fetch error:", err));
 
     const unsubClaims = onSnapshot(query(collection(db, 'claim_requests'), orderBy('requestedAt', 'desc')), (snap) => {
       setClaims(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClaimRequest)));
-    });
+    }, (err) => console.warn("Admin Claims fetch error:", err));
 
     getAllVestingSchedules().then(setVestingSchedules);
 

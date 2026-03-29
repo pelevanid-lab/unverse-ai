@@ -21,12 +21,13 @@ export function AdminMilestones() {
             (snap) => {
                 setParticipants(snap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
                 setLoading(false);
-            }
+            },
+            (err) => console.warn("Admin Milestones participants fetch error:", err)
         );
 
         const unsubConfig = onSnapshot(doc(db, 'config', 'system'), (snap) => {
             if (snap.exists()) setConfig(snap.data() as SystemConfig);
-        });
+        }, (err) => console.warn("Admin Milestones config fetch error:", err));
 
         return () => { unsubParticipants(); unsubConfig(); };
     }, []);

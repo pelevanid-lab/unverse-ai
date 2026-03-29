@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import '../globals.css';
 import { Navbar } from '@/components/layout/Navbar';
+import { AppSidebar } from '@/components/layout/AppSidebar';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { Toaster } from '@/components/ui/toaster';
 import { CombinedProviders } from '@/components/providers/CombinedProviders';
 import {NextIntlClientProvider} from 'next-intl';
@@ -36,10 +38,16 @@ export default async function RootLayout({
       <body suppressHydrationWarning className={`antialiased min-h-screen bg-background text-foreground ${locale === 'ar' ? 'font-arabic' : 'font-body'}`}>
         <NextIntlClientProvider messages={messages}>
           <CombinedProviders>
-            <Navbar />
-            <main className="max-w-7xl mx-auto px-4 py-6">
-              {children}
-            </main>
+            <div className="flex min-h-screen">
+              <AppSidebar />
+              <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+                <Navbar />
+                <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-6">
+                  {children}
+                </main>
+              </div>
+            </div>
+            <MobileBottomNav />
             <Toaster />
           </CombinedProviders>
         </NextIntlClientProvider>

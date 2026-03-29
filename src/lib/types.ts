@@ -36,6 +36,7 @@ export interface UserProfile {
     updatedAt?: number;
     bio?: string;
     avatar?: string;
+    displayName?: string;
     featured?: boolean;
     boostScore?: number;
     twitter?: string;
@@ -105,6 +106,7 @@ export interface UserProfile {
 
 export interface PromoCard {
     imageUrl: string;
+    thumbnailUrl?: string;
     title: string;
     description: string;
     ctaText: string;
@@ -186,6 +188,7 @@ export interface SystemConfig {
 
     // Creator Milestone Pool Stats
     totalCreatorRewardsULC?: number;
+    creatorProgramCount?: number;
     totalPromoPoolDistributedULC?: number;
     totalCreatorIncentiveDistributedULC?: number;
     totalBuybackStakingUSDC?: number;
