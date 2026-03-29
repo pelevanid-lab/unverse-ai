@@ -89,7 +89,7 @@ export default function MyPage() {
         
         <div className="flex flex-col gap-3 w-full md:w-auto">
           {user.isCreator ? (
-             <Link href="/creator/container"><Button className="w-full bg-primary hover:bg-primary/90 rounded-2xl h-14 px-8 font-bold shadow-xl shadow-primary/20 text-lg">{t('creatorPanel')}</Button></Link>
+             <Link href="/creator"><Button className="w-full bg-primary hover:bg-primary/90 rounded-2xl h-14 px-8 font-bold shadow-xl shadow-primary/20 text-lg">{t('creatorPanel')}</Button></Link>
           ) : (
              <Link href="/creator"><Button variant="outline" className="w-full rounded-2xl h-14 px-8 border-primary/30 text-primary hover:bg-primary/5">{t('becomeCreator')}</Button></Link>
           )}

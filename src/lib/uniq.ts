@@ -153,23 +153,17 @@ export class Uniq {
 
             if (logs.length === 0) return "";
 
-            // Use Gemini to analyze why these were bad
+            // Use specialized Negative Gen API
             const badPrompts = logs.map(l => l.prompt).join(" | ");
-            const response = await fetch('/api/ai/enhance-prompt', {
+            const response = await fetch('/api/ai/generate-negative', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: badPrompts,
-                    systemInstructions: `Analyze these DISLIKED image prompts: "${badPrompts}". 
-                    Identify common disliked patterns in lighting, composition, style, and camera angles.
-                    Return a specific "negative prompt" string to avoid these issues.
-                    Output ONLY the comma-separated negative prompt text (e.g., "avoid flat lighting, avoid blurry faces").`
-                })
+                body: JSON.stringify({ badPrompts })
             });
 
             if (!response.ok) return "";
             const data = await response.json();
-            return data.enhancedPrompt;
+            return data.negativePrompt;
         } catch (error) {
             console.error("Error fetching negative context:", error);
             return "";
@@ -386,19 +380,16 @@ Shot Type: ${params.composition || 'solo'}
 ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject identity perfectly.' : ''}
 `;
 
-        // Call the central Gemini API
-        const response = await fetch('/api/ai/enhance-prompt', {
+        // Call specialized Scene Enhancement API
+        const response = await fetch('/api/ai/enhance-scene', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: params.userInput,
-                systemInstructions,
                 character: char,
                 style: params.style,
                 composition: params.composition,
-                outfit: params.outfit,
-                negativeContext: negativeMemoryContext,
-                locale: params.locale
+                outfit: params.outfit
             })
         });
 
@@ -657,17 +648,16 @@ ${params.isEditMode ? 'IMPORTANT: This is an EDIT request. Preserve the subject 
         try {
             const hasPersona = !!this.user?.savedCharacter;
             const langInstruction = locale === 'tr' ? "Output hashtags in Turkish." : "Output hashtags in English.";
-            const response = await fetch('/api/ai/enhance-prompt', {
+            // Use dedicated Tag Generation API
+            const response = await fetch('/api/ai/generate-tags', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt,
-                    systemInstructions: `Generate 7 relevant tags. Locale: ${locale}.`
-                })
+                body: JSON.stringify({ prompt, locale })
             });
+
             if (!response.ok) return [];
             const data = await response.json();
-            return data.enhancedPrompt.split(',').map((t: string) => t.trim().toLowerCase());
+            return data.tags.split(',').map((t: string) => t.trim().toLowerCase().replace('#', ''));
         } catch {
             return [];
         }

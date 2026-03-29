@@ -451,6 +451,7 @@
     "mainCharacterSet": "Ana Karakter Ayarlandı!",
     "mainCharacterSetDesc": "Yapay zeka artık gelecekteki resimler için bu referansı kullanacak.",
     "updateFailed": "Güncelleme Başarısız",
+    "updateSuccess": "Güncelleme Başarılı",
     "promptTooShort": "İstem çok kısa",
     "promptTooShortDesc": "Lütfen daha fazla detay verin. Minimum 3 kelime veya 20 karakter gerekli.",
     "insufficientULC": "Yetersiz ULC",

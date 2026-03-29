@@ -12,8 +12,8 @@ export default function MessagesPage() {
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6">
             <header className="flex items-center gap-4 border-b pb-6 border-white/10">
-                <Link href="/creator/container"> {/* Changed href to /creator/container */}
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/container')} className="rounded-full bg-white/5">
+                <Link href="/creator"> {/* Changed href to /creator */}
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator')} className="rounded-full bg-white/5">
                         <ChevronLeft className="h-5 w-5" /> {/* Added ChevronLeft icon */}
                     </Button>
                 </Link>

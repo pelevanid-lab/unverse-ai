@@ -527,7 +527,7 @@ export default function ContentUploadPage() {
         return (
             <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
                 <header className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/container')} className="rounded-full bg-white/5">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator')} className="rounded-full bg-white/5">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <h1 className="text-3xl font-headline font-bold">{t('title')}</h1>

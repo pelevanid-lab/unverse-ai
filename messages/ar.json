@@ -450,6 +450,7 @@
     "mainCharacterSet": "تم تعيين الشخصية الرئيسية!",
     "mainCharacterSetDesc": "سيستخدم الذكاء الاصطناعي هذا المرجع للصور المستقبلية.",
     "updateFailed": "فشل التحديث",
+    "updateSuccess": "تم التحديث بنجاح!",
     "promptTooShort": "الوصف قصير جداً",
     "promptTooShortDesc": "يرجى تقديم مزيد من التفاصيل. مطلوب ٣ كلمات على الأقل أو ٢٠ حرفاً.",
     "insufficientULC": "رصيد ULC غير كافٍ",

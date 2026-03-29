@@ -186,7 +186,7 @@ export async function POST(req: Request) {
             const attempts: any[] = []; // 🧬 STRUCTURED ATTEMPT HISTORY
 
             // 🧬 PHASE 24: EXPLICIT MODE & EFFICIENCY
-            const MAX_RETRY = 2; // Fixed at 2 as per Phase 24 strategy
+            const MAX_RETRY = 1; // 🚀 Reduced to 1 for faster iteration (Total 2 attempts)
 
             // 1. Initial Route Selection (Phase 24: Explicit User Mode)
             let selectedRoute: HybridRoute = 'A';
@@ -205,7 +205,6 @@ export async function POST(req: Request) {
                 state = variation.newState;
             } else {
                 // 🧬 PRE-GENERATION VISIBILITY VALIDATION (Director Mode 4.0)
-                const visibility = (state.scene_plan.requiredVisibility || []).join(' ').toLowerCase();
                 if (mode === 'medium' && state.scene_plan.framing === 'close-up') {
                     console.log("[Phase 24] Auto-correcting framing for Medium Mode");
                     state.scene_plan.framing = 'medium shot';
@@ -222,43 +221,28 @@ export async function POST(req: Request) {
                 
                 initialBasePrompt = PromptComposer.compose(state.scene_plan, character, null, selectedRoute);
             }
-
+            
             // 3. Generation Loop (Dual-Pass + Critic + Retry)
-            while (currentRetry < MAX_RETRY) { // 🧬 MAX 4 ATTEMPTS (1 Initial + 3 Retries) - UNIQ 5.0
-                console.log(`[STATEFUL] Gen Attempt ${currentRetry + 1}/${MAX_RETRY} | Route: ${selectedRoute} | Mode: 7.0 (STABILIZED)`);
+            while (currentRetry < MAX_RETRY + 1) { // 🧬 Total attempts = MAX_RETRY + 1
+                console.log(`[STATEFUL] Gen Attempt ${currentRetry + 1}/${MAX_RETRY + 1} | Mode: ${mode}`);
                 
-                // Orchestrate Prompt with Adjustments (REBUILD FROM SCRATCH, NO APPEND)
                 finalGeneratedPrompt = PromptComposer.compose(state.scene_plan, character, currentAdjustments, selectedRoute);
                 const dynamicNegative = PromptComposer.composeNegative(state.scene_plan, negativePrompt || "");
 
-                // 🛡️ PROMPT SANITY CHECK (Identity Protocol 19.0)
-                if (finalGeneratedPrompt.includes('{') || finalGeneratedPrompt.includes('}') || finalGeneratedPrompt.includes('```')) {
-                    console.error("[INTEGRITY FAIL] Prompt contains JSON/Markdown leak:", finalGeneratedPrompt);
-                    throw new Error("[INTEGRITY FAIL] Structured data leaked into generation prompt. Aborting to prevent model corruption.");
-                }
-
-                // 🧬 ROUTE-SPECIFIC ID WEIGHTS (Phase 24 - Identity Stability)
-                // We keep a high baseline for all routes to ensure identity doesn't drift.
                 const baseIdWeight = 0.95; 
                 const id_weight = Math.min(1.5, baseIdWeight + (currentAdjustments?.id_weight_boost || 0));
                 const guidance_scale = 3.5 + (currentAdjustments?.guidance_scale_boost || 0);
-
                 const falKey = process.env.FAL_API_KEY;
                 
-                // 🧬 ROUTE DEBUG AUDIT (Phase 23)
-                console.log(`[DEBUG] Route Audit | Route: ${selectedRoute} | ID Weight: ${id_weight} | Composition Priority: ${selectedRoute !== 'A'}`);
-                console.log(`[DEBUG] Final Prompt (Audit): ${finalGeneratedPrompt}`);
-
-                // 🧬 ROUTE-BASED MODEL MAPPING
                 let generatedImageUrl = "";
+                let baseImageUrl = "";
+                let swappedImageUrl = "";
                 
                 if (mode === 'medium' || mode === 'wide') {
                     // 🎬 TWO-STEP PIPELINE: 1. Base Generation (Flux Dev/Pro) 2. Face Swap
-                    console.log(`[STATEFUL] Using Two-Step Face Swap Pipeline for Mode: ${mode}`);
+                    console.log(`[STATEFUL] Step 1: Base Generation for Mode: ${mode}`);
                     
-                    // Strip the overly aggressive text from prompt to let Flux generate a natural face freely before swapping
                     let basePrompt = finalGeneratedPrompt.replace(/IDENTICAL FACE TO REFERENCE|100% facial likeness/gi, "natural detailed face");
-                    
                     const baseEndpoint = isAdvanced ? "https://fal.run/fal-ai/flux-pro/v1.1" : "https://fal.run/fal-ai/flux/dev";
                     const actualSeed = state.lastSuccessfulConfig?.seed || seed || Math.floor(Math.random() * 1000000000);
                     
@@ -277,31 +261,47 @@ export async function POST(req: Request) {
 
                     if (!baseResponse.ok) {
                         const err = await baseResponse.json();
-                        console.error("[BASE GEN ERROR]", err);
                         throw new Error(`Base Generation Failed: ${err.detail || 'Unknown error'}`);
                     }
                     const baseResult = await baseResponse.json();
-                    let baseImageUrl = baseResult.images[0].url;
+                    baseImageUrl = baseResult.images[0].url;
+                    console.log(`[URL_LOG] baseImageUrl: ${baseImageUrl}`);
+
+                    // 🛡️ COMPOSITION GUARD: Check base image before swapping
+                    console.log(`[STATEFUL] Running Composition Guard on Base Image...`);
+                    const compCheck = await CriticEngine.evaluate(baseImageUrl, state.scene_plan, character, prompt, 'minimal');
+                    
+                    const isCompositionOk = compCheck.handsVisible !== false && compCheck.framingType !== 'close-up'; // Basic check
+                    
+                    if (!isCompositionOk && currentRetry < MAX_RETRY) {
+                        console.warn(`[COMPOSITON GUARD] Bad composition detected in base image. Retrying base gen...`);
+                        currentRetry++;
+                        currentAdjustments = { ...currentAdjustments, guidance_scale_boost: (currentAdjustments?.guidance_scale_boost || 0) + 1.0 };
+                        continue; // SKIP SWAP, RETRY BASE
+                    }
 
                     // 🎭 STEP 2: Face Swap
-                    console.log(`[STATEFUL] Base created (${baseImageUrl}). Swapping face using reference...`);
+                    console.log(`[STATEFUL] Step 2: Swapping face onto Base Image...`);
                     const swapResponse = await fetch("https://fal.run/easel-ai/advanced-face-swap", {
                         method: "POST",
                         headers: { "Authorization": `Key ${falKey}`, "Content-Type": "application/json" },
                         body: JSON.stringify({
                             target_image: baseImageUrl,
                             face_image_0: identityCore.referenceImageUrl,
-                            gender_0: character?.gender || "female"
+                            gender_0: character?.gender || "female",
+                            workflow_type: "target_hair"
                         })
                     });
 
                     if (!swapResponse.ok) {
                         const err = await swapResponse.json();
-                        console.error("[FACE SWAP ERROR]", err);
-                        throw new Error(`Face Swap Step Failed: ${err.detail || 'Unknown error'}`);
+                        const errorDetail = err.detail ? (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)) : 'Unknown error';
+                        throw new Error(`Face Swap Step Failed: ${errorDetail}`);
                     }
                     const swapResult = await swapResponse.json();
-                    generatedImageUrl = swapResult.image.url;
+                    swappedImageUrl = swapResult.image.url;
+                    generatedImageUrl = swappedImageUrl;
+                    console.log(`[URL_LOG] swappedFinalImageUrl: ${generatedImageUrl}`);
                 } else {
                     // 🖼️ PORTRAIT PIPELINE (Standard Pulid)
                     console.log(`[STATEFUL] Using Pulid Pipeline for Portrait Mode`);
@@ -324,29 +324,20 @@ export async function POST(req: Request) {
 
                     if (!response.ok) {
                         const err = await response.json();
-                        console.error("[PULID GEN ERROR]", err);
                         throw new Error(`Generation Attempt Failed: ${err.detail || 'Unknown error'}`);
                     }
                     const genResult = await response.json();
                     generatedImageUrl = genResult.images[0].url;
+                    console.log(`[URL_LOG] generatedImageUrl (Portrait): ${generatedImageUrl}`);
                 }
 
-                // 👨‍🏫 OPTIMIZED CRITIC ENGINE
-                const criticMode = (currentRetry === 0 && MAX_RETRY > 1) ? 'minimal' : 'full';
+                // 👨‍🏫 FINAL CRITIC ENGINE EVALUATION
+                const criticMode = 'full';
+                console.log(`[URL_LOG] criticEvaluatedImageUrl: ${generatedImageUrl}`);
                 latestCriticResult = await CriticEngine.evaluate(generatedImageUrl, state.scene_plan, character, prompt, criticMode);
-                lastEvaluatedImageUrl = generatedImageUrl; // 🛡️ LOCK IT
-                currentImageUrl = generatedImageUrl; // 🛡️ UPDATE STATE IMMEDIATELY
+                lastEvaluatedImageUrl = generatedImageUrl; 
+                currentImageUrl = generatedImageUrl; 
                 
-                let issues = latestCriticResult?.issues ?? [];
-                console.log(`[CRITIC] Attempt ${currentRetry + 1} (${criticMode}) | Score: ${latestCriticResult.overallScore} | Hands: ${latestCriticResult.handsVisible} | Framing: ${latestCriticResult.framingType}`);
-
-                // 🛡️ CRITICAL GUARD: Ensure we have a valid result before proceeding
-                if (!latestCriticResult) {
-                    console.error("[CRITIC] Fatal: Critic returned null result. Terminating loop.");
-                    break;
-                }
-
-                // Push to formal attempt tracking
                 attempts.push({
                     attemptId: currentRetry + 1,
                     imageUrl: generatedImageUrl,
@@ -356,49 +347,11 @@ export async function POST(req: Request) {
                     scenePlan: JSON.parse(JSON.stringify(state.scene_plan))
                 });
 
-                // 🚀 HARD ACCEPTANCE GATES (Phase 24: Mode Enforcement)
-                if (mode === 'medium') {
-                    const gate_hands = latestCriticResult.handsVisible;
-                    const gate_framing = latestCriticResult.framingType !== 'close-up';
-                    
-                    if (!gate_hands || !gate_framing) {
-                        console.warn(`[HARD GATE] Medium Mode Failure. Hands: ${gate_hands}, Framing: ${latestCriticResult.framingType}`);
-                        if (currentRetry < MAX_RETRY - 1) {
-                            latestCriticResult.retryRecommended = true; 
-                        }
-                    }
-                } else if (mode === 'wide') {
-                    const gate_body = latestCriticResult.upperBodyVisible;
-                    const gate_framing = latestCriticResult.framingType === 'wide' || latestCriticResult.framingType === 'medium'; // Wide or at least Medium
-                    
-                    if (!gate_body || !gate_framing) {
-                        console.warn(`[HARD GATE] Wide Mode Failure. Body: ${gate_body}, Framing: ${latestCriticResult.framingType}`);
-                        if (currentRetry < MAX_RETRY - 1) {
-                            latestCriticResult.retryRecommended = true;
-                        }
-                    }
-                } else {
-                    // Portrait Mode: Standard Identity Lock is enough
-                }
-
-                // 🚀 IDENTITY LOCK (HARD RULE): If score is too low, it's a failure regardless of composition
-                if ((latestCriticResult.identityScore || 0) < identityCore.thresholds.retry && currentRetry < MAX_RETRY - 1) {
-                    console.warn(`[ID LOCK] Identity drift detected. Forcing retry.`);
-                    currentAdjustments = { ...currentAdjustments, id_weight_boost: (currentAdjustments?.id_weight_boost || 0) + 0.1 };
-                    // Continue to retry logic
-                }
-
-                // 🧬 STRUCTURAL RETRY ENGINE (Phase 24: Mode-Aware Retry)
                 const retryDecision = RetryEngine.shouldRetry(currentRetry, latestCriticResult, state.scene_plan);
-                
-                if (!retryDecision.retry) {
+                if (!retryDecision.retry || currentRetry >= MAX_RETRY) {
                     break;
                 }
 
-                // 🧱 SAFE LOGGING & TRACEABILITY
-                issues = latestCriticResult?.issues ?? [];
-                console.warn(`[RETRY] Triggering attempt ${currentRetry + 2} due to: ${issues.length ? issues.join(', ') : 'Minor drifts'}`);
-                
                 if (retryDecision.adjustedPlan) state.scene_plan = retryDecision.adjustedPlan;
                 if (retryDecision.adjustedParams) currentAdjustments = { ...currentAdjustments, ...retryDecision.adjustedParams };
                 currentRetry++;
@@ -738,14 +691,16 @@ export async function POST(req: Request) {
               body: JSON.stringify({
                   target_image: baseImageUrl,
                   face_image_0: imageToUseForTwin,
-                  gender_0: character?.gender || "female"
+                  gender_0: character?.gender || "female",
+                  workflow_type: "target_hair"
               })
           });
 
           if (!swapResponse.ok) {
               const err = await swapResponse.json();
               console.error("[LEGACY SWAP ERROR]", err);
-              throw new Error(`Legacy Face Swap Failed: ${err.detail || 'Unknown error'}`);
+              const errorDetail = err.detail ? (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)) : 'Unknown error';
+              throw new Error(`Legacy Face Swap Failed: ${errorDetail}`);
           }
           const swapResult = await swapResponse.json();
           imageUrl = swapResult.image.url;

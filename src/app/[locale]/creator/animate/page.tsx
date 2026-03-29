@@ -131,7 +131,7 @@ export default function AnimatePage() {
     const handleSaveToPool = () => {
         if (!resultVideoUrl) return;
         toast({ title: tStudio('successTitle'), description: t('animateSuccess') })
-        router.push('/creator/container')
+        router.push('/creator')
     }
 
     return (
@@ -141,7 +141,7 @@ export default function AnimatePage() {
                     <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => router.push('/creator/container')} 
+                        onClick={() => router.push('/creator')} 
                         className="h-10 w-10 rounded-full bg-white/5"
                     >
                         <ChevronLeft className="w-6 h-6" />

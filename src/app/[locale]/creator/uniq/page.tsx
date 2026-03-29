@@ -459,7 +459,7 @@ export default function UniqPage() {
         <div className="max-w-6xl mx-auto space-y-8 pb-20 px-4 mt-6 animate-in fade-in duration-700">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-8">
                 <div className="flex items-center gap-6">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator/container')} className="rounded-full bg-white/5 h-12 w-12 hover:bg-primary/20 transition-all">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/creator')} className="rounded-full bg-white/5 h-12 w-12 hover:bg-primary/20 transition-all">
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
                     <div className="flex items-center gap-5">

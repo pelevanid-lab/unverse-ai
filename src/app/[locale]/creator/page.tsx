@@ -2,18 +2,16 @@
 "use client"
 
 import { useWallet } from '@/hooks/use-wallet';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, ExternalLink, Settings, ChevronLeft, ChevronRight, Globe, MessageSquare, Megaphone, Package, Wand2, CreditCard, Sparkles } from 'lucide-react';
+import { ChevronLeft, Settings, Globe, MessageSquare, Megaphone, Sparkles, DollarSign, Package, Wand2, CreditCard, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { UserProfile } from '@/lib/types';
-import { Link } from '@/i18n/routing';
-import { CreatorTabs } from '@/components/creator/CreatorTabs';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { CreatorMilestoneCard } from '@/components/creator/CreatorMilestoneCard';
+import { ContainerTab } from '@/components/creator/ContainerTab';
 
 function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => void, loading: boolean }) {
   const router = useRouter();
@@ -42,18 +40,20 @@ function BecomeCreator({ onBecomeCreator, loading }: { onBecomeCreator: () => vo
   );
 }
 
+// Dummy components for card sub-components to fix errors if they were used
+function CardTitle({ children, className }: { children: React.ReactNode, className?: string }) {
+    return <h3 className={className}>{children}</h3>;
+}
+function CardDescription({ children, className }: { children: React.ReactNode, className?: string }) {
+    return <p className={className}>{children}</p>;
+}
+
 export default function CreatorPanel() {
   const t = useTranslations('Creator');
+  const tContainer = useTranslations('Container');
   const { user, isConnected } = useWallet();
   const router = useRouter();
   const [activationLoading, setActivationLoading] = useState(false);
-
-  // 🚀 DIRECT PANEL ACCESS: Redirect creators directly to the Container
-  useEffect(() => {
-    if (user?.isCreator) {
-      router.replace('/creator/container');
-    }
-  }, [user?.isCreator, router]);
 
   const handleBecomeCreator = async () => {
       if (!user?.uid) return;
@@ -93,120 +93,92 @@ export default function CreatorPanel() {
     return <BecomeCreator onBecomeCreator={handleBecomeCreator} loading={activationLoading} />;
   }
 
+  // Unified Creator Panel View
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6">
-      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-10 border-white/10">
-        <div className="flex items-start gap-4">
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => router.push('/mypage')} 
-                className="h-10 w-10 rounded-full bg-white/5 shrink-0"
-            >
-                <ChevronLeft className="w-6 h-6" />
-            </Button>
-            <div>
-                <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter">{t('panelTitle')}</h1>
-                <div className='mt-2'>
-                    <Link href="/creator/settings" className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                        <span className="text-sm font-medium">{t('manageEmpire')}</span>
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+    <div className="max-w-6xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in duration-700">
+        <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b pb-10 border-white/10">
+            <div className="flex items-start gap-4">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => router.push('/mypage')} 
+                    className="h-10 w-10 rounded-full bg-white/5 shrink-0 hover:bg-white/10"
+                >
+                    <ChevronLeft className="w-6 h-6" />
+                </Button>
+                <div>
+                    <h1 className="text-5xl font-headline font-bold gradient-text tracking-tighter italic uppercase">{t('panelTitle')}</h1>
+                    <div className='mt-2'>
+                        <p className="text-sm font-medium text-muted-foreground opacity-70">{t('manageEmpire')}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                <Link href="/wallet" className='w-full'>
+                    <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-primary/10 transition-colors cursor-pointer group min-w-[220px]">
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('totalBalance')}</p>
+                            <p className="text-3xl font-bold font-headline group-hover:text-primary transition-colors">
+                                {user?.ulcBalance?.available.toFixed(2) || "0.00"} <span className="text-sm font-normal text-muted-foreground">ULC</span>
+                            </p>
+                        </div>
+                    </Card>
+                </Link>
+                <div className="flex flex-col gap-2">
+                    <Link href={`/profile/${user?.uid}`} className="w-full">
+                        <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5 font-bold">
+                            <Globe className="w-4 h-4" /> {t('viewProfile')}
+                        </Button>
+                    </Link>
+                    <Link href="/creator/settings" className="w-full">
+                        <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6 font-bold">
+                            <Settings className="w-4 h-4" /> {t('settings')}
+                        </Button>
                     </Link>
                 </div>
             </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-            <Link href="/wallet" className='w-full'>
-                <Card className="glass-card border-white/10 bg-white/5 flex items-center justify-center text-center px-8 py-4 rounded-[2rem] h-full hover:bg-primary/10 transition-colors cursor-pointer group min-w-[200px]">
-                    <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{t('totalBalance')}</p>
-                        <p className="text-3xl font-bold font-headline group-hover:text-primary transition-colors">
-                            {user?.ulcBalance?.available.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">ULC</span>
-                        </p>
-                    </div>
-                </Card>
-            </Link>
-            <div className="flex flex-col gap-2">
-                <Link href={`/profile/${user?.uid}`} className="w-full">
-                    <Button variant="outline" className="h-12 w-full rounded-2xl gap-2 px-6 border-white/10 hover:bg-white/5 font-bold">
-                        <Globe className="w-4 h-4" /> {t('viewProfile')}
-                    </Button>
+        </header>
+
+        <div className="space-y-6">
+            <div className="max-w-4xl mx-auto">
+                <CreatorMilestoneCard user={user} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link href="/creator/uniq">
+                    <Card className="glass-card bg-[#2D1B4D]/30 border-primary/20 p-6 flex items-center gap-6 group hover:bg-[#2D1B4D]/50 transition-all cursor-pointer relative overflow-hidden h-full">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Sparkles size={120} className="text-primary rotate-12" />
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
+                            <MessageSquare className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-0.5">{tContainer('uniqPremium')}</h3>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">{tContainer('uniqPremiumDesc')}</p>
+                        </div>
+                    </Card>
                 </Link>
-                <Link href="/creator/settings" className="w-full">
-                    <Button variant="secondary" className="h-12 w-full rounded-2xl gap-2 px-6 font-bold">
-                        <Settings className="w-4 h-4" /> {t('settings')}
-                    </Button>
+
+                <Link href="/creator/promo-card">
+                    <Card className="glass-card bg-[#3D2B1D]/30 border-yellow-500/20 p-6 flex items-center gap-6 group hover:bg-[#3D2B1D]/50 transition-all cursor-pointer relative overflow-hidden h-full">
+                         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Megaphone size={120} className="text-yellow-500 -rotate-12" />
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-yellow-500/20 flex items-center justify-center shrink-0">
+                            <Megaphone className="w-6 h-6 text-yellow-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-0.5">{tContainer('promoCard')}</h3>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">{tContainer('promoCardDesc')}</p>
+                        </div>
+                    </Card>
                 </Link>
             </div>
         </div>
-      </header>
 
-        <div className="flex flex-col gap-6 max-w-2xl mx-auto pt-8">
-            <CreatorMilestoneCard user={user} />
-            {/* 1. Havuz (Container) - Moved to top as requested */}
-            <Link href="/creator/container" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-primary/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors"><Package className="w-6 h-6 text-primary" /></div>
-                            <div>
-                                <p className="font-bold">{t('containerTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('containerDesc')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-
-            {/* 2. Uniq Studio */}
-            <Link href="/creator/studio" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-fuchsia-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-fuchsia-500/10 rounded-xl group-hover:bg-fuchsia-500/20 transition-colors"><Wand2 className="w-6 h-6 text-fuchsia-400" /></div>
-                            <div>
-                                <p className="font-bold">{t('aiStudioTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('aiStudioDesc')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-fuchsia-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-
-
-            <Link href="/creator/promo-card" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-yellow-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-yellow-500/10 rounded-xl group-hover:bg-yellow-500/20 transition-colors"><CreditCard className="w-6 h-6 text-yellow-400" /></div>
-                            <div>
-                                <p className="font-bold">{t('promoCardTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('promoCardDesc')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-yellow-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-
-            <Link href="/creator/messages" className="group">
-                <Card className="glass-card border-white/10 group-hover:border-blue-500/40 transition-all h-full bg-white/[0.02]">
-                    <CardContent className="p-6 flex items-center justify-between">
-                        <div className='flex items-center gap-4'>
-                            <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors"><MessageSquare className="w-6 h-6 text-blue-400" /></div>
-                            <div>
-                                <p className="font-bold">{t('messagesTab')}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase font-medium">{t('messagesDesc')}</p>
-                            </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-400 transition-colors" />
-                    </CardContent>
-                </Card>
-            </Link>
-        </div>
+        <ContainerTab />
     </div>
   );
 }

@@ -152,6 +152,12 @@ service cloud.firestore {
       }
     }
 
+    // 📊 PRESENTATIONS
+    match /presentations/{presentationId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // 🏗️ DEFAULT FALLBACK
     match /{path=**} {
       allow read, write: if false;

@@ -462,7 +462,7 @@ export default function TokenomicsPage() {
                         {t('howToJoinDesc')}
                     </p>
                 </div>
-                <Link href="/creator/container">
+                <Link href="/creator">
                     <Button size="lg" className="h-14 px-10 rounded-2xl bg-pink-500 hover:bg-pink-600 text-black font-bold text-lg gap-2 shadow-xl shadow-pink-500/20 group">
                         {t('joinProgramButton')}
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

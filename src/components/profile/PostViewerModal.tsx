@@ -66,7 +66,7 @@ export function PostViewerModal({ post, creator, isSubscribed, unlockedPostIds, 
 
   useEffect(() => {
     async function fetchSecureMedia() {
-        if (!canViewMedia || !post.id || !currentUser) return;
+        if (!canViewMedia || post.contentType === 'public' || !post.id || !currentUser) return;
         
         // If we already have a secure URL, don't fetch it again
         if (secureMediaUrl) return;

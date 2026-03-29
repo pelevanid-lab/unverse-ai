@@ -455,6 +455,7 @@
     "mainCharacterSet": "Main Character Set!",
     "mainCharacterSetDesc": "AI will now use this reference for future images.",
     "updateFailed": "Update Failed",
+    "updateSuccess": "Update successful!",
     "promptTooShort": "Prompt too short",
     "promptTooShortDesc": "Please provide more detail. Minimum 3 words or 20 characters required.",
     "insufficientULC": "Insufficient ULC",

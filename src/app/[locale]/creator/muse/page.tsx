@@ -449,7 +449,7 @@ export default function AIMusePage() {
             
             toast({ title: tCommon("savedToContainer"), description: tCommon("savedToContainerDesc") })
             if (!skipRedirect) {
-                router.push('/creator/container')
+                router.push('/creator')
             }
             return true
         } catch (err: any) {

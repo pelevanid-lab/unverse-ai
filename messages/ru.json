@@ -435,6 +435,7 @@
     "mainCharacterSet": "Главный Персонаж Установлен!",
     "mainCharacterSetDesc": "ИИ будет использовать этот референс.",
     "updateFailed": "Ошибка Обновления",
+    "updateSuccess": "Обновление завершено!",
     "promptTooShort": "Слишком короткий запрос",
     "promptTooShortDesc": "Пожалуйста, предоставьте больше деталей. Минимум 3 слова или 20 символов.",
     "insufficientULC": "Недостаточно ULC",

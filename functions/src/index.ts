@@ -161,8 +161,15 @@ export const getPostMedia = onCall({ memory: "256MiB" }, async (request) => {
     const userRef = userDocResult?.ref;
     const userWallet = userDocResult?.data?.walletAddress || userRef?.id;
 
-    // Check if the requester is the owner (matching UID or Wallet)
-    let hasAccess = userId === creatorId || userWallet?.toLowerCase() === creatorId?.toLowerCase(); 
+    // 🛡️ DEFINITIVE ACCESS BYPASS: Always allow public content, the owner, or the specific test admin
+    const isTestAdmin = userId === "7M0G0X6qZ5NfXN0uXkZq4Zz0Zz02" || 
+                       userWallet?.toLowerCase() === "0xd4287955519ec5081d6f217c4581f6608556488a" ||
+                       creatorId?.toLowerCase() === "0xd4287955519ec5081d6f217c4581f6608556488a";
+
+    let hasAccess = postData.contentType === 'public' || 
+                   userId === creatorId || 
+                   userWallet?.toLowerCase() === creatorId?.toLowerCase() ||
+                   isTestAdmin; 
     
     if (!hasAccess) {
         // Resolve Creator's identities to be sure
@@ -257,7 +264,8 @@ export const getPostsMedia = onCall({ memory: "512MiB" }, async (request) => {
                                userWallet?.toLowerCase() === "0xd4287955519ec5081d6f217c4581f6608556488a" ||
                                creatorId?.toLowerCase() === "0xd4287955519ec5081d6f217c4581f6608556488a";
 
-            let hasAccess = userId === creatorId || 
+            let hasAccess = postData.contentType === 'public' ||
+                           userId === creatorId || 
                            userWallet?.toLowerCase() === creatorId?.toLowerCase() ||
                            isTestAdmin; 
             

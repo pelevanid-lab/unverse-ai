@@ -56,9 +56,9 @@ export function AppSidebar() {
       icon: LayoutDashboard 
     },
     { 
-      name: t('staking'), // Unstake
-      href: '/staking', 
-      icon: Flame 
+      name: t('mypage'), // Unit
+      href: '/mypage', 
+      icon: User 
     },
     { 
       name: t('community'), // Unity
@@ -71,9 +71,9 @@ export function AppSidebar() {
       icon: Coins 
     },
     { 
-      name: t('mypage'), // Unit
-      href: '/mypage', 
-      icon: User 
+      name: t('staking'), // Unstake
+      href: '/staking', 
+      icon: Flame 
     },
     { 
       name: t('search'), 
