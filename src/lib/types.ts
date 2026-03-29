@@ -424,3 +424,118 @@ export interface AIGenerationLog {
     sceneType?: string;
     seed?: number;
 }
+
+export interface ScenePlan {
+    emotionalGoal: string;
+    sceneType: string;
+    composition: string;
+    cameraAngle: string;
+    framing: string;
+    focalPoint: string;
+    lightingPlan: string;
+    visualHierarchy: string;
+    continuityRules: string;
+    riskFactors: string;
+    allowedVariationAxes: string[];
+    outfit?: string;
+    environment?: string;
+    // 🧬 STRUCTURAL INTELLIGENCE (Director Mode 3.0)
+    requiredVisibility?: string[]; // ["face", "hands", "full_body", etc.]
+    framingStrategy?: string;      // "forced_medium_for_pose" etc.
+    bodyVisibilityLevel?: string;  // "upper_torso", "full_body", "headshot"
+    hardConstraints?: string[];    // ["hands must be visible", "no tight face crop"]
+    // 🧬 ROUTING FLAGS (Identity Protocol 5.0)
+    needsHandsVisible?: boolean;
+    needsPoseVisible?: boolean;
+    needsUpperBody?: boolean;
+    needsEditorialStyle?: boolean;
+    needsStrictIdentity?: boolean;
+}
+
+export type HybridRoute = 'A' | 'B' | 'C' | 'D';
+
+export interface IdentityCore {
+    referenceImageUrl: string;
+    characterProfile?: CharacterProfile;
+    protectedTraits?: string[];
+    thresholds: {
+        accept: number; // 0.88
+        retry: number;  // 0.80
+        reject: number; // 0.00
+    };
+}
+
+export interface CompositionLock {
+    mustInclude: string[];
+    minFraming: string;
+    portraitAllowed: boolean;
+}
+
+export interface CriticResult {
+    overallScore: number;
+    identityScore: number;
+    compositionScore: number;
+    lightingScore: number;
+    anatomyScore: number;
+    continuityScore: number;
+    outfitContinuityScore?: number; // 🧬 UNIQ 5.0
+    moodScore?: number;             // 🧬 UNIQ 6.0
+    lightingAccuracyScore?: number;
+    expressionAccuracyScore?: number;
+    handsVisible?: boolean;         // 🧬 UNIQ 7.0 (Minimalist Critic)
+    framingType?: string;
+    promptFidelityScore: number;
+    issues: string[];
+    suggestedFixes: string[];
+    retryRecommended: boolean;
+}
+
+export interface SceneState {
+    scene_id: string;
+    character_id: string;
+    sourceType: 'prompt' | 'image' | 'state';
+    originalPrompt: string;
+    enhancedPrompt: string;
+    referenceImageUrl?: string;
+    parentGenerationId?: string;
+    scene_plan: ScenePlan;
+    outfitSummary?: string; // 🧬 UNIQ 5.0
+    locked_elements: {
+        identity: boolean;
+        outfit: boolean;
+        environment: boolean;
+        pose: boolean;
+    };
+    variation_history: string[];
+    lastSuccessfulConfig: any;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface GenerationLog {
+    id: string;
+    userId: string;
+    inputPrompt: string;
+    enhancedPrompt: string;
+    scenePlan: ScenePlan;
+    selectedRoute?: HybridRoute; // 🧬 UNIQ 5.0
+    routeReason?: string;
+    modelUsed: string;
+    params: any;
+    criticResults?: CriticResult[];
+    retryCount: number;
+    outputIds: string[];
+    userRating?: number;
+    timestamp: any;
+    status: 'success' | 'failure';
+    error?: string;
+    // 🧬 TRACEABILITY (Phase 13)
+    retryHistory?: Array<{
+        attempt: number;
+        selectedRoute?: HybridRoute;
+        issues: string[];
+        appliedFixes: string[];
+        scenePlanBefore: ScenePlan;
+        scenePlanAfter: ScenePlan;
+    }>;
+}

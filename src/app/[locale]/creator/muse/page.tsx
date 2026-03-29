@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 import { CharacterProfile, SceneLock } from '@/lib/types'
 import { SceneRuleEngine } from '@/lib/scene-engine'
 import { useTranslations, useLocale } from 'next-intl'
+import { Switch } from "@/components/ui/switch"
 
 export default function AIMusePage() {
     const locale = useLocale()
@@ -29,6 +30,20 @@ export default function AIMusePage() {
     const { toast } = useToast()
     const t = useTranslations('Muse')
     const tCommon = useTranslations('AIStudio')
+
+    // 🛡️ Robust Translation Helper (Phase 24)
+    const getModeLabel = (key: string, fallback: string) => {
+        try {
+            const val = t(key);
+            // next-intl returns key or error message if missing
+            if (!val || val === key || val.includes("MISSING_MESSAGE") || val.includes("Could not resolve")) {
+                return fallback;
+            }
+            return val;
+        } catch (e) {
+            return fallback;
+        }
+    };
     
     const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady'>('selection')
     const [loading, setLoading] = useState(false)
@@ -68,6 +83,8 @@ export default function AIMusePage() {
     const [detectedSceneType, setDetectedSceneType] = useState<string | null>(null)
     const [isAdvancedMode, setIsAdvancedMode] = useState(false)
     const [lastResultIsAdvanced, setLastResultIsAdvanced] = useState(false)
+    const [smartMode, setSmartMode] = useState(true)
+    const [selectedMode, setSelectedMode] = useState<'portrait' | 'medium' | 'wide'>('portrait')
 
     useEffect(() => {
         if (user?.savedCharacter) {
@@ -315,7 +332,9 @@ export default function AIMusePage() {
                     translation: translation,
                     userId: user.uid,
                     character: user.savedCharacter,
-                    cost: isRegen ? 5 : 10
+                    mode: selectedMode, // 🎯 EXPLICIT MODE (Phase 24)
+                    cost: isRegen ? 5 : 10,
+                    isStateful: smartMode // 🧬 UNIQ 4.0: TRIGGER STATEFUL ENGINE
                 })
             })
 
@@ -383,7 +402,8 @@ export default function AIMusePage() {
                     sceneLock: currentSceneLock,
                     sceneType: detectedSceneType,
                     isAdvanced: isAdvancedMode,
-                    cost: 5 // Variations are 5 ULC
+                    cost: 5, // Variations are 5 ULC
+                    isStateful: smartMode // 🧬 UNIQ 4.0: TRIGGER STATEFUL ENGINE
                 })
             })
 
@@ -777,6 +797,33 @@ export default function AIMusePage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            {/* 🎯 SHOT TYPE SELECTOR (Phase 24) */}
+                            <div className="space-y-3">
+                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                    {getModeLabel("title", "Shot Type")}
+                                </Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { id: 'portrait', icon: User, label: getModeLabel("portrait", "Portrait") },
+                                        { id: 'medium', icon: Maximize, label: getModeLabel("medium", "Medium Shot") },
+                                        { id: 'wide', icon: Camera, label: getModeLabel("wide", "Wide Shot") }
+                                    ].map((m) => (
+                                        <Button
+                                            key={m.id}
+                                            variant={selectedMode === m.id ? 'default' : 'outline'}
+                                            className={cn(
+                                                "h-20 rounded-2xl flex flex-col gap-2 transition-all",
+                                                selectedMode === m.id ? "bg-primary border-primary shadow-lg shadow-primary/20" : "bg-white/5 border-white/5 hover:bg-white/10"
+                                            )}
+                                            onClick={() => setSelectedMode(m.id as any)}
+                                        >
+                                            <m.icon className={cn("w-5 h-5", selectedMode === m.id ? "text-white" : "text-muted-foreground")} />
+                                            <span className="text-[10px] font-bold uppercase">{m.label}</span>
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="space-y-3">
                                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("actionPrompt")}</Label>
                                 <Textarea 
@@ -788,6 +835,28 @@ export default function AIMusePage() {
                                 <div className="flex items-center gap-2 bg-primary/5 p-3 rounded-2xl border border-primary/20">
                                     <Check className="text-primary w-4 h-4" />
                                     <p className="text-[10px] text-muted-foreground">{t("actionDesc")}</p>
+                                </div>
+                            </div>
+
+                            {/* 🧬 Smart Mode Toggle UI */}
+                            <div className={cn(
+                                "flex items-center justify-between p-4 rounded-3xl border transition-all duration-500",
+                                smartMode ? "bg-primary/10 border-primary/20" : "bg-white/5 border-white/5 opacity-50"
+                            )}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
+                                        <Sparkles size={18} className="text-primary" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xs font-bold text-primary">Uniq: Smart Mode</h4>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            {smartMode ? "Görseliniz Critic & Retry motoruyla iyileştirilecek ✨" : "Hızlı mod: Zeka katmanı devre dışı."}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-[10px] font-bold text-muted-foreground uppercase">Aktif</Label>
+                                    <Switch checked={smartMode} onCheckedChange={setSmartMode} />
                                 </div>
                             </div>
 

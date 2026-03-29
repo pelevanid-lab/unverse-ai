@@ -52,30 +52,26 @@ export async function POST(req: Request) {
     const compositionContext = composition === 'solo' ? 'Solo shot, 1 person' : 'Duo shot, 2 people';
 
     const defaultSystemPrompt = `You are an expert AI image generation Prompt Engineer. 
-    Your job is to expand this English scenario into a 50-word cinematic prompt and extract specific scene metadata.
+    Your job is to expand this English scenario into a high-quality cinematic prompt (MAX 300 TOKENS) and extract specific scene metadata.
     
     OUTPUT FORMAT: JSON ONLY
     {
-      "enhancedPrompt": "The full cinematic prompt here...",
-      "outfitSummary": "Brief description of the clothing (e.g. 'white silk bikini' or 'blue denim jacket')",
-      "environmentSummary": "Brief description of the location (e.g. 'tropical beach at sunset' or 'modern library interior')",
-      "lightingSummary": "Brief description of lighting (e.g. 'warm golden hour' or 'soft diffused indoor')",
-      "hairSummary": "Brief description of the subject's hair style and color in this scene (e.g. 'long wavy blonde hair' or 'slicked back ponytail')",
-      "propSummary": "Key objects in the scene (e.g. 'cocktail glass' or 'old books')"
+      "enhancedPrompt": "The full cinematic prompt here. Mention striking ${character?.hairColor || 'natural'} hair and ${character?.eyeColor || 'natural'} eyes if applicable.",
+      "outfitSummary": "Brief description of the clothing",
+      "environmentSummary": "Brief description of the location",
+      "lightingSummary": "Brief description of lighting",
+      "hairSummary": "Striking ${character?.hairColor || 'natural'} hair",
+      "propSummary": "Key objects"
     }
     
     STRICT RULES:
-    1. SCENARIO PERSISTENCE: You must honor and include the user's specific location and outfit choices. Do not ignore them for generic "urban" or "studio" settings.
-    2. SCENE DNA: VERBATIM extract the core outfit (e.g. 'red bikini') and environment (e.g. 'luxury beach club') into the summary fields.
-    3. NO HALLUCINATIONS: Do not add extra people or change the core subject identity.
-    4. CINEMATIC DETAIL: Use 40-50 words for the enhancedPrompt, focusing on textures, fabrics, and atmospheric lighting.
+    1. SCENARIO PERSISTENCE: Include the user's specific location and outfit.
+    2. NO TRUNCATION: Keep the total JSON response under 300 tokens to avoid cutoffs.
+    3. NO HALLUCINATIONS: Do not change the subject identity.
     
-    User Scenario (in English): "${processedPrompt}"
-    
-    Subject Attributes:
-    - Identity: ${characterContext}
-    - Outfit: ${outfitContext}
-    - Style: ${styleContext}
+    User Scenario: "${processedPrompt}"
+    Subject: ${characterContext}
+    Style: ${styleContext}
     
     Return ONLY valid JSON.`;
 
@@ -94,8 +90,8 @@ export async function POST(req: Request) {
         parts: [{ text: finalSystemPrompt }]
       }],
       generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: 1500, // Increased for for better detail
+        temperature: 0.4, // 🛡️ LOWERED for stability
+        maxOutputTokens: 1000, 
       },
       safetySettings: [
         { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -147,15 +143,16 @@ export async function POST(req: Request) {
         console.log("AI PROMPT ENHANCE RAW OUTPUT:", text);
 
         let data: any;
+        const cleanText = text.replace(/```json|```/g, "").trim();
         try {
             // 1. Try direct parse
-            data = JSON.parse(text.replace(/```json|```/g, "").trim());
+            data = JSON.parse(cleanText);
         } catch (e) {
             console.warn("Gemini failed to return valid JSON. Attempting recovery...");
             
             // 2. Recovery: Extract JSON within braces
             try {
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     let jsonCandidate = jsonMatch[0];
                     
@@ -171,18 +168,26 @@ export async function POST(req: Request) {
                     throw new Error("No JSON structure found in response.");
                 }
             } catch (recoveryErr) {
-                console.error("JSON Recovery Failed:", text);
-                // Fallback for UI continuity
+                console.error("JSON Recovery Failed. Returning SAFE FALLBACK.");
+                // 🛡️ IDENTITY-AWARE FALLBACK: Ensure hair/eyes are never lost
+                const traitBuffer = `(Subject has ${character?.hairColor || 'natural'} hair and ${character?.eyeColor || 'natural'} eyes).`;
                 data = {
-                    enhancedPrompt: text.substring(0, 500),
-                    outfitSummary: "Natural",
-                    environmentSummary: "Cozy",
-                    lightingSummary: "Warm",
-                    hairSummary: "Natural",
-                    propSummary: "None"
+                    enhancedPrompt: `${traitBuffer} ${processedPrompt || prompt}`, 
+                    outfitSummary: outfit || "natural clothes",
+                    environmentSummary: "matching location",
+                    lightingSummary: "cinematic",
+                    hairSummary: `${character?.hairColor || 'natural'} hair`,
+                    propSummary: "none",
+                    isFallback: true
                 };
             }
         }
+
+        // 🛡️ FINAL INTEGRITY CHECK: Ensure no JSON/Markdown leaked into fields
+        const sanitize = (val: any) => typeof val === 'string' ? val.replace(/\{|\}|```/g, "").trim() : val;
+        data.enhancedPrompt = sanitize(data.enhancedPrompt);
+        data.outfitSummary = sanitize(data.outfitSummary);
+        data.environmentSummary = sanitize(data.environmentSummary);
 
         // 🌐 BIDIRECTIONAL TRANSLATION (Story Localization)
         const targetLocale = locale || 'en';

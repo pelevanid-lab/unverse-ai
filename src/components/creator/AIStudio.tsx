@@ -313,14 +313,18 @@ export function AIStudio() {
                 body: JSON.stringify({
                     prompt: originalInput,
                     enhancedPrompt: finalPromptForGeneration,
-                    translation: lastTranslation || translatedInput, // Ensure English intent is is passed
+                    translation: lastTranslation || translatedInput, 
                     negativePrompt: lastNegativePrompt, 
                     userId: user.uid,
-                    authUid: user.authUid, // 🧬 Identity Bridge
+                    authUid: user.authUid,
                     cost: currentCost,
-                    isAdvanced: activeTab !== 'standard' || (activeTab === 'standard' && user.isAdvancedModeUnlocked), // 🛡️ Advanced Mode Logic
+                    isAdvanced: activeTab !== 'standard' || (activeTab === 'standard' && user.isAdvancedModeUnlocked),
                     image: imageToUse || undefined,
-                    mask: activeTab === 'aiEdit' ? imageToUse : undefined
+                    mask: activeTab === 'aiEdit' ? imageToUse : undefined,
+                    // 🧬 NEW STATEFUL ENGINE INTEGRATION
+                    isStateful: smartMode, // Use smartMode as the trigger for stateful experience
+                    character: (mode === 'consistent' ? user.savedCharacter : charProfile),
+                    sceneType: activeTab === 'digitalTwin' ? 'professional' : 'creative'
                 }),
             });
 
