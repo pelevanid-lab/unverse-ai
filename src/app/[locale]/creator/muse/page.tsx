@@ -45,7 +45,7 @@ export default function AIMusePage() {
         }
     };
     
-    const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady'>('selection')
+    const [step, setStep] = useState<'selection' | 'photo' | 'prompt' | 'steady' | 'training'>('selection')
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [generatingVariation, setGeneratingVariation] = useState(false)
@@ -53,7 +53,7 @@ export default function AIMusePage() {
     
     // Character Creation State
     const [charName, setCharName] = useState('')
-    const [refImages, setRefImages] = useState<(string | null)[]>([null, null, null])
+    const [refImages, setRefImages] = useState<(string | null)[]>(Array(15).fill(null))
     const [promptDraft, setPromptDraft] = useState('')
     const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
     const [extractedAttributes, setExtractedAttributes] = useState<any>(null)
@@ -87,12 +87,19 @@ export default function AIMusePage() {
     const [selectedMode, setSelectedMode] = useState<'portrait' | 'medium' | 'wide'>('portrait')
 
     useEffect(() => {
-        if (user?.savedCharacter) {
-            setStep('steady')
+        const uniqStatus = (user as any)?.uniq;
+        if (uniqStatus?.twin_status === 'ready') {
+            setStep('steady');
+        } else if (uniqStatus?.twin_status === 'training') {
+            setStep('training');
+        } else if (uniqStatus?.twin_path === 'photos') {
+            setStep('photo');
+        } else if (uniqStatus?.twin_path === 'imaginary') {
+            setStep('prompt');
         } else {
-            setStep('selection')
+            setStep('selection');
         }
-    }, [user?.savedCharacter])
+    }, [user?.uid, (user as any)?.uniq?.twin_status])
 
     // 🚀 Uniq V4: Deep Linking for Variations from Container
     useEffect(() => {
@@ -146,22 +153,15 @@ export default function AIMusePage() {
         }
     };
 
-    const handleCreateCharacter = async (method: 'photo' | 'prompt') => {
+    const handleStartNeuralTraining = async (method: 'photo' | 'prompt') => {
         if (!user?.uid) return
         setLoading(true)
         try {
-            const isRegen = !!previewAvatar
-            const cost = method === 'photo' ? 30 : (isRegen ? 10 : 15)
+            // No extra ULC cost required here; they already paid 500/700 ULC on the landing page.
             
-            if ((user.ulcBalance?.available || 0) < cost) {
-                throw new Error(tCommon("insufficientULCDesc"))
-            }
-
-            let finalAvatar = previewAvatar
-            let attributes = extractedAttributes
-
             if (method === 'prompt') {
-                // 1. Translate
+                if (!promptDraft || promptDraft.length < 10) throw new Error(t("provideDescription"));
+
                 const transRes = await fetch('/api/ai/translate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -170,82 +170,58 @@ export default function AIMusePage() {
                 const transData = await transRes.json()
                 const englishPrompt = transData.translation || promptDraft
 
-                // 2. Generate
-                const genResponse = await fetch('/api/ai/generate-image', {
+                // Call neural training API directly
+                const res = await fetch('/api/ai/neural-training', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: englishPrompt,
-                        userId: user.uid,
-                        cost: cost,
-                        isMasterPreview: true
-                    })
-                })
-                if (!genResponse.ok) throw new Error(tCommon("generationFailed"))
-                const genData = await genResponse.json()
-                finalAvatar = genData.mediaUrl
-                setPreviewAvatar(genData.mediaUrl)
-                setPreviewUrl(genData.mediaBase64 || genData.mediaUrl)
+                    body: JSON.stringify({ userId: user.uid, type: 'imaginary', prompt: englishPrompt })
+                });
 
-                // 3. Multi-modal Parse (Description + Visual)
-                const parseRes = await fetch('/api/ai/parse-character', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptDraft, imageUrl: finalAvatar })
-                })
-                attributes = await parseRes.json()
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || t("failedStartNeural"));
+                }
+
+                toast({ title: t("neuralLearningStarted"), description: t("imaginaryStartedDesc") });
+                setStep('training');
+                
             } else {
-                // Photo Method - Needs all 3 for best result (front, left, right)
+                // Photo Method - Needs 15 uploads
+                const validImages = refImages.filter(img => img !== null);
+                if (validImages.length < 15) {
+                    throw new Error(t("upload15"));
+                }
+
+                toast({ title: t("uploadingPhotos"), description: t("uploadingPhotosDesc") });
+                
                 const uploadedUrls: string[] = []
-                for (let i = 0; i < refImages.length; i++) {
-                    const img = refImages[i]
+                for (let i = 0; i < validImages.length; i++) {
+                    const img = validImages[i]
                     if (img) {
-                        const storageRef = ref(storage, `char-refs/${user.uid}/${Date.now()}-${i}.png`)
+                        const storageRef = ref(storage, `twin-datasets/${user.uid}/${Date.now()}-${i}.png`)
                         await uploadString(storageRef, img.split(',')[1], 'base64', { contentType: 'image/png' })
                         const url = await getDownloadURL(storageRef)
                         uploadedUrls.push(url)
                     }
                 }
 
-                if (uploadedUrls.length < 3) throw new Error(t("uploadPhotosDesc"))
+                toast({ title: t("initiatingTraining"), description: t("initiatingTrainingDesc") });
 
-                // 1. Multi-modal Parse (All images combined)
-                const parseRes = await fetch('/api/ai/parse-character', {
+                // Call neural training API
+                const res = await fetch('/api/ai/neural-training', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrls: uploadedUrls })
-                })
-                setUploadedRefUrls(uploadedUrls)
-                attributes = await parseRes.json()
+                    body: JSON.stringify({ userId: user.uid, type: 'photos', imageUrls: uploadedUrls })
+                });
 
-                // 🗑️ Cleanup previous master avatar preview if exists
-                if (previewAvatar && previewAvatar !== user?.savedCharacter?.referenceImageUrl) {
-                    await deleteObject(ref(storage, previewAvatar)).catch(() => {});
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || t("failedLoRA"));
                 }
 
-                // 2. Generate the "Master AI Portrait"
-                const genPrompt = `PROFESSIONAL PORTRAIT, high-quality, high detail, masterpiece. Subject: 1 adult person, identical face to reference. Identity traits: ${attributes.hairColor} hair, ${attributes.eyeColor} eyes, ${attributes.faceStyle} face shape, ${attributes.bodyStyle} body.`
-                
-                const genResponse = await fetch('/api/ai/generate-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: genPrompt,
-                        userId: user.uid,
-                        image: uploadedUrls[0],
-                        character: attributes, // Crucial: PASS EXTRACTED IDENTITY
-                        cost: cost,
-                        isMasterPreview: true
-                    })
-                })
-                if (!genResponse.ok) throw new Error(tCommon("generationFailed"))
-                const genData = await genResponse.json()
-                finalAvatar = genData.mediaUrl
+                toast({ title: t("neuralLearningStarted"), description: t("trainingStartedDesc") });
+                setStep('training');
             }
-
-            setPreviewAvatar(finalAvatar)
-            setExtractedAttributes(attributes)
-            toast({ title: tCommon("characterSaved"), description: t("readyToFix") })
         } catch (err: any) {
             toast({ variant: 'destructive', title: tCommon("errorTitle"), description: err.message })
         } finally {
@@ -531,7 +507,32 @@ export default function AIMusePage() {
         }
     }
 
+    // 🔒 Digital Twin Gate — redirect to /uniq if not unlocked
+    const uniqStatus = (user as any)?.uniq;
+    if (user && !uniqStatus?.unlocked) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6 px-4 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <Lock className="w-7 h-7 text-primary" />
+                </div>
+                <div className="space-y-2">
+                    <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter">{t('digitalTwinRequired')}</h2>
+                    <p className="text-muted-foreground text-sm max-w-sm">
+                        {t('digitalTwinRequiredDesc')}
+                    </p>
+                </div>
+                <button
+                    onClick={() => router.push(`/${locale}/uniq`)}
+                    className="px-8 py-3 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-sm hover:opacity-90 transition-opacity"
+                >
+                    {t('goToUniq')}
+                </button>
+            </div>
+        );
+    }
+
     if (step === 'selection') {
+
         return (
             <div className="max-w-4xl mx-auto space-y-8 pb-12 px-4 mt-6 animate-in fade-in">
                 <header className="flex items-center gap-4 border-b pb-10 border-white/10">
@@ -599,92 +600,85 @@ export default function AIMusePage() {
                             <Input placeholder={t("charNamePlaceholder")} value={charName} onChange={e => setCharName(e.target.value)} className="bg-black/20 border-white/10 h-12 rounded-xl" />
                         </div>
 
-                        {previewAvatar ? (
-                             <div className="space-y-4 animate-in zoom-in-95 duration-500">
-                                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("preview")}</Label>
-                                <div className="aspect-square rounded-3xl overflow-hidden glass-card border-primary/20 relative group">
-                                    <img src={previewUrl || previewAvatar} className="w-full h-full object-cover" alt="Preview" />
-                                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity p-4 text-center">
-                                         <p className="text-[10px] font-bold text-primary mb-1 uppercase">
-                                            {extractedAttributes?.hairColor || '---'} {t("hair")} • {extractedAttributes?.eyeColor || '---'} {t("eyes")}
-                                         </p>
-                                         <p className="text-[9px] text-white font-medium mb-1">
-                                            {extractedAttributes?.bodyStyle} • {extractedAttributes?.height}
-                                         </p>
-                                         <p className="text-[8px] text-white/60">{t("aiExtracted")}</p>
+                        <div className="space-y-4">
+                            {step === 'photo' ? (
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t('trainingDataset')}</Label>
+                                        <Badge className="bg-primary/20 text-primary">{refImages.filter(i => i !== null).length} / 15</Badge>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button 
-                                        variant="outline" 
-                                        className="h-12 rounded-2xl font-bold gap-2 border-primary/20 hover:bg-primary/5" 
-                                        onClick={() => handleCreateCharacter(step)}
-                                        disabled={loading}
-                                    >
-                                        <RefreshCcw className={cn("w-4 h-4", loading && "animate-spin")} /> {t("regenAction")} ({step === 'photo' ? '20' : '7'} ULC)
-                                    </Button>
-                                    <Button 
-                                        className="h-12 rounded-2xl font-bold gap-2 bg-primary text-white" 
-                                        onClick={handleCommitCharacter}
-                                        disabled={loading}
-                                    >
-                                        <Check className="w-4 h-4" /> {t("fixCharacter")}
-                                    </Button>
-                                </div>
-                             </div>
-                        ) : (
-                            <>
-                                {step === 'photo' ? (
-                                    <div className="space-y-4">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("referencePhotos")}</Label>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            {['front', 'left', 'right'].map((side, i) => (
-                                                <div key={side} className="space-y-2">
-                                                    <div 
-                                                        className="aspect-[3/4] rounded-2xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden relative"
-                                                        onClick={() => document.getElementById(`upload-${side}`)?.click()}
-                                                    >
-                                                        {refImages[i] ? (
+                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                                        {Array.from({ length: 15 }).map((_, i) => (
+                                            <div key={i} className="space-y-2">
+                                                <div 
+                                                    className="aspect-[3/4] rounded-2xl border-2 border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-all overflow-hidden relative group"
+                                                    onClick={() => document.getElementById(`upload-${i}`)?.click()}
+                                                >
+                                                    {refImages[i] ? (
+                                                        <>
                                                             <img src={refImages[i]!} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <>
-                                                                <Camera className="w-6 h-6 text-muted-foreground mb-1" />
-                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{t(side)}</span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <input id={`upload-${side}`} type="file" className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(e, i)} />
+                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                <Upload className="w-5 h-5 text-white" />
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center opacity-40 group-hover:opacity-100 transition-opacity">
+                                                            <Camera className="w-5 h-5 text-muted-foreground mb-1" />
+                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase">{t('slot')} {i + 1}</span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ))}
-                                        </div>
-                                        <p className="text-[10px] text-muted-foreground text-center">{t("uploadPhotosDesc")}</p>
+                                                <input id={`upload-${i}`} type="file" className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(e, i)} />
+                                            </div>
+                                        ))}
                                     </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("description")}</Label>
-                                        <Textarea 
-                                            placeholder={t("descriptionPlaceholder")} 
-                                            className="bg-black/20 border-white/10 min-h-[120px] rounded-2xl resize-none"
-                                            value={promptDraft}
-                                            onChange={e => setPromptDraft(e.target.value)}
-                                        />
-                                    </div>
-                                )}
-                                
-                                <Button 
-                                    className="w-full h-14 rounded-2xl font-bold text-lg gap-2 mt-4" 
-                                    disabled={loading || (step === 'photo' && refImages.some(img => !img)) || (step === 'prompt' && !promptDraft) || !charName}
-                                    onClick={() => handleCreateCharacter(step)}
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                    {t("createCharacter")} ({step === 'photo' ? '20' : '10'} ULC)
-                                </Button>
-                            </>
-                        )}
+                                    <p className="text-[10px] items-center text-muted-foreground bg-white/5 p-4 rounded-xl border border-white/10 leading-relaxed block text-center">
+                                        {t('trainingDatasetDesc')}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("description")}</Label>
+                                    <Textarea 
+                                        placeholder={t("descriptionPlaceholder")} 
+                                        className="bg-black/20 border-white/10 min-h-[120px] rounded-2xl resize-none"
+                                        value={promptDraft}
+                                        onChange={e => setPromptDraft(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                            
+                            <Button 
+                                className="w-full h-14 rounded-2xl font-bold text-lg gap-2 mt-4 shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-black uppercase tracking-widest" 
+                                disabled={loading || (step === 'photo' && refImages.filter(img => img !== null).length < 15) || (step === 'prompt' && !promptDraft)}
+                                onClick={() => handleStartNeuralTraining(step as 'photo' | 'prompt')}
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={16} />}
+                                {t('startNeuralLearning')}
+                            </Button>
+                        </div>
                     </div>
                 </Card>
             </div>
         )
+    }
+
+    if (step === 'training') {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6 px-4 text-center">
+                <div className="w-20 h-20 rounded-[2rem] bg-primary/10 border border-primary/20 flex items-center justify-center animate-pulse">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+                <div className="space-y-2">
+                    <h2 className="text-3xl font-headline font-black italic uppercase tracking-tighter">{t('neuralLearningActive')}</h2>
+                    <p className="text-muted-foreground text-sm max-w-md mx-auto">{t('neuralLearningActiveDesc')}</p>
+                </div>
+                <button
+                    onClick={() => router.push(`/${locale}/uniq`)}
+                    className="mt-4 px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-colors"
+                >{t('viewProgressInDashboard')}</button>
+            </div>
+        );
     }
 
     // STEADY STATE
@@ -1084,25 +1078,15 @@ export default function AIMusePage() {
                                     </div>
                                 </div>
                                 <Button 
-                                    variant={(user?.isAdvancedModeUnlocked && isAdvancedMode) ? 'default' : 'outline'}
+                                    variant={isAdvancedMode ? 'default' : 'outline'}
                                     className={cn(
                                         "h-10 rounded-xl px-4 font-bold transition-all",
-                                        (user?.isAdvancedModeUnlocked && isAdvancedMode) ? "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500" : "border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
+                                        isAdvancedMode ? "bg-yellow-500 hover:bg-yellow-600 text-black border-yellow-500" : "border-yellow-500/40 text-yellow-500 hover:bg-yellow-500/10"
                                     )}
-                                    onClick={() => {
-                                        if (user?.isAdvancedModeUnlocked) {
-                                            setIsAdvancedMode(!isAdvancedMode)
-                                        } else {
-                                            handleUnlockPro()
-                                        }
-                                    }}
+                                    onClick={() => setIsAdvancedMode(!isAdvancedMode)}
                                     disabled={loading}
                                 >
-                                    {loading ? <Loader2 className="animate-spin w-4 h-4" /> : (
-                                        user?.isAdvancedModeUnlocked 
-                                            ? (isAdvancedMode ? t("proActive") : t("unlockPro"))
-                                            : `${t("unlockPro")} (${(user?.aiCreatorModeExpiresAt && (typeof user.aiCreatorModeExpiresAt === 'number' ? user.aiCreatorModeExpiresAt : (user.aiCreatorModeExpiresAt as any).seconds * 1000) > Date.now()) ? '0' : '2'} ULC)`
-                                    )}
+                                    {isAdvancedMode ? t("proActive") : t("unlockPro")}
                                 </Button>
                             </div>
 

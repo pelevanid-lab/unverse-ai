@@ -46,8 +46,8 @@ export function AppSidebar() {
       icon: Home 
     },
     { 
-      name: "AI Muse", 
-      href: '/creator/muse', 
+      name: "Uniq", 
+      href: '/uniq', 
       icon: Sparkles 
     },
     { 

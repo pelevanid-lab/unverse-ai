@@ -490,3 +490,29 @@ export async function updateClaimRequestStatus(claimId: string, status: ClaimReq
     if (txHash) updateData.txHash = txHash;
     await updateDoc(claimRef, updateData);
 }
+
+/**
+ * Digital Twin Unlock — One-time payment
+ * Photos path: 500 ULC | Imaginary path: 700 ULC
+ * 70% Treasury / 30% Burn
+ */
+export async function processUniqTwinUnlock(userId: string, path: 'photos' | 'imaginary'): Promise<string> {
+    const response = await fetch('/api/ledger/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'UNIQ_TWIN_UNLOCK',
+            userId,
+            payload: { path }
+        })
+    });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unlock failed");
+    }
+
+    const { ledgerId } = await response.json();
+    return ledgerId;
+}
+

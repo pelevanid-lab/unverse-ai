@@ -237,6 +237,53 @@ export async function processUniqProUnlockServer(userId: string): Promise<string
     });
 }
 
+export async function processUniqTwinUnlockServer(userId: string, path: 'photos' | 'imaginary'): Promise<string> {
+    const cost = path === 'photos' ? 500 : 700;
+    return await adminDb.runTransaction(async (transaction) => {
+        const userRef = adminDb.collection('users').doc(userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) throw new Error("User not found");
+
+        const userData = userSnap.data() as any;
+        if (userData.uniq?.unlocked) throw new Error("ALREADY_UNLOCKED");
+
+        const balance = userData.ulcBalance?.available || 0;
+        if (balance < cost) throw new Error("INSUFFICIENT_ULC");
+
+        const now = Date.now();
+        const treasuryShare = Number((cost * 0.70).toFixed(2));
+        const burnShare = Number((cost - treasuryShare).toFixed(2));
+
+        transaction.update(userRef, {
+            'ulcBalance.available': admin.firestore.FieldValue.increment(-cost),
+            'uniq.unlocked': true,
+            'uniq.unlocked_at': now,
+            'uniq.twin_path': path,
+            'uniq.twin_status': 'learning',
+            'uniq.neural_progress': 0,
+            'uniq.character_reset_count': 0,
+        });
+
+        const statsRef = adminDb.collection('config').doc('stats');
+        transaction.set(statsRef, {
+            totalTreasuryULC: admin.firestore.FieldValue.increment(treasuryShare),
+            totalBurnedULC: admin.firestore.FieldValue.increment(burnShare)
+        }, { merge: true });
+
+        const ledgerRef = adminDb.collection('ledger').doc();
+        transaction.set(ledgerRef, {
+            type: 'uniq_twin_unlock',
+            fromUserId: userId,
+            amount: cost,
+            currency: 'ULC',
+            timestamp: now,
+            details: { treasury: treasuryShare, burn: burnShare, path }
+        });
+
+        return ledgerRef.id;
+    });
+}
+
 export async function recordUsdcSubscriptionServer(
     userId: string,
     creatorId: string,

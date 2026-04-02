@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, Clock, Lock, CheckCircle2, Check, AlertCircle, ChevronLeft, Brain, Zap, Target, User, ArrowRight, Loader2, Monitor, Calendar } from 'lucide-react';
+import { Sparkles, Clock, Lock, CheckCircle2, Check, AlertCircle, ChevronLeft, Brain, Zap, Target, User, Loader2, Monitor, Calendar } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, updateDoc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { getDailyStrategySuggestions } from '@/lib/UniqEngine';
 import { Uniq } from '@/lib/uniq';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CountdownTimer } from '@/components/ui/CountdownTimer';
+
 import { SupportChatAi } from '@/components/creator/SupportChatAi';
 import { StrategicPlannerModal } from '@/components/creator/StrategicPlannerModal';
 
@@ -50,8 +50,8 @@ export default function UniqPage() {
     const router = useRouter();
 
     const [loading, setLoading] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [lastDrop, setLastDrop] = useState<CreatorMedia | null>(null);
+
+
     const [config, setConfig] = useState({
         personaName: '',
         niche: '',
@@ -115,24 +115,11 @@ export default function UniqPage() {
         if (!user?.uid) return;
 
         const fetchData = async () => {
-            // 1. Fetch Last AI Drop
-            const qLast = query(
-                collection(db, 'creator_media'),
-                where('creatorId', '==', user.uid),
-                where('source', '==', 'ai_auto'),
-                orderBy('createdAt', 'desc'),
-                limit(1)
-            );
-            const snapLast = await getDocs(qLast);
-            if (!snapLast.empty) {
-                setLastDrop({ id: snapLast.docs[0].id, ...snapLast.docs[0].data() } as CreatorMedia);
-            }
-
-            // 2. Initial Fetches
+            // Fetch media & scheduled items
             fetchContainerMedia();
             fetchScheduledItems();
 
-            // 3. Admin Check
+            // Admin Check
             if (user?.walletAddress) {
                 const sysConfig = await getSystemConfig();
                 if (sysConfig?.admin_wallet_address?.toLowerCase() === user.walletAddress.toLowerCase()) {
@@ -144,61 +131,7 @@ export default function UniqPage() {
         fetchData();
     }, [user?.uid, user?.walletAddress, fetchContainerMedia, fetchScheduledItems]);
 
-    // 🤖 Auto-Pilot Logic: Trigger initial/daily draft if active (Fixed 8 AM Drop)
-    useEffect(() => {
-        if (!user || !isConnected) return;
-        
-        const isActive = user.aiCreatorModeExpiresAt && user.aiCreatorModeExpiresAt > Date.now();
-        if (!isActive) return;
 
-        // 🎯 SYNC TRIGGER: 8:00 AM Reset Milestone
-        const now = new Date();
-        const today8AM = new Date();
-        today8AM.setHours(8, 0, 0, 0);
-
-        const lastRun = user.aiCreatorModeLastRunAt || 0;
-        const lastRunDate = new Date(lastRun);
-        
-        // Trigger if:
-        // 1. We are past 8 AM today
-        // 2. The last run was BEFORE today's 8 AM milestone
-        if (now.getTime() >= today8AM.getTime() && lastRunDate.getTime() < today8AM.getTime()) {
-            handleTriggerDraft();
-        }
-    }, [user?.aiCreatorModeExpiresAt, user?.aiCreatorModeLastRunAt, isConnected]);
-
-    const handleTriggerDraft = async () => {
-        if (!user || isGenerating) return;
-        setIsGenerating(true);
-        const uniq = new Uniq(user.uid);
-        try {
-            await uniq.init();
-            const mediaId = await uniq.generateDailyDraft();
-            // Update last run time
-            await updateDoc(doc(db, 'users', user.uid), {
-                aiCreatorModeLastRunAt: Date.now()
-            });
-            toast({ title: "Uniq Premium Mission Executed", description: "A new draft has been prepared for your persona." });
-            
-            // Re-fetch last drop
-            const q = query(
-                collection(db, 'creator_media'),
-                where('creatorId', '==', user.uid),
-                where('source', '==', 'ai_auto'),
-                orderBy('createdAt', 'desc'),
-                limit(1)
-            );
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                setLastDrop({ id: snap.docs[0].id, ...snap.docs[0].data() } as CreatorMedia);
-            }
-        } catch (err: any) {
-            console.error("Auto-draft failed:", err);
-            // toast({ variant: "destructive", title: "Uniq Warning", description: err.message });
-        } finally {
-            setIsGenerating(false);
-        }
-    };
 
     if (!isConnected || !user) {
         return (
@@ -489,7 +422,7 @@ export default function UniqPage() {
                         <div>
                             <div className="flex items-center gap-3 mb-1">
                                 <h1 className="text-4xl font-headline font-black tracking-tighter uppercase italic">
-                                    Uniq <span className="text-primary">Premium</span>
+                                    Uniq
                                 </h1>
                             </div>
                             <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-[0.3em] flex items-center gap-2">
@@ -560,7 +493,6 @@ export default function UniqPage() {
                                                 <p className="text-6xl font-headline font-black tracking-tighter italic text-primary leading-none">{daysLeft}</p>
                                                 <p className="text-xs font-bold uppercase tracking-widest text-primary/60 mb-1">{t('missionDays')}</p>
                                             </div>
-                                            <CountdownTimer className="border-none p-0 bg-transparent shadow-none" onTimeUp={handleTriggerDraft} />
                                         </div>
                                     ) : (
                                         <div className="space-y-4 py-2">
@@ -615,53 +547,7 @@ export default function UniqPage() {
                             )}
                         </motion.div>
 
-                        {/* Last Drop Preview */}
-                        <motion.div 
-                            whileHover={{ y: -4 }}
-                            className="rounded-[2.5rem] p-8 bg-white/[0.02] border border-white/5 flex flex-col gap-4 relative overflow-hidden min-h-[280px]"
-                        >
-                            <div className="flex items-center justify-between z-10">
-                                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">{t('lastAiDrop')}</h3>
-                                {isGenerating && (
-                                    <span className="flex items-center gap-1 text-[8px] font-black text-primary uppercase animate-pulse">
-                                        <Loader2 size={10} className="animate-spin" /> {t('generating')}
-                                    </span>
-                                )}
-                            </div>
 
-                            <div className="flex-1 flex items-center justify-center relative">
-                                {lastDrop ? (
-                                    <div className="relative group w-full h-full rounded-2xl overflow-hidden border border-white/10">
-                                        <img src={lastDrop.mediaUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Last Drop" />
-                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <p className="text-[10px] text-white/60 font-bold uppercase truncate">{lastDrop.caption || "Autonomous Draft"}</p>
-                                        </div>
-                                        <Link href="/creator?tab=workshop" className="absolute inset-0 flex items-center justify-center bg-primary/20 opacity-0 group-hover:opacity-100 backdrop-blur-[2px] transition-all">
-                                            <Button size="sm" className="rounded-full gap-2 px-4 shadow-2xl">
-                                                {t('reviewDrop')} <ArrowRight size={14} />
-                                            </Button>
-                                        </Link>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center text-center space-y-3 opacity-30">
-                                        <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                                            <ImageIcon className="text-white w-6 h-6" />
-                                        </div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest leading-loose">
-                                            {isActive ? t('standby') : t('lockedView')}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-
-                            {lastDrop && (
-                                <div className="text-center z-10">
-                                    <p className="text-[10px] font-bold text-muted-foreground leading-snug">
-                                        {t('goContainerDesc')}
-                                    </p>
-                                </div>
-                            )}
-                        </motion.div>
                     </div>
 
                     {/* Intelligence Section */}
@@ -787,7 +673,7 @@ export default function UniqPage() {
             <section className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Premium Calendar</span></h2>
+                        <h2 className="text-2xl font-headline font-black italic uppercase tracking-tighter italic">2-Week <span className="text-primary">Calendar</span></h2>
                         <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">Strategic Content Deployment Grid</p>
                     </div>
                     <div className="flex items-center gap-3">

@@ -8,7 +8,8 @@ import {
     refundAiGenerationPaymentServer,
     processAiCreatorActivationServer,
     processAiCreatorGenerationServer,
-    processUniqProUnlockServer
+    processUniqProUnlockServer,
+    processUniqTwinUnlockServer
 } from '@/lib/ledger-server';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,10 @@ export async function POST(req: Request) {
             case 'UNIQ_PRO_UNLOCK':
                 const unlockId = await processUniqProUnlockServer(userId);
                 return NextResponse.json({ success: true, ledgerId: unlockId });
+
+            case 'UNIQ_TWIN_UNLOCK':
+                const twinUnlockId = await processUniqTwinUnlockServer(userId, payload.path);
+                return NextResponse.json({ success: true, ledgerId: twinUnlockId });
 
             default:
                 return NextResponse.json({ error: "Invalid action" }, { status: 400 });

@@ -186,7 +186,7 @@ export async function POST(req: Request) {
             const attempts: any[] = []; // 🧬 STRUCTURED ATTEMPT HISTORY
 
             // 🧬 PHASE 24: EXPLICIT MODE & EFFICIENCY
-            const MAX_RETRY = 1; // 🚀 Reduced to 1 for faster iteration (Total 2 attempts)
+            const MAX_RETRY = 0; // 🚀 Single-shot: 0 retries = 1 attempt only
 
             // 1. Initial Route Selection (Phase 24: Explicit User Mode)
             let selectedRoute: HybridRoute = 'A';
@@ -235,73 +235,49 @@ export async function POST(req: Request) {
                 const falKey = process.env.FAL_API_KEY;
                 
                 let generatedImageUrl = "";
-                let baseImageUrl = "";
-                let swappedImageUrl = "";
                 
                 if (mode === 'medium' || mode === 'wide') {
-                    // 🎬 TWO-STEP PIPELINE: 1. Base Generation (Flux Dev/Pro) 2. Face Swap
-                    console.log(`[STATEFUL] Step 1: Base Generation for Mode: ${mode}`);
-                    
-                    let basePrompt = finalGeneratedPrompt.replace(/IDENTICAL FACE TO REFERENCE|100% facial likeness/gi, "natural detailed face");
-                    const baseEndpoint = isAdvanced ? "https://fal.run/fal-ai/flux-pro/v1.1" : "https://fal.run/fal-ai/flux/dev";
-                    const actualSeed = state.lastSuccessfulConfig?.seed || seed || Math.floor(Math.random() * 1000000000);
-                    
-                    const basePayload = {
-                        prompt: basePrompt,
-                        seed: actualSeed,
-                        guidance_scale: isAdvanced ? undefined : guidance_scale,
-                        num_inference_steps: isAdvanced ? undefined : ((selectedRoute === 'B' || selectedRoute === 'C') ? 40 : 28)
+                    // 🎬 PULID COMPOSITION PIPELINE: id_weight 0.70 = identity + framing freedom
+                    console.log(`[STATEFUL] PuLID Composition Pipeline | Mode: ${mode} | id_weight: 0.70`);
+
+                    // Inject hard framing instruction at the FRONT of the prompt
+                    // PuLID tends toward portrait — we force it out with explicit composition override
+                    const framingPrefix = mode === 'wide'
+                        ? `WIDE CINEMATIC SHOT, full upper body visible, environment visible, NOT a portrait, NOT a close-up. `
+                        : `MEDIUM SHOT, upper body and hands clearly visible, NOT a portrait, NOT a close-up. `;
+
+                    const pulidPrompt = framingPrefix + finalGeneratedPrompt;
+
+                    // Composition-reinforcing negative prompt
+                    const pulidNegative = [
+                        dynamicNegative,
+                        'portrait, close-up, face-only, extreme close-up, cropped body, tight framing'
+                    ].filter(Boolean).join(', ');
+
+                    const pulidPayload: any = {
+                        prompt: pulidPrompt,
+                        reference_image_url: identityCore.referenceImageUrl,
+                        id_weight: 0.70,          // Lower = more compositional freedom, still ~75-80% face match
+                        num_inference_steps: 35,   // +7 over portrait for better quality at reduced id lock
+                        guidance_scale: guidance_scale,
+                        negative_prompt: pulidNegative,
+                        seed: state.lastSuccessfulConfig?.seed || seed || Math.floor(Math.random() * 1000000000)
                     };
 
-                    const baseResponse = await fetch(baseEndpoint, {
+                    console.log(`[PULID] id_weight: 0.70 | steps: 35 | mode: ${mode}`);
+                    const pulidResponse = await fetch("https://fal.run/fal-ai/flux-pulid", {
                         method: "POST",
                         headers: { "Authorization": `Key ${falKey}`, "Content-Type": "application/json" },
-                        body: JSON.stringify(basePayload)
+                        body: JSON.stringify(pulidPayload)
                     });
 
-                    if (!baseResponse.ok) {
-                        const err = await baseResponse.json();
-                        throw new Error(`Base Generation Failed: ${err.detail || 'Unknown error'}`);
+                    if (!pulidResponse.ok) {
+                        const err = await pulidResponse.json();
+                        throw new Error(`PuLID Generation Failed: ${err.detail || 'Unknown error'}`);
                     }
-                    const baseResult = await baseResponse.json();
-                    baseImageUrl = baseResult.images[0].url;
-                    console.log(`[URL_LOG] baseImageUrl: ${baseImageUrl}`);
-
-                    // 🛡️ COMPOSITION GUARD: Check base image before swapping
-                    console.log(`[STATEFUL] Running Composition Guard on Base Image...`);
-                    const compCheck = await CriticEngine.evaluate(baseImageUrl, state.scene_plan, character, prompt, 'minimal');
-                    
-                    const isCompositionOk = compCheck.handsVisible !== false && compCheck.framingType !== 'close-up'; // Basic check
-                    
-                    if (!isCompositionOk && currentRetry < MAX_RETRY) {
-                        console.warn(`[COMPOSITON GUARD] Bad composition detected in base image. Retrying base gen...`);
-                        currentRetry++;
-                        currentAdjustments = { ...currentAdjustments, guidance_scale_boost: (currentAdjustments?.guidance_scale_boost || 0) + 1.0 };
-                        continue; // SKIP SWAP, RETRY BASE
-                    }
-
-                    // 🎭 STEP 2: Face Swap
-                    console.log(`[STATEFUL] Step 2: Swapping face onto Base Image...`);
-                    const swapResponse = await fetch("https://fal.run/easel-ai/advanced-face-swap", {
-                        method: "POST",
-                        headers: { "Authorization": `Key ${falKey}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            target_image: baseImageUrl,
-                            face_image_0: identityCore.referenceImageUrl,
-                            gender_0: character?.gender || "female",
-                            workflow_type: "target_hair"
-                        })
-                    });
-
-                    if (!swapResponse.ok) {
-                        const err = await swapResponse.json();
-                        const errorDetail = err.detail ? (typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)) : 'Unknown error';
-                        throw new Error(`Face Swap Step Failed: ${errorDetail}`);
-                    }
-                    const swapResult = await swapResponse.json();
-                    swappedImageUrl = swapResult.image.url;
-                    generatedImageUrl = swappedImageUrl;
-                    console.log(`[URL_LOG] swappedFinalImageUrl: ${generatedImageUrl}`);
+                    const pulidResult = await pulidResponse.json();
+                    generatedImageUrl = pulidResult.images[0].url;
+                    console.log(`[URL_LOG] finalImageUrl (PuLID Composition): ${generatedImageUrl}`);
                 } else {
                     // 🖼️ PORTRAIT PIPELINE (Standard Pulid)
                     console.log(`[STATEFUL] Using Pulid Pipeline for Portrait Mode`);
@@ -645,6 +621,13 @@ export async function POST(req: Request) {
         }
     };
     
+    // 🧬 UNIQ 6.0: Fetch User Neural State (LoRA Check)
+    const userSnap = await adminDb.collection('users').doc(userId).get();
+    const userData = userSnap.data();
+    const uniq = userData?.uniq || {};
+    const loraUrl = uniq.lora_url;
+    const triggerWord = uniq.trigger_word || 'TOK';
+    
     // 🕊️ Apply Linguistic Firewall
 
     // Digital Twin specialized model (Identity Preservation) - NOW POWERED BY UNIQ ENGINE
@@ -657,7 +640,37 @@ export async function POST(req: Request) {
       let imageUrl = "";
       const isMidOrWide = mode === 'medium' || mode === 'wide' || shotType === 'mid' || shotType === 'wide';
 
-      if (isMidOrWide) {
+      if (loraUrl) {
+          // 🚀 UNIQ 6.0: LoRA-BASED HIGH FIDELITY GENERATION
+          console.log(`[UNIQ] Trained LoRA found for user ${userId}. Using flux-lora engine.`);
+          const loraPrompt = finalPromptForAI.includes(triggerWord) 
+            ? finalPromptForAI 
+            : `${triggerWord}, ${finalPromptForAI}`;
+
+          const loraPayload: any = {
+              prompt: loraPrompt,
+              loras: [{ path: loraUrl, scale: 1.0 }],
+              seed: finalSeed,
+              num_inference_steps: isAdvanced ? 40 : 28,
+              guidance_scale: isAdvanced ? 6.0 : 3.5,
+              negative_prompt: userNegativePrompt
+          };
+
+          const loraResponse = await fetch("https://fal.run/fal-ai/flux-lora", {
+              method: "POST",
+              headers: { "Authorization": `Key ${falKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify(loraPayload)
+          });
+
+          if (!loraResponse.ok) {
+              const err = await loraResponse.json();
+              console.error("[UNIQ LORA ERROR]", err);
+              throw new Error(`LoRA Generation Failed: ${err.detail || 'Unknown error'}`);
+          }
+          const loraResult = await loraResponse.json();
+          imageUrl = loraResult.images[0].url;
+
+      } else if (isMidOrWide) {
           // 🎬 TWO-STEP PIPELINE FOR LEGACY: 1. Base Gen 2. Face Swap
           console.log(`[LEGACY] Using Two-Step Face Swap Pipeline for ShotType: ${shotType}, Mode: ${mode}`);
           let basePrompt = finalPromptForAI.replace(/IDENTICAL FACE TO REFERENCE|100% facial likeness/gi, "natural detailed face");

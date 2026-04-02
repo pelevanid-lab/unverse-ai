@@ -25,8 +25,8 @@ export function MobileBottomNav() {
       icon: Home 
     },
     { 
-      name: "AI Muse", 
-      href: '/creator/muse', 
+      name: "Uniq", 
+      href: '/uniq', 
       icon: Sparkles 
     },
     { 

@@ -4,7 +4,7 @@
 import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Settings, Globe, MessageSquare, Megaphone, Sparkles, DollarSign, Package, Wand2, CreditCard, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Settings, Globe, Megaphone, Sparkles, DollarSign, Package, Wand2, CreditCard, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -146,17 +146,17 @@ export default function CreatorPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link href="/creator/uniq">
+                <Link href="/uniq">
                     <Card className="glass-card bg-[#2D1B4D]/30 border-primary/20 p-6 flex items-center gap-6 group hover:bg-[#2D1B4D]/50 transition-all cursor-pointer relative overflow-hidden h-full">
                         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                             <Sparkles size={120} className="text-primary rotate-12" />
                         </div>
                         <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
-                            <MessageSquare className="w-6 h-6 text-primary" />
+                            <Sparkles className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-0.5">{tContainer('uniqPremium')}</h3>
-                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">{tContainer('uniqPremiumDesc')}</p>
+                            <h3 className="text-2xl font-black italic uppercase tracking-tighter text-white mb-0.5">UNIQ DASHBOARD</h3>
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">Manage Digital Twin & Assets</p>
                         </div>
                     </Card>
                 </Link>
