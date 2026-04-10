@@ -1,17 +1,12 @@
 "use client";
  
-import { ReactNode } from 'react';
-import dynamic from 'next/dynamic';
-
-const Web3ModalProvider = dynamic(
-    () => import('@/lib/web3modal').then(m => m.Web3ModalProvider),
-    { ssr: false }
-);
+ import { ReactNode } from 'react';
+ import { Web3ModalProvider } from '@/lib/web3modal';
  
-export function CombinedProviders({ children }: { children: ReactNode }) {
-    return (
-        <Web3ModalProvider>
-            {children}
-        </Web3ModalProvider>
-    );
-}
+ export function CombinedProviders({ children }: { children: ReactNode }) {
+     return (
+         <Web3ModalProvider>
+             {children}
+         </Web3ModalProvider>
+     );
+ }

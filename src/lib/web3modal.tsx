@@ -2,7 +2,7 @@
 
 import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
 import { mainnet, base } from 'wagmi/chains'
-import { WagmiProvider } from 'wagmi'
+import { WagmiProvider, createStorage, cookieStorage } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react';
 
@@ -24,10 +24,13 @@ export const config = defaultWagmiConfig({
   chains: [base, mainnet],
   projectId,
   metadata,
-  ssr: true, // Enable SSR support
+  ssr: true,
+  storage: createStorage({
+    storage: cookieStorage
+  }),
 })
 
-// 3. Create modal - Initialize only on client at module level
+// 3. Create modal
 export let modal: any = null;
 
 if (typeof window !== 'undefined') {
@@ -50,11 +53,15 @@ export function Web3ModalProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Use a more robust mounting check for SSR/Hydration
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        {mounted && children}
-        {!mounted && <div className="hidden">{children}</div>}
+        {children}
       </QueryClientProvider>
     </WagmiProvider>
   )
