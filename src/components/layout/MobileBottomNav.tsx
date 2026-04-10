@@ -1,78 +1,55 @@
 "use client"
 
 import { Link, usePathname } from '@/i18n/routing';
-import { 
-  Home, 
-  Sparkles, 
-  LayoutDashboard, 
-  Users, 
-  User as UserIcon
-} from 'lucide-react';
+import { Scroll, Package, Users, Trophy, User } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { useTranslations } from 'next-intl';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function MobileBottomNav() {
-  const t = useTranslations('Navbar');
-  const tCreator = useTranslations('Creator');
-  const pathname = usePathname();
-  const { user, isConnected } = useWallet();
+    const pathname = usePathname();
+    const { isConnected } = useWallet();
+    const t = useTranslations('Game');
 
-  const navItems = [
-    { 
-      name: t('discover'), // Unfold
-      href: '/', 
-      icon: Home 
-    },
-    { 
-      name: "Uniq", 
-      href: '/uniq', 
-      icon: Sparkles 
-    },
-    { 
-      name: tCreator('panelTitle'), // Creator Panel
-      href: '/creator', 
-      icon: LayoutDashboard 
-    },
-    { 
-      name: t('community'), // Unity
-      href: '/community', 
-      icon: Users 
-    },
-    { 
-      name: t('mypage'), // Unit
-      href: '/mypage', 
-      icon: UserIcon 
-    },
-  ];
+    const MOBILE_NAV = [
+        { nameKey: 'navUnfold',      href: '/',            icon: Scroll  },
+        { nameKey: 'navInventory',   href: '/inventory',   icon: Package },
+        { nameKey: 'navAlliance',    href: '/alliances',   icon: Users   },
+        { nameKey: 'navLeaderboard', href: '/leaderboard', icon: Trophy  },
+        { nameKey: 'profileLabel',   href: '/mypage',      icon: User    },
+    ];
 
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-xl border-t z-50 flex lg:hidden items-center justify-around px-4 pb-safe">
-      {navItems.map((item) => {
-        const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
-        const Icon = item.icon;
+    const isActive = (href: string) =>
+        href === '/' ? pathname === '/' : pathname?.startsWith(href);
 
-        return (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 ${
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground active:scale-90'
-            }`}
-          >
-            {item.name === t('mypage') && isConnected && user?.avatar ? (
-                <div className={`p-0.5 rounded-full border-2 ${isActive ? 'border-primary scale-110' : 'border-transparent'}`}>
-                    <Avatar className="w-5 h-5">
-                        <AvatarImage src={user.avatar} />
-                        <AvatarFallback className="text-[8px] bg-primary/20">{user.username?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                </div>
-            ) : (
-                <Icon className={`w-6 h-6 ${isActive ? 'fill-current' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+    return (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-white/10 safe-area-pb">
+            <div className="flex items-stretch h-16">
+                {MOBILE_NAV.map((item) => {
+                    const active = isActive(item.href);
+                    const Icon = item.icon;
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-all ${
+                                active
+                                    ? 'text-yellow-400'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            <div className={`relative p-1 rounded-xl transition-all ${active ? 'bg-yellow-500/10' : ''}`}>
+                                <Icon className="w-5 h-5" />
+                                {active && (
+                                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-yellow-400" />
+                                )}
+                            </div>
+                            <span className={`text-[10px] font-bold ${active ? 'text-yellow-400' : ''}`}>
+                                {t(item.nameKey as any)}
+                            </span>
+                        </Link>
+                    );
+                })}
+            </div>
+        </nav>
+    );
 }

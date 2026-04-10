@@ -167,5 +167,80 @@ service cloud.firestore {
     match /{path=**} {
       allow read, write: if false;
     }
+
+    // ============================================================
+    // 🎮 GAME RULES — The Infinite Hunt
+    // ============================================================
+
+    // 🌌 UNIVERSES — public read, admin write
+    match /universes/{universeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 📦 CHESTS — public read (answerHash never returned by client engine)
+    match /chests/{chestId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 🎯 GAME SESSIONS — owner read/create, server updates
+    match /game_sessions/{sessionId} {
+      allow read: if isSignedIn() && (
+        resource.data.hunterAddress == request.auth.token.walletAddress ||
+        resource.data.hunterAddress == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if false; // API route / admin only
+    }
+
+    // 📝 CHEST ATTEMPTS — owner read, no client write (API only)
+    match /chest_attempts/{attemptId} {
+      allow read: if isSignedIn() && (
+        resource.data.hunterAddress == request.auth.token.walletAddress ||
+        resource.data.hunterAddress == request.auth.uid ||
+        isAdmin()
+      );
+      allow write: if false; // API route only
+    }
+
+    // 🤝 ALLIANCES — public read, authenticated create, admin update
+    match /alliances/{allianceId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin(); // Stats updated server-side
+      allow delete: if isAdmin();
+    }
+
+    // 👥 ALLIANCE MEMBERS — authenticated read, API write
+    match /alliance_members/{memberId} {
+      allow read: if isSignedIn();
+      allow write: if false; // API route only
+    }
+
+    // 💰 ALLIANCE REWARDS — authenticated read, admin write
+    match /alliance_rewards/{rewardId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Admin SDK only
+    }
+
+    // 🏆 LEADERBOARD — public read, server write
+    match /leaderboard_solo/{entryId} {
+      allow read: if true;
+      allow write: if false; // API route only
+    }
+
+    match /leaderboard_alliances/{entryId} {
+      allow read: if true;
+      allow write: if false; // API route only
+    }
+
+    // 🎖️ NFT ASSETS — public read, admin write
+    match /nft_assets/{nftId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
   }
 }

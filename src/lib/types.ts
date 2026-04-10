@@ -230,7 +230,17 @@ export type LedgerEntryType =
     | 'ulc_purchase_grouped'
     | 'creator_claim_executed'
     | 'internal_ulc_transfer'
-    | 'presale_purchase';
+    | 'presale_purchase'
+    // 🎮 Game Economy Types
+    | 'clue_unlock_burn'
+    | 'treasure_reward'
+    | 'pool_reward'
+    | 'pool_treasury_cut'
+    | 'alliance_entry_burn'
+    | 'alliance_entry_treasury'
+    | 'explorer_bonus'
+    | 'failed_attempt_burn'
+    | 'nft_mint_lock';
 
 export interface VestingSchedule {
     id: string;
@@ -541,4 +551,165 @@ export interface GenerationLog {
         scenePlanBefore: ScenePlan;
         scenePlanAfter: ScenePlan;
     }>;
+}
+
+// ============================================================
+// 🎮 GAME TYPES — The Infinite Hunt
+// ============================================================
+
+export type UniverseStatus = 'locked' | 'active' | 'completed';
+export type ChestStatus = 'sealed' | 'hunted' | 'first_unlocked' | 'permanently_open';
+export type ChestRarity = 'common' | 'uncommon' | 'rare' | 'legendary' | 'genesis';
+export type NFTCategory = 'weapon' | 'clothing' | 'artifact' | 'title' | 'map';
+export type AllianceMemberStatus = 'active' | 'inactive' | 'banned';
+
+export interface Clue {
+    id: string;
+    order: number;           // 1, 2, 3...
+    text: string;            // clue content (may be encrypted for higher orders)
+    costULC: number;         // 0 = free, >0 = paid
+    burnRatio: number;       // 0-1, how much of costULC is burned
+    isEncoded?: boolean;     // if true, text is base64 encoded server-side
+}
+
+export interface TreasureChest {
+    id: string;
+    universeId: string;
+    name: string;
+    description: string;
+    lore?: string;           // backstory text shown in UI
+    rarity: ChestRarity;
+    status: ChestStatus;
+    baseRewardULC: number;
+    explorerBonusULC: number; // reward for non-first openers
+    clues: Clue[];           // ordered clue chain
+    answerHash: string;      // SHA-256 of correct answer (server validates)
+    nftRewardId?: string;    // linked NFTAsset id minted on first open
+    // First Hunter data
+    firstHunterAddress?: string;
+    firstHunterAllianceId?: string;
+    firstHuntedAt?: number;
+    // Stats
+    totalAttempts: number;
+    totalExplorers: number;
+    createdAt: number;
+    sortOrder: number;       // display order within universe
+}
+
+export interface Universe {
+    id: string;
+    name: string;
+    tagline: string;
+    description: string;
+    lore: string;            // longer narrative text
+    atmosphereType: 'ancient' | 'sci-fi' | 'fantasy' | 'modern';
+    status: UniverseStatus;
+    coverImageUrl?: string;
+    ambientTheme?: string;   // color palette hint for UI
+    totalChests: number;
+    chestsOpened: number;
+    totalRewardULC: number;  // total ULC distributed in this universe
+    createdAt: number;
+    sortOrder: number;
+}
+
+export interface ChestAttempt {
+    id: string;
+    chestId: string;
+    universeId: string;
+    hunterAddress: string;
+    allianceId?: string;
+    answer: string;
+    isCorrect: boolean;
+    ulcBurned: number;       // from failed attempt
+    timestamp: number;
+}
+
+export interface GameSession {
+    id: string;
+    hunterAddress: string;
+    chestId: string;
+    universeId: string;
+    allianceId?: string;
+    cluesUnlocked: number[]; // [1, 2] = first two clues unlocked
+    startedAt: number;
+    lastActiveAt: number;
+    status: 'active' | 'solved' | 'abandoned';
+}
+
+export interface Alliance {
+    id: string;
+    name: string;
+    symbol: string;          // short tag e.g. "ARCH"
+    founderAddress: string;
+    isPublic: boolean;
+    inviteCode?: string;
+    entryFeeULC: number;     // 0 = free to join
+    treasuryBalance: number; // accumulated from 5% cuts
+    totalChestsFound: number;
+    totalRewardULC: number;
+    memberCount: number;
+    createdAt: number;
+}
+
+export interface AllianceMember {
+    id: string;
+    allianceId: string;
+    walletAddress: string;
+    contributionScore: number;
+    joinedAt: number;
+    lastActiveAt: number;
+    status: AllianceMemberStatus;
+    totalRewardEarned: number; // ULC earned via pool
+}
+
+export interface AllianceReward {
+    id: string;
+    allianceId: string;
+    chestId: string;
+    totalAmount: number;
+    distributedAt: number;
+    shares: Array<{
+        walletAddress: string;
+        amount: number;
+        contributionScore: number;
+        contributionPct: number;
+    }>;
+}
+
+export interface NFTAsset {
+    id: string;
+    chestId: string;         // which chest it came from
+    universeId: string;
+    ownerAddress: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    category: NFTCategory;
+    rarity: ChestRarity;
+    isGenesis: boolean;       // one-of-a-kind first hunter NFT
+    mintedAt: number;
+    // In-game mechanical effect
+    effect?: {
+        type: 'puzzle_speed' | 'clue_reveal' | 'extra_clue_slot' | 'visual';
+        value: number;         // e.g. +0.1 = 10% faster
+    };
+    // Marketplace
+    isListed?: boolean;
+    listingPriceULC?: number;
+    tokenId?: string;          // on-chain token id (post mint)
+    contractAddress?: string;
+}
+
+export interface LeaderboardEntry {
+    walletAddress: string;
+    username: string;
+    avatar?: string;
+    chestsFound: number;
+    totalRewardULC: number;
+    contributionScore: number; // cumulative across all alliances
+    rank: number;
+    // Alliance info
+    allianceId?: string;
+    allianceName?: string;
 }
