@@ -22,7 +22,7 @@ export function ContainerTab() {
   const tPub = useTranslations('Published');
   const { user } = useWallet();
   const { toast } = useToast();
-  
+
   // Media Pool State
   const [mediaItems, setMediaItems] = useState<CreatorMedia[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -63,14 +63,14 @@ export function ContainerTab() {
     setLoading(true);
     const q = query(
       collection(db, 'creator_media'),
-      and(
-        where('creatorId', '==', user.uid),
-        where('status', 'in', ['draft', 'scheduled', 'planned'])
-      ),
+      where('creatorId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia));
+      // Client-side: show all except explicitly deleted
+      const items = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as CreatorMedia))
+        .filter(item => item.status !== 'deleted');
       setMediaItems(items);
       setLoading(false);
     });
@@ -89,7 +89,7 @@ export function ContainerTab() {
       const fetchedPosts = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ContentPost))
         .filter(p => !!p.contentType);
-      
+
       const premiumAndLimitedPostIds = fetchedPosts
         .filter(p => p.contentType === 'premium' || p.contentType === 'limited')
         .map(p => p.id);
@@ -104,7 +104,7 @@ export function ContainerTab() {
           where('creatorId', '==', user.uid),
           where('referenceId', 'in', premiumAndLimitedPostIds)
         );
-        
+
         const ledgerSnapshot = await getDocs(ledgerQuery);
         const unlocks = ledgerSnapshot.docs.map(doc => doc.data() as LedgerEntry);
 
@@ -120,7 +120,7 @@ export function ContainerTab() {
           return post;
         });
       }
-      
+
       const sortedPosts = postsWithStats.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setPosts(sortedPosts);
       setPostsLoading(false);
@@ -154,35 +154,35 @@ export function ContainerTab() {
           {/* Left: Your Media Title */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                <Sparkles className="h-4 w-4 text-blue-400" />
+              <Sparkles className="h-4 w-4 text-blue-400" />
             </div>
             <div className="hidden sm:block">
-                <h3 className="text-sm font-bold uppercase tracking-wider">{t('yourMedia') || "Sizin İçerikleriniz"}</h3>
-                <p className="text-[9px] text-muted-foreground uppercase font-medium leading-none">Ready to be published</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider">{t('yourMedia') || "Sizin İçerikleriniz"}</h3>
+              <p className="text-[9px] text-muted-foreground uppercase font-medium leading-none">Ready to be published</p>
             </div>
           </div>
 
           {/* Center: Shortcuts */}
           <div className="flex items-center gap-2">
-              {[
-                  { id: 'messages', icon: MessageSquare, color: 'bg-fuchsia-500/10 text-fuchsia-400 hover:bg-fuchsia-500/20 border-fuchsia-500/20', href: '/creator/messages' },
-                  { id: 'edit', icon: Upload, color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20', href: '/creator/upload' },
-                  { id: 'muse', icon: Wand2, color: 'bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 border-pink-500/20', href: '/creator/muse' },
-                  { id: 'animate', icon: Video, color: 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border-yellow-500/20', href: '/creator/animate' },
-                  { id: 'freeArt', icon: Sparkles, color: 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/20', href: '/creator/free-art' }
-              ].map((shortcut) => (
-                  <Link key={shortcut.id} href={shortcut.href}>
-                      <div className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all cursor-pointer group",
-                          shortcut.color
-                      )}>
-                          <shortcut.icon size={16} className="group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline-block">
-                              {t(`shortcuts.${shortcut.id}`)}
-                          </span>
-                      </div>
-                  </Link>
-              ))}
+            {[
+              { id: 'messages', icon: MessageSquare, color: 'bg-fuchsia-500/10 text-fuchsia-400 hover:bg-fuchsia-500/20 border-fuchsia-500/20', href: '/creator/messages' },
+              { id: 'edit', icon: Upload, color: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20', href: '/creator/upload' },
+              { id: 'muse', icon: Wand2, color: 'bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 border-pink-500/20', href: '/creator/muse' },
+              { id: 'animate', icon: Video, color: 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 border-yellow-500/20', href: '/creator/animate' },
+              { id: 'freeArt', icon: Sparkles, color: 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/20', href: '/creator/free-art' }
+            ].map((shortcut) => (
+              <Link key={shortcut.id} href={shortcut.href}>
+                <div className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-2xl border transition-all cursor-pointer group",
+                  shortcut.color
+                )}>
+                  <shortcut.icon size={16} className="group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline-block">
+                    {t(`shortcuts.${shortcut.id}`)}
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
 
           {/* Right: Navigation Arrows */}
@@ -204,7 +204,7 @@ export function ContainerTab() {
             <div className="space-y-12">
               {/* Common Drafts Grid (AI + User) */}
               <div className="space-y-4">
-                <div 
+                <div
                   ref={mediaScrollRef}
                   className="grid grid-rows-4 grid-flow-col auto-cols-[calc(50%-1rem)] md:auto-cols-[calc(33.33%-1rem)] lg:auto-cols-[calc(25%-1rem)] gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4"
                   style={{ maxHeight: '800px' }}
@@ -251,7 +251,7 @@ export function ContainerTab() {
                     <p className="text-[10px] text-muted-foreground mt-1 max-w-[200px]">Protocol expansion active. Style diversity is increasing engagement.</p>
                   </div>
                 </div>
-                
+
                 <div className="bg-amber-500/5 border border-amber-500/20 p-6 rounded-[2rem] flex items-center gap-4 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:rotate-12 transition-transform">
                     <Zap className="w-24 h-24 text-amber-500" />
@@ -289,7 +289,7 @@ export function ContainerTab() {
                       </button>
                     </div>
                   </div>
-                  <div 
+                  <div
                     ref={publishedScrollRef}
                     className="grid grid-rows-4 grid-flow-col auto-cols-[calc(50%-1rem)] md:auto-cols-[calc(33.33%-1rem)] lg:auto-cols-[calc(25%-1rem)] gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4"
                     style={{ maxHeight: '800px' }}
@@ -305,17 +305,17 @@ export function ContainerTab() {
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                           <div className="absolute top-2 right-2 flex items-center gap-1">
-                             {post.contentType === 'premium' && <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black px-1.5 py-0">PRM</Badge>}
-                             {post.contentType === 'limited' && <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[8px] font-black px-1.5 py-0">LTD</Badge>}
+                            {post.contentType === 'premium' && <Badge className="bg-primary/20 text-primary border-primary/30 text-[8px] font-black px-1.5 py-0">PRM</Badge>}
+                            {post.contentType === 'limited' && <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30 text-[8px] font-black px-1.5 py-0">LTD</Badge>}
                           </div>
                           <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                              <div className="flex items-center gap-2">
-                                  {post.contentType === 'premium' && <Lock size={12} className="text-primary" />}
-                                  {post.contentType === 'limited' && <Clock size={12} className="text-yellow-400" />}
-                                  {(post.contentType !== 'public') && (
-                                      <span className="text-[9px] font-bold tracking-tight uppercase">{post.unlockCount || 0} {tPub('unlocks')}</span>
-                                  )}
-                              </div>
+                            <div className="flex items-center gap-2">
+                              {post.contentType === 'premium' && <Lock size={12} className="text-primary" />}
+                              {post.contentType === 'limited' && <Clock size={12} className="text-yellow-400" />}
+                              {(post.contentType !== 'public') && (
+                                <span className="text-[9px] font-bold tracking-tight uppercase">{post.unlockCount || 0} {tPub('unlocks')}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )
@@ -344,8 +344,8 @@ export function ContainerTab() {
       )}
 
       {selectedPost && (
-        <ViewPostModal 
-          post={selectedPost} 
+        <ViewPostModal
+          post={selectedPost}
           onClose={() => setSelectedPost(null)}
         />
       )}

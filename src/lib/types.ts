@@ -332,7 +332,7 @@ export interface CreatorMedia {
     caption?: string;
     contentType: PostContentType;
     priceULC: number;
-    status: 'draft' | 'scheduled' | 'published' | 'planned';
+    status: 'draft' | 'scheduled' | 'published' | 'planned' | 'deleted';
     createdAt: any;
     scheduledFor?: number;
     limited?: {

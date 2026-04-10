@@ -636,28 +636,38 @@ function UniqDashboard({
                 setGalleryPhotos(photos);
 
                 // 🧠 INTELLIGENT AUDIT (Phase 2)
-                const closeups = photos.filter(p => 
-                    p.prompt?.toLowerCase().includes('face') || 
-                    p.prompt?.toLowerCase().includes('portrait') || 
-                    p.prompt?.toLowerCase().includes('close up') ||
-                    p.aiPrompt?.toLowerCase().includes('face')
+                // Real uploaded photos have no prompt/aiPrompt — treat them as valid portraits
+                const isRealPhoto = (p: any) => !p.prompt && !p.aiPrompt;
+                const hasKeyword = (p: any, ...words: string[]) =>
+                    words.some(w =>
+                        p.prompt?.toLowerCase().includes(w) ||
+                        p.aiPrompt?.toLowerCase().includes(w) ||
+                        p.caption?.toLowerCase().includes(w)
+                    );
+
+                // Close-ups: real photos implicitly count, AI photos need face/portrait keywords
+                const closeups = photos.filter(p =>
+                    isRealPhoto(p) || hasKeyword(p, 'face', 'portrait', 'close up', 'closeup', 'headshot', 'selfie')
                 ).length;
 
-                const body = photos.filter(p => 
-                    p.prompt?.toLowerCase().includes('body') || 
-                    p.prompt?.toLowerCase().includes('standing') || 
-                    p.prompt?.toLowerCase().includes('walking') ||
-                    p.aiPrompt?.toLowerCase().includes('body')
+                // Full body: real photos count, AI photos need body/standing keywords
+                const body = photos.filter(p =>
+                    isRealPhoto(p) || hasKeyword(p, 'body', 'standing', 'walking', 'full body', 'full-body', 'outfit')
                 ).length;
 
-                // Simple variety check (different prompts or days)
-                const uniquePrompts = new Set(photos.map(p => p.prompt?.substring(0, 20))).size;
-                const variety = Math.min(10, uniquePrompts);
+                // Variety: unique upload days for real photos + unique prompts for AI photos
+                const realPhotoDays = new Set(
+                    photos.filter(isRealPhoto).map(p =>
+                        p.createdAt ? new Date(p.createdAt).toDateString() : 'unknown'
+                    )
+                ).size;
+                const uniquePrompts = new Set(photos.filter(p => !isRealPhoto(p)).map(p => p.prompt?.substring(0, 20))).size;
+                const variety = Math.min(10, realPhotoDays + uniquePrompts);
 
                 const isTotalReady = photos.length >= 15;
                 const isCloseupsReady = closeups >= 5;
                 const isBodyReady = body >= 3;
-                const isVarietyReady = variety >= 5;
+                const isVarietyReady = variety >= 3;
 
                 const ready = isTotalReady && isCloseupsReady && isBodyReady;
 

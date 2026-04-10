@@ -24,9 +24,10 @@ interface FeedPostProps {
   isUnlocked: boolean;
   onPostClick: (post: ContentPost) => void;
   signedUrl?: string;
+  onMediaError?: () => void;
 }
 
-export function FeedPost({ post, creator, canViewContent, isUnlocked, onPostClick, signedUrl }: FeedPostProps) {
+export function FeedPost({ post, creator, canViewContent, isUnlocked, onPostClick, signedUrl, onMediaError }: FeedPostProps) {
   const t = useTranslations('Post');
   const locale = useLocale();
 
@@ -39,7 +40,9 @@ export function FeedPost({ post, creator, canViewContent, isUnlocked, onPostClic
     }
   };
 
-  const displayUrl = signedUrl || (post.contentType === 'public' ? post.mediaUrl : null);
+  // Prefer signed URL; fall back to mediaUrl only if it's a valid http(s) URL (not gs://)
+  const rawMediaUrl = post.mediaUrl?.startsWith('http') ? post.mediaUrl : null;
+  const displayUrl = signedUrl || rawMediaUrl;
   const isSoldOut = post.contentType === 'limited' && post.limited && post.limited.soldCount >= post.limited.totalSupply;
 
   return (
@@ -82,7 +85,12 @@ export function FeedPost({ post, creator, canViewContent, isUnlocked, onPostClic
                     );
                 }
                 return (post.mediaType === 'image' || !post.mediaType) ? (
-                    <img src={displayUrl || post.mediaUrl} alt="post" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <img 
+                        src={displayUrl || post.mediaUrl} 
+                        alt="post" 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={() => onMediaError?.()}
+                    />
                 ) : (
                     <VideoPreview 
                         src={displayUrl || post.mediaUrl} 
@@ -128,14 +136,22 @@ export function FeedPost({ post, creator, canViewContent, isUnlocked, onPostClic
       </div>
 
       {/* Caption */}
-      <div className="p-3 md:p-4 pt-0">
-        <div className="space-y-1">
-          <p className="text-sm">
-            <span className="font-bold mr-2">{post.creatorName}</span>
-            <span className="text-muted-foreground leading-relaxed">{post.content || post.title}</span>
-          </p>
-        </div>
-      </div>
+      {(() => {
+        const caption = post.content || post.title || '';
+        // Only show caption if it has real content (not empty, not just an emoji placeholder like "🖼️post")
+        const isPlaceholder = caption.length < 3 || /^[\p{Emoji}\s]*post$/u.test(caption.trim());
+        if (!caption || isPlaceholder) return null;
+        return (
+          <div className="p-3 md:p-4 pt-0">
+            <div className="space-y-1">
+              <p className="text-sm">
+                <span className="font-bold mr-2">{post.creatorName}</span>
+                <span className="text-muted-foreground leading-relaxed">{caption}</span>
+              </p>
+            </div>
+          </div>
+        );
+      })()}
     </article>
   );
 }

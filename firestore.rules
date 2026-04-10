@@ -43,9 +43,14 @@ service cloud.firestore {
       // 🔒 SADECE KENDİ ADINA MEDYA OLUŞTURABİLİR
       allow create: if isSignedIn() && isOwner(request.resource.data.creatorId);
       allow read: if resource.data.visibility == 'public' || 
-                   isOwner(resource.data.creatorId) || 
+                   isOwner(resource.data.creatorId) ||
+                   // Direct wallet-address auth: uid IS the wallet address
+                   (isSignedIn() && resource.data.creatorId == request.auth.uid) ||
+                   (isSignedIn() && resource.data.creatorId == request.auth.token.walletAddress) ||
                    isAdmin();
-      allow update, delete: if isOwner(resource.data.creatorId) || isAdmin();
+      allow update, delete: if isOwner(resource.data.creatorId) || 
+                              (isSignedIn() && resource.data.creatorId == request.auth.uid) ||
+                              isAdmin();
     }
 
     // 📜 FINANCIAL LEDGER

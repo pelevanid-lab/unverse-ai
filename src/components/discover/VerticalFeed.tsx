@@ -23,17 +23,29 @@ export function VerticalFeed({ postsToShow, subscribedToCreatorIds = [], unlocke
   const [postCreator, setPostCreator] = useState<UserProfile | null>(null);
   const { user } = useWallet();
   const [signedUrls, setSignedUrls] = useState<{ [postId: string]: string }>({});
+  const [brokenPostIds, setBrokenPostIds] = useState<Set<string>>(new Set());
+
+  const handleMediaError = (postId: string) => {
+    setBrokenPostIds(prev => new Set([...prev, postId]));
+  };
 
   useEffect(() => {
     async function preSignUrls() {
-        if (!user || postsToShow.length === 0) return;
+        if (postsToShow.length === 0) return;
         
         const postsToSign = postsToShow.filter(post => {
+            if (signedUrls[post.id]) return false;
+
+            // Public posts: only need signing if mediaUrl is not a valid http(s) URL
+            if (post.contentType === 'public') {
+                return !post.mediaUrl || !post.mediaUrl.startsWith('http');
+            }
+
+            // Premium/limited posts: need signing only if user has access
             const isOwner = user?.uid === post.creatorId;
             const isUnlocked = unlockedPostIds.includes(post.id);
             const isSubscribed = subscribedToCreatorIds.includes(post.creatorId || '');
-            const hasAccess = isOwner || isUnlocked || isSubscribed;
-            return hasAccess && post.contentType !== 'public' && !signedUrls[post.id];
+            return isOwner || isUnlocked || isSubscribed;
         }).map(p => p.id);
 
         if (postsToSign.length === 0) return;
@@ -86,7 +98,9 @@ export function VerticalFeed({ postsToShow, subscribedToCreatorIds = [], unlocke
 
       {/* Vertical Feed List */}
       <div className="flex flex-col pb-20 md:pb-10">
-        {postsToShow.map((post) => {
+        {postsToShow
+          .filter(post => !brokenPostIds.has(post.id))
+          .map((post) => {
           const isOwner = user?.uid === post.creatorId;
           const isUnlocked = unlockedPostIds.includes(post.id);
           const isSubscribed = subscribedToCreatorIds.includes(post.creatorId || '');
@@ -108,6 +122,7 @@ export function VerticalFeed({ postsToShow, subscribedToCreatorIds = [], unlocke
               isUnlocked={isUnlocked}
               onPostClick={handlePostClick}
               signedUrl={signedUrls[post.id]}
+              onMediaError={() => handleMediaError(post.id)}
             />
           );
         })}
